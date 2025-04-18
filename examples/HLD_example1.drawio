@@ -1,0 +1,120 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<mxfile host="Electron" version="25.0.2">
+  <diagram name="Hub and Spoke Topology">
+    <mxGraphModel dx="371" dy="1462" grid="0" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="0" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0" background="#ffffff">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+        <mxCell id="hub" style="shape=rectangle;rounded=1;whiteSpace=wrap;html=1;strokeColor=#0078D4;fontColor=#004578;fillColor=#E6F1FB" vertex="1" parent="1" value="Subscription: HUB&#10;HUB-vnet&#10;10.0.0.0/23">
+          <mxGeometry x="400" y="400" width="400" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="hub_image" style="shape=image;html=1;image=img/lib/azure2/networking/Virtual_Networks.svg;" vertex="1" parent="1">
+          <mxGeometry x="780" y="440" width="20" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="hub_firewall_image" style="shape=image;html=1;image=img/lib/azure2/networking/Firewalls.svg;" vertex="1" parent="1">
+          <mxGeometry x="755" y="440" width="20" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="spoke_right_0" style="shape=rectangle;rounded=1;whiteSpace=wrap;html=1;strokeColor=#CC6600;fontColor=#323130;fillColor=#f2f7fc" vertex="1" parent="1" value="Subscription: IAM LZ&#10;iam-vnet&#10;10.0.8.0/23">
+          <mxGeometry x="900" y="200" width="400" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="spoke0_image" style="shape=image;html=1;image=img/lib/azure2/networking/Virtual_Networks.svg;" vertex="1" parent="1">
+          <mxGeometry x="1280" y="240" width="20" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="edge_right_0" edge="1" source="hub" target="spoke_right_0" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#0078D4;strokeWidth=2;endArrow=block;startArrow=block;" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="800" y="225"/>
+              <mxPoint x="900" y="225"/>
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="spoke_right_1" style="shape=rectangle;rounded=1;whiteSpace=wrap;html=1;strokeColor=#CC6600;fontColor=#323130;fillColor=#f2f7fc" vertex="1" parent="1" value="Subscription: Shared Services LZ&#10;shared-services-vnet&#10;10.0.6.0/23">
+          <mxGeometry x="900" y="300" width="400" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="spoke1_image" style="shape=image;html=1;image=img/lib/azure2/networking/Virtual_Networks.svg;" vertex="1" parent="1">
+          <mxGeometry x="1280" y="340" width="20" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="edge_right_1" edge="1" source="hub" target="spoke_right_1" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#0078D4;strokeWidth=2;endArrow=block;startArrow=block;" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="800" y="325"/>
+              <mxPoint x="900" y="325"/>
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="spoke_right_2" style="shape=rectangle;rounded=1;whiteSpace=wrap;html=1;strokeColor=#CC6600;fontColor=#323130;fillColor=#f2f7fc" vertex="1" parent="1" value="Subscription: Application 1 Prod LZ&#10;app-prod-vnet&#10;10.0.5.0/24">
+          <mxGeometry x="900" y="400" width="400" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="spoke2_image" style="shape=image;html=1;image=img/lib/azure2/networking/Virtual_Networks.svg;" vertex="1" parent="1">
+          <mxGeometry x="1280" y="440" width="20" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="edge_right_2" edge="1" source="hub" target="spoke_right_2" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#0078D4;strokeWidth=2;endArrow=block;startArrow=block;" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="800" y="425"/>
+              <mxPoint x="900" y="425"/>
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="spoke_right_3" style="shape=rectangle;rounded=1;whiteSpace=wrap;html=1;strokeColor=#CC6600;fontColor=#323130;fillColor=#f2f7fc" vertex="1" parent="1" value="Subscription: Application 1 Test LZ&#10;app-test-vnet&#10;10.0.4.0/24">
+          <mxGeometry x="900" y="500" width="400" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="spoke3_image" style="shape=image;html=1;image=img/lib/azure2/networking/Virtual_Networks.svg;" vertex="1" parent="1">
+          <mxGeometry x="1280" y="540" width="20" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="edge_right_3" edge="1" source="hub" target="spoke_right_3" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#0078D4;strokeWidth=2;endArrow=block;startArrow=block;" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="800" y="525"/>
+              <mxPoint x="900" y="525"/>
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="spoke_right_4" style="shape=rectangle;rounded=1;whiteSpace=wrap;html=1;strokeColor=#CC6600;fontColor=#323130;fillColor=#f2f7fc" vertex="1" parent="1" value="Subscription: Application 1 Dev LZ&#10;dev-app-vnet&#10;10.0.2.0/24">
+          <mxGeometry x="900" y="600" width="400" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="spoke4_image" style="shape=image;html=1;image=img/lib/azure2/networking/Virtual_Networks.svg;" vertex="1" parent="1">
+          <mxGeometry x="1280" y="640" width="20" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="edge_right_4" edge="1" source="hub" target="spoke_right_4" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#0078D4;strokeWidth=2;endArrow=block;startArrow=block;" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="800" y="625"/>
+              <mxPoint x="900" y="625"/>
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="nonpeered_spoke0" style="shape=rectangle;rounded=1;whiteSpace=wrap;html=1;strokeColor=#A19F9D;fontColor=#201F1E;fillColor=#F3F2F1" vertex="1" parent="1" value="Subscription: Sandbox&#10;Playground&#10;192.168.0.0/24">
+          <mxGeometry x="1450" y="200" width="400" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="nonpeered_spoke0_image" style="shape=image;html=1;image=img/lib/azure2/networking/Virtual_Networks.svg;" vertex="1" parent="1">
+          <mxGeometry x="1830" y="240" width="20" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="nonpeered_spoke1" style="shape=rectangle;rounded=1;whiteSpace=wrap;html=1;strokeColor=#A19F9D;fontColor=#201F1E;fillColor=#F3F2F1" vertex="1" parent="1" value="Subscription: Sandbox&#10;aks-vnet&#10;10.0.0.0/16">
+          <mxGeometry x="1450" y="300" width="400" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="nonpeered_spoke1_image" style="shape=image;html=1;image=img/lib/azure2/networking/Virtual_Networks.svg;" vertex="1" parent="1">
+          <mxGeometry x="1830" y="340" width="20" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="nonpeered_spoke2" style="shape=rectangle;rounded=1;whiteSpace=wrap;html=1;strokeColor=#A19F9D;fontColor=#201F1E;fillColor=#F3F2F1" vertex="1" parent="1" value="Subscription: Sandbox&#10;Demo-VM-vnet&#10;10.1.0.0/16">
+          <mxGeometry x="1450" y="400" width="400" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="nonpeered_spoke2_image" style="shape=image;html=1;image=img/lib/azure2/networking/Virtual_Networks.svg;" vertex="1" parent="1">
+          <mxGeometry x="1830" y="440" width="20" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="nonpeered_spoke3" style="shape=rectangle;rounded=1;whiteSpace=wrap;html=1;strokeColor=#A19F9D;fontColor=#201F1E;fillColor=#F3F2F1" vertex="1" parent="1" value="Subscription: Sandbox&#10;VMNET1&#10;10.0.0.0/20">
+          <mxGeometry x="1450" y="500" width="400" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="nonpeered_spoke3_image" style="shape=image;html=1;image=img/lib/azure2/networking/Virtual_Networks.svg;" vertex="1" parent="1">
+          <mxGeometry x="1830" y="540" width="20" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="nonpeered_spoke4" style="shape=rectangle;rounded=1;whiteSpace=wrap;html=1;strokeColor=#A19F9D;fontColor=#201F1E;fillColor=#F3F2F1" vertex="1" parent="1" value="Subscription: Sandbox&#10;lab-001-vnet&#10;10.224.0.0/12">
+          <mxGeometry x="1450" y="600" width="400" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="nonpeered_spoke4_image" style="shape=image;html=1;image=img/lib/azure2/networking/Virtual_Networks.svg;" vertex="1" parent="1">
+          <mxGeometry x="1830" y="640" width="20" height="20" as="geometry"/>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
