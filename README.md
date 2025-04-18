@@ -54,6 +54,6 @@ If you have ideas for enhancements (e.g. support for internal peerings, multi-hu
 
 ## 👨‍💻 Author
 Kristoffer Hatland
-🔗 ([LinkedIn](https://www.linkedin.com/in/hatland)  • 🐙 ([GitHub](https://github.com/krhatland) 
+🔗 ([LinkedIn])(https://www.linkedin.com/in/hatland)  • 🐙 ([GitHub])(https://github.com/krhatland) 
 
 
