@@ -1,4 +1,4 @@
-# Azure Network Topology Visualization
+# CLOUDNET DRAW
 
 A Python-based tool for automatically generating visual diagrams of Azure virtual networks using topology data exported from the Azure API. This script creates `.drawio` diagram files representing Hub-and-Spoke network architectures, making it easier to audit, present, and understand complex Azure network infrastructures.
 
@@ -21,7 +21,7 @@ A Python-based tool for automatically generating visual diagrams of Azure virtua
 
 > 💡 The tool outputs `.drawio` files. You can export them to PNG, JPG, PDF, or SVG using the [Draw.io Desktop CLI](https://github.com/jgraph/drawio-desktop).
 
-<img src="examples/example1.png" alt="Example Azure Topology" width="700"/>
+<img src="examples/MLD_example1.png" alt="CloudNet Draw" width="700"/>
 
 ---
 
@@ -31,13 +31,24 @@ A Python-based tool for automatically generating visual diagrams of Azure virtua
 - Azure topology JSON export (your own format or adapted from Azure API)
 - Recommended: [Draw.io Desktop](https://github.com/jgraph/drawio-desktop/releases) for viewing/exporting diagrams
 
-Install dependencies (if any):
+Install dependencies:
+azure-identity>=1.14.0
+azure-mgmt-network>=25.0.0
+azure-mgmt-resource>=23.0.0
+lxml>=4.9.0
+
+## Setup
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+pip install -r requirements.txt
+az login
+
 
 ## 🚀 Usage
 Either add a token from a service principal or manually run az login before running the script to log in to the correct tenant
-Run the azure-query.py to query your current Azure environment
+Run the azure-query.py to query your current Azure environment. This will generate the "network_topology.json" output file.
 
-Run the script to generate the .drawio file:
+The HLD.py and MLD.py files both use the same JSON file as input, you can run them to generate a drawio file from the JSON.
 
 python generate_diagram.py
 By default, the script creates:

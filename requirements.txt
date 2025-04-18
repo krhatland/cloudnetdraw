@@ -1,0 +1,4 @@
+azure-identity>=1.14.0
+azure-mgmt-network>=25.0.0
+azure-mgmt-resource>=23.0.0
+lxml>=4.9.0
