@@ -67,6 +67,9 @@ If you have ideas for enhancements (e.g. support for internal peerings, multi-hu
 Kristoffer Hatland
 🔗 ([LinkedIn](https://www.linkedin.com/in/hatland))  • 🐙 ([GitHub](https://github.com/krhatland))
 
+
+
+
 ## 🛠 Troubleshooting: SSL Certificate Errors on macOS
 If you encounter an error like this:
 
