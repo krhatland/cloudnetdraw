@@ -67,9 +67,11 @@ Kristoffer Hatland
 ## Coming up next
 Next feature will include an Azure Function App to do the running 
 
+![MIT License](https://img.shields.io/badge/license-MIT-blue.svg)
+
+
 <details> <summary><strong>🛠 Troubleshooting: SSL Certificate Errors on macOS</strong></summary>
 
-## 🛠 Troubleshooting: SSL Certificate Errors on macOS
 If you encounter an error like this:
 
 "SSLError: certificate verify failed: unable to get local issuer certificate (_ssl.c:1129)
