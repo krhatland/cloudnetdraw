@@ -106,4 +106,17 @@ python -c "import requests; print(requests.get('https://pypi.org').status_code)"
 🧯 Still not working?
 If you're in a corporate network or using a managed device, the issue may be related to firewalls, proxies, or custom certificates. Please contact your IT department for assistance.
 
+## 🛠️ Note for Users in Corporate Networks (SSL Errors)
+
+If you're behind a corporate proxy that injects SSL certificates (e.g. ZScaler, Palo Alto, company CA), you may experience `certificate verify failed: Missing Authority Key Identifier`.
+
+Try these fixes:
+1. Use `az login` _outside_ the virtual environment first.
+2. Export your corporate root CA together with certifi:
+
+cat ~/your-company.crt $(python3 -m certifi) > ~/full_bundle.crt
+export SSL_CERT_FILE=~/full_bundle.crt
+export REQUESTS_CA_BUNDLE=~/full_bundle.crt
+
+
 
