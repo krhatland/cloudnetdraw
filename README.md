@@ -2,6 +2,7 @@
 
 A Python-based tool for automatically generating visual diagrams of Azure virtual networks using topology data exported from the Azure API. This script creates `.drawio` diagram files representing Hub-and-Spoke network architectures, making it easier to audit, present, and understand complex Azure network infrastructures.
 
+Check the blogpost: ([Blog](https://hatnes.no/posts/cloudnet-draw/)) 
 ---
 
 ## 📌 Key Features
