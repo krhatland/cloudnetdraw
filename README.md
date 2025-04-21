@@ -42,8 +42,12 @@ az login
 
 
 ## 🚀 Usage
-Either add a token from a service principal or manually run az login before running the script to log in to the correct tenant
-Run the azure-query.py to query your current Azure environment. This will generate the "network_topology.json" output file.
+For just testing the solution use Azure CLI with "az login" and run the "azure-query.py" file. The script will list out subscriptions you have access to and ask that you choose which of them to include, comma separated.
+
+For normal usage create a service principal in Azure and delegate access to the service principal to the network environments you wish to map out.
+Add the credentials for the service principal in the "azure-query-sp.py"
+
+Both of them will generate the "network_topology.json" output file.
 
 The HLD.py and MLD.py files both use the same JSON file as input, you can run them to generate a drawio file from the JSON.
 
@@ -66,8 +70,6 @@ Kristoffer Hatland
 
 ## Coming up next
 Next feature will include an Azure Function App to do the running 
-
-![MIT License](https://img.shields.io/badge/license-MIT-blue.svg)
 
 
 <details> <summary><strong>🛠 Troubleshooting: SSL Certificate Errors on macOS</strong></summary>
