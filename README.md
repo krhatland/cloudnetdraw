@@ -68,8 +68,10 @@ If you have ideas for enhancements (e.g. support for internal peerings, multi-hu
 Kristoffer Hatland
 🔗 ([LinkedIn](https://www.linkedin.com/in/hatland))  • 🐙 ([GitHub](https://github.com/krhatland))
 
-## Coming up next
-Next feature will include an Azure Function App to do the running 
+## 🚧 Coming Up Next
+Azure Function App integration for cloud-native execution
+Optional image export (.png) using Draw.io CLI
+GitHub Actions support
 
 
 <details> <summary><strong>🛠 Troubleshooting: SSL Certificate Errors on macOS</strong></summary>
