@@ -35,10 +35,13 @@ Install dependencies:
 pip install -r requirements.txt
 
 ## Setup
+# macOS / Linux
+python3 -m venv venv
+source venv/bin/activate
+
+# Windows
 python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-pip install -r requirements.txt
-az login
+venv\Scripts\activate
 
 
 ## 🚀 Usage
