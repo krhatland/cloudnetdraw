@@ -67,4 +67,32 @@ If you have ideas for enhancements (e.g. support for internal peerings, multi-hu
 Kristoffer Hatland
 🔗 ([LinkedIn](https://www.linkedin.com/in/hatland))  • 🐙 ([GitHub](https://github.com/krhatland))
 
+## 🛠 Troubleshooting: SSL Certificate Errors on macOS
+If you encounter an error like this:
+
+"SSLError: certificate verify failed: unable to get local issuer certificate (_ssl.c:1129)
+It's usually due to missing trusted root certificates in your Python environment."
+
+✅ Fix for macOS (python.org installs)
+If you're using Python installed from python.org, run this command outside your virtual environment:
+
+/Applications/Python\ 3.X/Install\ Certificates.command
+Replace 3.X with your Python version (e.g. Python 3.11 or Python 3.13)
+
+This is a one-time fix that installs the correct trusted certificates.
+
+💡 After running the fix
+Recreate or activate your virtual environment:
+
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+Test certificate validation:
+
+python -c "import requests; print(requests.get('https://pypi.org').status_code)"
+✅ You should see 200 as the output, confirming SSL works correctly.
+
+🧯 Still not working?
+If you're in a corporate network or using a managed device, the issue may be related to firewalls, proxies, or custom certificates. Please contact your IT department for assistance.
+
 

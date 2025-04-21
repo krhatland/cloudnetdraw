@@ -117,8 +117,6 @@ def save_to_json(data, filename="network_topology.json"):
 if __name__ == "__main__":
     print("Listing available subscriptions...")
     selected_subscriptions = list_and_select_subscriptions()
-
     print("Collecting VNets and topology...")
     topology = get_vnet_topology_for_selected_subscriptions(selected_subscriptions)
-
     save_to_json(topology)
