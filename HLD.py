@@ -322,7 +322,6 @@ def create_drawio_vnet_hub_and_spokes_diagram(filename, topology_file):
             },
         )    
 
-
     # Write to file
     tree = etree.ElementTree(mxfile)
     with open(filename, "wb") as f:
@@ -330,5 +329,4 @@ def create_drawio_vnet_hub_and_spokes_diagram(filename, topology_file):
 
 # Generate the diagram from the JSON file
 create_drawio_vnet_hub_and_spokes_diagram("network_hld.drawio", "network_topology.json")
-
 print("Diagram generation complete.")

@@ -32,7 +32,7 @@ def create_drawio_vnet_hub_and_spokes_diagram(filename, topology_file):
     etree.SubElement(root, "mxCell", id="0")  # Root cell
     etree.SubElement(root, "mxCell", id="1", parent="0")  # Parent cell for all shapes
 
-        # Add Hub VNet
+    # Add Hub VNet
     hub_id = "hub"
     num_subnets = len(hub_vnet.get("subnets", []))
     vnet_height = 50 if hub_vnet.get("type") == "virtual_hub" else 30 + (num_subnets * 30)
@@ -151,6 +151,7 @@ def create_drawio_vnet_hub_and_spokes_diagram(filename, topology_file):
             y_offset = 35 + subnet_index * 30
             etree.SubElement(subnet_cell, "mxGeometry", attrib={"x": "25", "y": str(y_offset), "width": "350", "height": "20", "as": "geometry"})
 
+            #Add NSG icon if NSG is attached to the subnet
             if subnet.get("nsg", "").lower() == "yes":
                 nsg_icon = etree.SubElement(
                     root,
@@ -166,6 +167,7 @@ def create_drawio_vnet_hub_and_spokes_diagram(filename, topology_file):
                     attrib={"x": "25", "y": str(y_offset), "width": "20", "height": "20", "as": "geometry"},
                 )
 
+            #Add UDR icon if UDR is attached to the subnet
             if subnet.get("udr", "").lower() == "yes":
                 udr_icon = etree.SubElement(
                     root,
@@ -408,7 +410,6 @@ def create_drawio_vnet_hub_and_spokes_diagram(filename, topology_file):
 
         current_y_nonpeered += vnet_height + padding
 
-
     # Write to file
     tree = etree.ElementTree(mxfile)
     with open(filename, "wb") as f:
@@ -420,3 +421,4 @@ if __name__ == "__main__":
     logging.info("Starting diagram generation...")
     create_drawio_vnet_hub_and_spokes_diagram("network_mld.drawio", "network_topology.json")
     logging.info("Diagram generation complete.")
+    print("Diagram generation complete.")
