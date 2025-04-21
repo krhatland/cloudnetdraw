@@ -32,10 +32,7 @@ A Python-based tool for automatically generating visual diagrams of Azure virtua
 - Recommended: [Draw.io Desktop](https://github.com/jgraph/drawio-desktop/releases) for viewing/exporting diagrams
 
 Install dependencies:
-azure-identity>=1.14.0
-azure-mgmt-network>=25.0.0
-azure-mgmt-resource>=23.0.0
-lxml>=4.9.0
+pip install -r requirements.txt
 
 ## Setup
 python -m venv venv
@@ -50,10 +47,10 @@ Run the azure-query.py to query your current Azure environment. This will genera
 
 The HLD.py and MLD.py files both use the same JSON file as input, you can run them to generate a drawio file from the JSON.
 
-python generate_diagram.py
+HLD.py / MLD.py
 By default, the script creates:
 
-network_mld.drawio
+network_hld.drawio & network_mld.drawio
 
 ## 📄 License
 This project is licensed under the MIT License.
@@ -69,6 +66,8 @@ Kristoffer Hatland
 
 ## Coming up next
 Next feature will include an Azure Function App to do the running 
+
+<details> <summary><strong>🛠 Troubleshooting: SSL Certificate Errors on macOS</strong></summary>
 
 ## 🛠 Troubleshooting: SSL Certificate Errors on macOS
 If you encounter an error like this:
