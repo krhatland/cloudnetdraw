@@ -67,8 +67,8 @@ If you have ideas for enhancements (e.g. support for internal peerings, multi-hu
 Kristoffer Hatland
 🔗 ([LinkedIn](https://www.linkedin.com/in/hatland))  • 🐙 ([GitHub](https://github.com/krhatland))
 
-
-
+## Coming up next
+Next feature will include an Azure Function App to do the running 
 
 ## 🛠 Troubleshooting: SSL Certificate Errors on macOS
 If you encounter an error like this:
