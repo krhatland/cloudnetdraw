@@ -1,10 +1,11 @@
 import json
 import logging
 from lxml import etree
-
+# Configure logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+    
 def create_drawio_vnet_hub_and_spokes_diagram(filename, topology_file):
-    # Configure logging
-    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
 
     # Load the topology JSON data
     with open(topology_file, 'r') as file:
@@ -326,7 +327,12 @@ def create_drawio_vnet_hub_and_spokes_diagram(filename, topology_file):
     tree = etree.ElementTree(mxfile)
     with open(filename, "wb") as f:
         tree.write(f, encoding="utf-8", xml_declaration=True, pretty_print=True)
+    logging.info(f"Draw.io diagram generated and saved to {filename}")
+
 
 # Generate the diagram from the JSON file
-create_drawio_vnet_hub_and_spokes_diagram("network_hld.drawio", "network_topology.json")
-print("Diagram generation complete.")
+if __name__ == "__main__":
+    logging.info("Starting HLD diagram generation...")
+    create_drawio_vnet_hub_and_spokes_diagram("network_hld.drawio", "network_topology.json")
+    logging.info("Diagram generation complete.")
+    print("Diagram generation complete.")
