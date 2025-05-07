@@ -84,7 +84,7 @@ def get_vnet_topology_for_selected_subscriptions(subscription_ids):
 
             peerings = network_client.virtual_network_peerings.list(resource_group_name, vnet.name)
             for peering in peerings:
-                vnet_info["peerings"].append(peering.remote_virtual_network.id.split("/")[-1])
+                vnet_info["peerings"].append(peering.name)
 
             vnet_info["peerings_count"] = len(vnet_info["peerings"])
             vnet_candidates.append(vnet_info)
