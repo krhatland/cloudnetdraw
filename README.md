@@ -78,6 +78,12 @@ Optional image export (.png) using Draw.io CLI
 GitHub Actions support
 
 
+<details> <summary><strong>🛠 Troubleshooting: Script not working</strong></summary>
+
+If you are able to list out the subscriptions, but nothing happens after that:
+This is usually an issue where Defender for endpont blocks pip. 
+It should be resolved when you allow it in Defender
+
 <details> <summary><strong>🛠 Troubleshooting: SSL Certificate Errors on macOS</strong></summary>
 
 If you encounter an error like this:
