@@ -18,6 +18,9 @@ Check the blogpost: ([Blog](https://hatnes.no/posts/cloudnet-draw/))
 
 ---
 
+## Update
+Added support for deployment through local Azure Function to self-host a timed function in own tenant
+
 ## 🖼️ Example Output
 
 > 💡 The tool outputs `.drawio` files. You can export them to PNG, JPG, PDF, or SVG using the [Draw.io Desktop CLI](https://github.com/jgraph/drawio-desktop).
