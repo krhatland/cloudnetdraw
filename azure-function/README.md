@@ -31,3 +31,9 @@ Environment variables provided to the Function App:
 - `DRAWING_STORAGE_URL` – blob endpoint of the drawing storage account
 - `DRAWING_CONTAINER_NAME` – container where diagrams are stored (`drawfunc`)
 
+### Requirements
+After the function is deployed the user needs to add access to the azure environment they would like to map! The function will create a managed identity (system assigned identity) during deployment.
+The function will use this identity to access azure resources, so without granting access to the identity there will only be empty drawings.
+
+### Additional
+I added CORS header for https://portal.azure.com which allows us to run the function manually from within the portal.
