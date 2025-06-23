@@ -22,6 +22,10 @@ The Function runs daily at midnight UTC (`0 0 0 * * *`). Diagrams are uploaded
 to the storage account specified by `drawingStorageAccountName` using managed
 identity authentication.
 
+### Details
+I found no good way to deploy both the code and the IaC in one go, so this will only deploy the IaC and then instruct the function to download the function code from a public storage account through a environment variable:
+https://cloudnetdrawappstorage.blob.core.windows.net/cloudnetdrawapp/function.zip 
+
 Environment variables provided to the Function App:
 
 - `DRAWING_STORAGE_URL` – blob endpoint of the drawing storage account
