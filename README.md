@@ -13,7 +13,6 @@ Now supporting direct deployment to Azure Function in your own tenant! Check it 
 Check the New Website: ([Web](https://www.cloudnetdraw.com/)) 
 
 Check the blogpost: ([Blog](https://hatnes.no/posts/cloudnet-draw/)) 
----
 
 ## 📌 Key Features
 
