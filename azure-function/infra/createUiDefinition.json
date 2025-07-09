@@ -1,0 +1,66 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/createUiDefinition.json#",
+  "handler": "Microsoft.Azure.CreateUIDefinition",
+  "version": "1.0.0",
+  "parameters": {
+    "basics": [
+      {
+        "name": "functionAppName",
+        "type": "string",
+        "label": "Function App Name",
+        "defaultValue": "cloudnet-function",
+        "constraints": {
+          "required": true,
+          "regex": "^[a-zA-Z][a-zA-Z0-9-]{1,60}$",
+          "validationMessage": "Function App name must be 2-60 characters, start with a letter, and contain only letters, numbers, or hyphens."
+        }
+      },
+      {
+        "name": "appServicePlanName",
+        "type": "string",
+        "label": "App Service Plan Name",
+        "defaultValue": "cloudnet-plan",
+        "constraints": {
+          "required": true,
+          "regex": "^[a-zA-Z][a-zA-Z0-9-]{1,60}$",
+          "validationMessage": "App Service Plan name must be valid and unique in your resource group."
+        }
+      },
+      {
+        "name": "storageAccountName",
+        "type": "string",
+        "label": "Storage Account Name",
+        "defaultValue": "cloudnetstore",
+        "constraints": {
+          "required": true,
+          "regex": "^[a-z0-9]{3,24}$",
+          "validationMessage": "Storage account name must be 3–24 lowercase letters or numbers, no hyphens."
+        }
+      },
+      {
+        "name": "containerName",
+        "type": "string",
+        "label": "Blob Container Name",
+        "defaultValue": "drawfunc",
+        "constraints": {
+          "required": true,
+          "regex": "^[a-z0-9-]{3,63}$",
+          "validationMessage": "Container name must be 3–63 lowercase letters, numbers, or hyphens."
+        }
+      },
+      {
+        "name": "location",
+        "type": "Microsoft.Common.Location",
+        "label": "Location",
+        "defaultValue": "[resourceGroup().location]"
+      }
+    ],
+    "outputs": {
+      "functionAppName": "[basics('functionAppName')]",
+      "appServicePlanName": "[basics('appServicePlanName')]",
+      "storageAccountName": "[basics('storageAccountName')]",
+      "containerName": "[basics('containerName')]",
+      "location": "[basics('location')]"
+    }
+  }
+}
