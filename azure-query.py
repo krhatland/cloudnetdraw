@@ -1,7 +1,6 @@
 from azure.identity import AzureCliCredential
 from azure.mgmt.network import NetworkManagementClient
 from azure.mgmt.resource import SubscriptionClient
-from azure.core.exceptions import ResourceNotFoundError
 import json
 
 # Azure authentication using CLI credentials
@@ -16,7 +15,7 @@ def extract_resource_group(resource_id):
 
 # Collect all VNets and their details across selected subscriptions
 def get_vnet_topology_for_selected_subscriptions(subscription_ids):
-    network_data = {"hub": {}, "spokes": []}
+    network_data = {"hubs": [], "spokes": [], "peerings": []}
     vnet_candidates = []
 
     for subscription_id in subscription_ids:
@@ -39,7 +38,7 @@ def get_vnet_topology_for_selected_subscriptions(subscription_ids):
                         has_vpn_gateway = hasattr(hub, "vpn_gateway") and hub.vpn_gateway is not None
                         has_firewall = hasattr(hub, "azure_firewall") and hub.azure_firewall is not None
 
-                        network_data["hub"] = {
+                        network_data["hubs"].append({
                             "name": hub.name,
                             "address_space": hub.address_prefix,
                             "type": "virtual_hub",
@@ -47,8 +46,7 @@ def get_vnet_topology_for_selected_subscriptions(subscription_ids):
                             "expressroute": "Yes" if has_expressroute else "No",
                             "vpn_gateway": "Yes" if has_vpn_gateway else "No",
                             "firewall": "Yes" if has_firewall else "No"
-                        }
-                        break  # Assume only one hub is needed
+                        })
                 except Exception as e:
                     print(f"Warning: Could not retrieve virtual hub details for {vwan.name} in subscription {subscription_id}. Error: {e}")
         except Exception as e:
@@ -88,11 +86,19 @@ def get_vnet_topology_for_selected_subscriptions(subscription_ids):
 
             vnet_info["peerings_count"] = len(vnet_info["peerings"])
             vnet_candidates.append(vnet_info)
+        
+        # Now let's get the peerings
+        for peering in network_client.virtual_network_peerings.list():
+            network_data["peerings"].append({
+                "name": peering.name,
+                "remote_virtual_network": peering.remote_virtual_network.id,
+                "remote_address_space": peering.remote_address_space.address_prefixes[0] if peering.remote_address_space.address_prefixes else "N/A",
+            })
 
     # If no virtual hub found, select the VNet with the most peerings
-    if not network_data["hub"] and vnet_candidates:
+    if len(network_data["hubs"])==0 and vnet_candidates:
         vnet_candidates.sort(key=lambda x: x["peerings_count"], reverse=True)
-        network_data["hub"] = vnet_candidates.pop(0)
+        network_data["hubs"].append(vnet_candidates.pop(0))
 
     network_data["spokes"] = vnet_candidates
     return network_data
