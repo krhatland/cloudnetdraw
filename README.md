@@ -10,7 +10,7 @@ Now supporting direct deployment to Azure Function in your own tenant! Check it 
 
 [![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fkrhatland%2Fcloudnet-draw%2Fmain%2Fazure-function%2Finfra%2Fmain.json)
 
-Check the New Website: ([Web](https://www.cloudnetdraw.com/)) 
+🚀 Try it free on the Website: ([CloudNetDraw](https://www.cloudnetdraw.com/)) 
 
 Check the blogpost: ([Blog](https://hatnes.no/posts/cloudnet-draw/)) 
 
