@@ -1,5 +1,9 @@
-# cloudnet-draw-full-selfhost
+# CloudNetDraw - Full Selfhost
 IaC and Function code
+
+🚀 Try it free on the Website: ([CloudNetDraw](https://www.cloudnetdraw.com/)) 
+
+Check the blogpost: ([Blog](https://hatnes.no/posts/cloudnet-draw/)) 
 
 ## Deploy to Azure
 
