@@ -251,7 +251,11 @@ $RECYCLE.BIN/
 
 
 # diagram artifacts, this covers the defaults, users should be careful of generating
-# packages in the source repo and accidentally committing them.
+# packages in the source repo and accidentally committing their network topology to github.
 network_hld.drawio 
 network_topology.json
 network_mld.drawio
+
+
+# draw.io temp files
+*.dtmp
