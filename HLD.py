@@ -68,7 +68,7 @@ def create_drawio_vnet_hub_and_spokes_diagram(filename, topology_file):
         )
         
         # Default style for hub VNets
-        default_style = "shape=rectangle;rounded=1;whiteSpace=wrap;html=1;strokeColor=#0078D4;fontColor=#004578;fillColor=#E6F1FB"
+        default_style = "shape=rectangle;rounded=0;whiteSpace=wrap;html=1;strokeColor=#0078D4;fontColor=#004578;fillColor=#E6F1FB;align=left"
         
         # Add VNet box as child of group (using relative positioning)
         vnet_element = etree.SubElement(
@@ -86,20 +86,7 @@ def create_drawio_vnet_hub_and_spokes_diagram(filename, topology_file):
             attrib={"x": "0", "y": "0", "width": "400", "height": str(vnet_height), "as": "geometry"},
         )
 
-        # Add VNet image as child of group
-        image = etree.SubElement(
-            root,
-            "mxCell",
-            id=f"{vnet_id}_image",
-            style="shape=image;html=1;image=img/lib/azure2/networking/Virtual_Networks.svg;",
-            vertex="1",
-            parent=group_id,
-        )
-        etree.SubElement(
-            image,
-            "mxGeometry",
-            attrib={"x": "380", "y": str(vnet_height + 5), "width": "20", "height": "20", "as": "geometry"},
-        )
+        # VNet icons will be positioned dynamically after feature icons are determined
         
         # Add Virtual Hub icon if applicable
         if vnet_data.get("type") == "virtual_hub":
@@ -117,57 +104,107 @@ def create_drawio_vnet_hub_and_spokes_diagram(filename, topology_file):
                 attrib={"x": "-10", "y": str(vnet_height - 15), "width": "20", "height": "20", "as": "geometry"},
             )
         
-        # Add feature icons as children of group
-        icon_x_base = 355
-        icon_y = vnet_height + 5
-        icon_spacing = -25
-
+        # Dynamic VNet icon positioning (top-right aligned)
+        vnet_width = 400  # VNet box width
+        y_offset = config.icon_positioning['vnet_icons']['y_offset']
+        right_margin = config.icon_positioning['vnet_icons']['right_margin']
+        icon_gap = config.icon_positioning['vnet_icons']['icon_gap']
+        
+        # Build list of VNet decorator icons to display (right to left order)
+        vnet_icons_to_render = []
+        
+        # VNet icon is always present (rightmost)
+        vnet_icon_width, vnet_icon_height = config.get_icon_size('vnet')
+        vnet_icons_to_render.append({
+            'type': 'vnet',
+            'width': vnet_icon_width,
+            'height': vnet_icon_height
+        })
+        
+        # ExpressRoute icon (if present)
         if vnet_data.get("expressroute", "").lower() == "yes":
-            express_icon = etree.SubElement(
-                root,
-                "mxCell",
-                id=f"{vnet_id}_expressroute_image",
-                style="shape=image;html=1;image=img/lib/azure2/networking/ExpressRoute_Circuits.svg;",
-                vertex="1",
-                parent=group_id,
-            )
-            etree.SubElement(
-                express_icon,
-                "mxGeometry",
-                attrib={"x": str(icon_x_base), "y": str(icon_y), "width": "20", "height": "20", "as": "geometry"},
-            )
-            icon_x_base += icon_spacing
-
+            express_width, express_height = config.get_icon_size('expressroute')
+            vnet_icons_to_render.append({
+                'type': 'expressroute',
+                'width': express_width,
+                'height': express_height
+            })
+        
+        # Firewall icon (if present)
         if vnet_data.get("firewall", "").lower() == "yes":
-            firewall_icon = etree.SubElement(
-                root,
-                "mxCell",
-                id=f"{vnet_id}_firewall_image",
-                style="shape=image;html=1;image=img/lib/azure2/networking/Firewalls.svg;",
-                vertex="1",
-                parent=group_id,
-            )
-            etree.SubElement(
-                firewall_icon,
-                "mxGeometry",
-                attrib={"x": str(icon_x_base), "y": str(icon_y), "width": "20", "height": "20", "as": "geometry"},
-            )
-            icon_x_base += icon_spacing
-
+            firewall_width, firewall_height = config.get_icon_size('firewall')
+            vnet_icons_to_render.append({
+                'type': 'firewall',
+                'width': firewall_width,
+                'height': firewall_height
+            })
+        
+        # VPN Gateway icon (if present, leftmost)
         if vnet_data.get("vpn_gateway", "").lower() == "yes":
-            vpn_icon = etree.SubElement(
-                root,
-                "mxCell",
-                id=f"{vnet_id}_vpn_image",
-                style="shape=image;html=1;image=img/lib/azure2/networking/VPN_Gateways.svg;",
-                vertex="1",
-                parent=group_id,
-            )
+            vpn_width, vpn_height = config.get_icon_size('vpn_gateway')
+            vnet_icons_to_render.append({
+                'type': 'vpn_gateway',
+                'width': vpn_width,
+                'height': vpn_height
+            })
+        
+        # Calculate positions from right to left
+        current_x = vnet_width - right_margin
+        for icon in vnet_icons_to_render:
+            current_x -= icon['width']
+            icon['x'] = current_x
+            
+            # Create the icon element as child of VNet
+            if icon['type'] == 'vnet':
+                icon_element = etree.SubElement(
+                    root,
+                    "mxCell",
+                    id=f"{vnet_id}_image",
+                    style=f"shape=image;html=1;image={config.get_icon_path('vnet')};",
+                    vertex="1",
+                    parent=vnet_id,  # Parent to VNet, not group
+                )
+            elif icon['type'] == 'expressroute':
+                icon_element = etree.SubElement(
+                    root,
+                    "mxCell",
+                    id=f"{vnet_id}_expressroute_image",
+                    style=f"shape=image;html=1;image={config.get_icon_path('expressroute')};",
+                    vertex="1",
+                    parent=vnet_id,  # Parent to VNet, not group
+                )
+            elif icon['type'] == 'firewall':
+                icon_element = etree.SubElement(
+                    root,
+                    "mxCell",
+                    id=f"{vnet_id}_firewall_image",
+                    style=f"shape=image;html=1;image={config.get_icon_path('firewall')};",
+                    vertex="1",
+                    parent=vnet_id,  # Parent to VNet, not group
+                )
+            elif icon['type'] == 'vpn_gateway':
+                icon_element = etree.SubElement(
+                    root,
+                    "mxCell",
+                    id=f"{vnet_id}_vpn_image",
+                    style=f"shape=image;html=1;image={config.get_icon_path('vpn_gateway')};",
+                    vertex="1",
+                    parent=vnet_id,  # Parent to VNet, not group
+                )
+            
             etree.SubElement(
-                vpn_icon,
+                icon_element,
                 "mxGeometry",
-                attrib={"x": str(icon_x_base), "y": str(icon_y), "width": "20", "height": "20", "as": "geometry"},
+                attrib={
+                    "x": str(icon['x']),
+                    "y": str(y_offset),
+                    "width": str(icon['width']),
+                    "height": str(icon['height']),
+                    "as": "geometry"
+                },
             )
+            
+            current_x -= icon_gap
         
         return group_height
 

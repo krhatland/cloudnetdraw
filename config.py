@@ -82,18 +82,18 @@ class Config:
         else:
             style = self.hub_style  # Default to hub style
         
-        return (f"shape=rectangle;rounded=1;whiteSpace=wrap;html=1;"
+        return (f"shape=rectangle;rounded=0;whiteSpace=wrap;html=1;"
                 f"strokeColor={style['border_color']};"
                 f"fontColor={style['font_color']};"
-                f"fillColor={style['fill_color']};verticalAlign=top")
+                f"fillColor={style['fill_color']};verticalAlign=top;align={style['text_align']}")
     
     def get_subnet_style_string(self) -> str:
         """Get formatted style string for subnet elements"""
         subnet = self.subnet_style
-        return (f"shape=rectangle;rounded=1;whiteSpace=wrap;html=1;"
+        return (f"shape=rectangle;rounded=0;whiteSpace=wrap;html=1;"
                 f"strokeColor={subnet['border_color']};"
                 f"fontColor={subnet['font_color']};"
-                f"fillColor={subnet['fill_color']}")
+                f"fillColor={subnet['fill_color']};align={subnet['text_align']}")
     
     def get_edge_style_string(self) -> str:
         """Get formatted style string for edge connections"""
