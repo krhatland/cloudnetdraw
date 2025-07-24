@@ -49,8 +49,32 @@ pip install -r requirements.txt
 
 ## Setup
 ## macOS / Linux
+
+### Using uv (Recommended)
+```bash
+# Create virtual environment
+uv venv
+
+# Install dependencies
+uv pip install -r requirements.txt
+
+# Run scripts directly with uv
+uv run python azure-query.py
+uv run python HLD.py
+uv run python MLD.py
+```
+
+### Traditional venv
+```bash
 python3 -m venv venv
 source venv/bin/activate
+pip install -r requirements.txt
+```
+
+To activate the virtual environment manually:
+```bash
+source .venv/bin/activate
+```
 
 ## Windows
 python -m venv venv
