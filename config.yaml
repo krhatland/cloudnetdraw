@@ -1,0 +1,161 @@
+# CloudNet Draw Configuration
+# This file contains all styling, layout, and icon settings for network diagrams
+
+# VNet classification thresholds
+thresholds:
+  hub_peering_count: 3  # VNets with >= this many peerings are classified as hubs
+
+# VNet styling by type
+styles:
+  hub:
+    border_color: "#0078D4"
+    fill_color: "#E6F1FB"
+    font_color: "#004578"
+    line_color: "#0078D4"
+    
+  spoke:
+    border_color: "#CC6600"
+    fill_color: "#f2f7fc"
+    font_color: "#CC6600"
+    line_color: "#0078D4"
+    
+  non_peered:
+    border_color: "gray"
+    fill_color: "#f5f5f5"
+    font_color: "gray"
+    line_color: "gray"
+
+# Subnet styling
+subnet:
+  border_color: "#C8C6C4"
+  fill_color: "#FAF9F8"
+  font_color: "#323130"
+
+# Layout settings
+layout:
+  hub:
+    spacing_x: 450  # Horizontal spacing between hubs
+    spacing_y: 400  # Vertical position of hubs
+    width: 400
+    height: 50
+    
+  spoke:
+    spacing_y: 100  # Vertical spacing between spokes
+    start_y: 200    # Starting Y position for spokes
+    width: 400
+    height: 50
+    left_x: -100    # X position for left-side spokes
+    right_x: 900    # X position for right-side spokes
+    
+  non_peered:
+    spacing_y: 100
+    start_y: 200
+    x: 1450         # X position for non-peered spokes
+    width: 400
+    height: 50
+    
+  subnet:
+    width: 350
+    height: 20
+    padding_x: 25
+    padding_y: 35
+    spacing_y: 30
+
+# Edge/Connection styling
+edges:
+  stroke_color: "#0078D4"
+  stroke_width: 2
+  style: "edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#0078D4;strokeWidth=2;endArrow=block;startArrow=block;"
+
+# Icon settings for Azure service decorators
+icons:
+  # Base VNet icon
+  vnet:
+    path: "img/lib/azure2/networking/Virtual_Networks.svg"
+    width: 20
+    height: 20
+    
+  # Virtual Hub icon
+  virtual_hub:
+    path: "img/lib/azure2/networking/Virtual_WANs.svg"
+    width: 20
+    height: 20
+    
+  # ExpressRoute icon
+  expressroute:
+    path: "img/lib/azure2/networking/ExpressRoute_Circuits.svg"
+    width: 20
+    height: 20
+    
+  # Azure Firewall icon
+  firewall:
+    path: "img/lib/azure2/networking/Firewalls.svg"
+    width: 20
+    height: 20
+    
+  # VPN Gateway icon
+  vpn_gateway:
+    path: "img/lib/azure2/networking/VPN_Gateways.svg"
+    width: 20
+    height: 20
+    
+  # Network Security Group icon
+  nsg:
+    path: "img/lib/azure2/networking/Network_Security_Groups.svg"
+    width: 20
+    height: 20
+    
+  # Route Table (UDR) icon
+  route_table:
+    path: "img/lib/azure2/networking/Route_Tables.svg"
+    width: 20
+    height: 20
+
+# Icon positioning
+icon_positioning:
+  # Feature icons positioning relative to VNet
+  feature_icons:
+    start_x: 360      # Starting X position relative to VNet
+    start_y: 5        # Y position relative to VNet bottom
+    spacing: -25      # Space between icons (negative = left-to-right)
+    
+  # VNet icon positioning
+  vnet_icon:
+    offset_x: 380     # X offset from VNet left edge
+    offset_y: 5       # Y offset from VNet bottom
+    
+  # Virtual Hub icon positioning
+  virtual_hub_icon:
+    offset_x: -10     # X offset from VNet left edge
+    offset_y: -15     # Y offset from VNet bottom
+    
+  # Subnet icon positioning
+  subnet_icons:
+    nsg_x: 25         # X position within subnet
+    udr_x: 355        # X position within subnet for UDR
+
+# Draw.io specific settings
+drawio:
+  # Canvas settings
+  canvas:
+    dx: "371"
+    dy: "1462"
+    grid: "0"
+    gridSize: "10"
+    guides: "1"
+    tooltips: "1"
+    connect: "1"
+    arrows: "1"
+    fold: "1"
+    page: "0"
+    pageScale: "1"
+    pageWidth: "827"
+    pageHeight: "1169"
+    background: "#ffffff"
+    math: "0"
+    shadow: "0"
+    
+  # Group settings
+  group:
+    extra_height: 20  # Extra space in group for icons
+    connectable: "0"

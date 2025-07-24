@@ -1,6 +1,7 @@
 import json
 import logging
 from lxml import etree
+from config import config
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
     
@@ -16,8 +17,8 @@ def create_drawio_vnet_hub_and_spokes_diagram(filename, topology_file):
     
     # Classify VNets for layout purposes (keep existing layout logic)
     # Highly connected VNets (hubs) vs others
-    hub_vnets = [vnet for vnet in vnets if vnet.get("peerings_count", 0) >= 10]
-    spoke_vnets = [vnet for vnet in vnets if vnet.get("peerings_count", 0) < 10]
+    hub_vnets = [vnet for vnet in vnets if vnet.get("peerings_count", 0) >= config.hub_threshold]
+    spoke_vnets = [vnet for vnet in vnets if vnet.get("peerings_count", 0) < config.hub_threshold]
     
     # If no highly connected VNets, treat the first one as primary for layout
     if not hub_vnets and vnets:
@@ -32,12 +33,7 @@ def create_drawio_vnet_hub_and_spokes_diagram(filename, topology_file):
     mxGraphModel = etree.SubElement(
         diagram,
         "mxGraphModel",
-        attrib={
-            "dx": "371", "dy": "1462", "grid": "0", "gridSize": "10", "guides": "1",
-            "tooltips": "1", "connect": "1", "arrows": "1", "fold": "1",
-            "page": "0", "pageScale": "1", "pageWidth": "827", "pageHeight": "1169",
-            "math": "0", "shadow": "0", "background": "#ffffff"
-        },
+        attrib=config.get_canvas_attributes(),
     )
     root = etree.SubElement(mxGraphModel, "root")
 
@@ -176,16 +172,16 @@ def create_drawio_vnet_hub_and_spokes_diagram(filename, topology_file):
 
     # Render hub VNets (highly connected ones)
     for hub_index, hub_vnet in enumerate(hub_vnets):
-        x_offset = 400 + (hub_index * 450)  # Space hubs horizontally
-        y_offset = 400
+        x_offset = 400 + (hub_index * config.layout['hub']['spacing_x'])
+        y_offset = config.layout['hub']['spacing_y']
         hub_id = f"hub_{hub_index}"
         
         # Use new grouped function for hubs
         add_vnet_with_features(hub_vnet, hub_id, x_offset, y_offset)
 
     # Dynamic spacing for spokes
-    spacing = 100
-    start_y = 200
+    spacing = config.layout['spoke']['spacing_y']
+    start_y = config.layout['spoke']['start_y']
     left_spokes = []
     right_spokes = []
     non_peered_spokes = []
@@ -212,11 +208,11 @@ def create_drawio_vnet_hub_and_spokes_diagram(filename, topology_file):
     # Add spokes on the right-hand side
     for index, spoke in enumerate(right_spokes):
         y_position = start_y + index * spacing
-        x_position = 900
+        x_position = config.layout['spoke']['right_x']
         spoke_id = f"spoke_right_{index}"
         
         # Use new grouped function for spokes with custom styling
-        spoke_style = "shape=rectangle;rounded=1;whiteSpace=wrap;html=1;strokeColor=#CC6600;fontColor=#323130;fillColor=#f2f7fc"
+        spoke_style = config.get_vnet_style_string('spoke')
         add_vnet_with_features(spoke, spoke_id, x_position, y_position, spoke_style)
 
         # Add connection from primary Hub to Spokes
@@ -228,7 +224,7 @@ def create_drawio_vnet_hub_and_spokes_diagram(filename, topology_file):
                 edge="1",
                 source="hub_0",  # Connect to primary hub
                 target=f"spoke_right_{index}",
-                style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#0078D4;strokeWidth=2;endArrow=block;startArrow=block;",
+                style=config.get_edge_style_string(),
                 parent="1",
             )
             edge_geometry = etree.SubElement(edge, "mxGeometry", attrib={"relative": "1", "as": "geometry"})
@@ -239,11 +235,11 @@ def create_drawio_vnet_hub_and_spokes_diagram(filename, topology_file):
     # Add spokes on the left-hand side
     for index, spoke in enumerate(left_spokes):
         y_position = start_y + index * spacing
-        x_position = -100
+        x_position = config.layout['spoke']['left_x']
         spoke_id = f"spoke_left_{index}"
         
         # Use new grouped function for spokes with custom styling
-        spoke_style = "shape=rectangle;rounded=1;whiteSpace=wrap;html=1;strokeColor=#CC6600;fontColor=#323130;fillColor=#f2f7fc"
+        spoke_style = config.get_vnet_style_string('spoke')
         add_vnet_with_features(spoke, spoke_id, x_position, y_position, spoke_style)
 
         # Add connection from primary Hub to Spokes
@@ -255,7 +251,7 @@ def create_drawio_vnet_hub_and_spokes_diagram(filename, topology_file):
                 edge="1",
                 source="hub_0",  # Connect to primary hub
                 target=f"spoke_left_{index}",
-                style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#0078D4;strokeWidth=2;endArrow=block;startArrow=block;",
+                style=config.get_edge_style_string(),
                 parent="1",
             )
             edge_geometry = etree.SubElement(edge, "mxGeometry", attrib={"relative": "1", "as": "geometry"})
@@ -266,11 +262,11 @@ def create_drawio_vnet_hub_and_spokes_diagram(filename, topology_file):
     # Add non-peered spokes to the right
     for index, spoke in enumerate(non_peered_spokes):
         y_position = start_y + index * spacing
-        x_position = 1450
+        x_position = config.layout['non_peered']['x']
         spoke_id = f"nonpeered_spoke{index}"
         
         # Use new grouped function for non-peered spokes with custom styling
-        nonpeered_style = "shape=rectangle;rounded=1;whiteSpace=wrap;html=1;strokeColor=#A19F9D;fontColor=#201F1E;fillColor=#F3F2F1"
+        nonpeered_style = config.get_vnet_style_string('non_peered')
         add_vnet_with_features(spoke, spoke_id, x_position, y_position, nonpeered_style)
 
     # Write to file

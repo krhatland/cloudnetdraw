@@ -59,9 +59,9 @@ uv venv
 uv pip install -r requirements.txt
 
 # Run scripts directly with uv
-uv run python azure-query.py
-uv run python HLD.py
-uv run python MLD.py
+uv run azure-query.py
+uv run HLD.py
+uv run MLD.py
 ```
 
 ### Traditional venv
