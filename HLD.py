@@ -12,8 +12,19 @@ def create_drawio_vnet_hub_and_spokes_diagram(filename, topology_file):
         topology = json.load(file)
 
     logging.info("Loaded topology data from JSON")
-    hub_vnet = topology.get("hub", {})
-    spokes = topology.get("spokes", [])
+    vnets = topology.get("vnets", [])
+    
+    # Classify VNets for layout purposes (keep existing layout logic)
+    # Highly connected VNets (hubs) vs others
+    hub_vnets = [vnet for vnet in vnets if vnet.get("peerings_count", 0) >= 10]
+    spoke_vnets = [vnet for vnet in vnets if vnet.get("peerings_count", 0) < 10]
+    
+    # If no highly connected VNets, treat the first one as primary for layout
+    if not hub_vnets and vnets:
+        hub_vnets = [vnets[0]]
+        spoke_vnets = vnets[1:]
+    
+    logging.info(f"Found {len(hub_vnets)} hub VNet(s) and {len(spoke_vnets)} spoke VNet(s)")
 
     # Root XML structure
     mxfile = etree.Element("mxfile", attrib={"host": "Electron", "version": "25.0.2"})
@@ -31,111 +42,146 @@ def create_drawio_vnet_hub_and_spokes_diagram(filename, topology_file):
     root = etree.SubElement(mxGraphModel, "root")
 
     etree.SubElement(root, "mxCell", id="0")  # Root cell
-    etree.SubElement(root, "mxCell", id="1", parent="0")  # Parent cell for all shapes   
+    etree.SubElement(root, "mxCell", id="1", parent="0")  # Parent cell for all shapes
 
-    # Add Hub VNet
-    hub = etree.SubElement(
-        root,
-        "mxCell",
-        id="hub",
-        style="shape=rectangle;rounded=1;whiteSpace=wrap;html=1;strokeColor=#0078D4;fontColor=#004578;fillColor=#E6F1FB",
-        vertex="1",
-        parent="1",
-    )
-    #Verify if there is a Virtual-Hub vWAN environment HUB
-    if hub_vnet.get("type") == "virtual_hub":
-        hub.set("value", f"Subscription: {hub_vnet['subscription_name']}\n{hub_vnet.get('name', 'Hub VNet')}\n{hub_vnet.get('address_space', 'N/A')}")
-    else:
-        hub.set("value", f"Subscription: {hub_vnet['subscription_name']}\n{hub_vnet.get('name', 'Hub VNet')}\n{hub_vnet.get('address_space', 'N/A')}")
-
-    etree.SubElement(
-        hub,
-        "mxGeometry",
-        attrib={"x": "400", "y": "400", "width": "400", "height": "50", "as": "geometry"},
-    )
-
-    # Add VNET image to the bottom right of the Hub
-    image = etree.SubElement(
-        root,
-        "mxCell",
-        id="hub_image",
-        style="shape=image;html=1;image=img/lib/azure2/networking/Virtual_Networks.svg;",
-        vertex="1",
-        parent="1",
-    )
-    etree.SubElement(
-        image,
-        "mxGeometry",
-        attrib={"x": "780", "y": "440", "width": "20", "height": "20", "as": "geometry"},
-    )
-    
-    # If the hub is a virtual hub, show the Virtual Hub icon on the left
-    if hub_vnet.get("type", "") == "virtual_hub":
-        virtual_hub_icon = etree.SubElement(
+    def add_vnet_with_features(vnet_data, vnet_id, x_offset, y_offset, style_override=None):
+        """Universal function to add any VNet with feature decorators as a grouped unit"""
+        vnet_height = 50 if vnet_data.get("type") == "virtual_hub" else 50
+        
+        # Calculate total group dimensions to encompass all elements including icons
+        group_width = 400
+        group_height = vnet_height + 20  # Extra space for icons below VNet
+        
+        # Create group container for this VNet and all its elements
+        group_id = f"{vnet_id}_group"
+        group_element = etree.SubElement(
             root,
             "mxCell",
-            id="hub_virtualhub_image",
-            style="shape=image;html=1;image=img/lib/azure2/networking/Virtual_WANs.svg;",
+            id=group_id,
+            value="",
+            style="group",
             vertex="1",
+            connectable="0",
             parent="1",
         )
         etree.SubElement(
-            virtual_hub_icon,
+            group_element,
             "mxGeometry",
-            attrib={"x": "190", "y": str(375 + 50 - 10), "width": "20", "height": "20", "as": "geometry"},
+            attrib={"x": str(x_offset), "y": str(y_offset), "width": str(group_width), "height": str(group_height), "as": "geometry"},
         )
         
-    # Add extra icons for ExpressRoute, Firewall, VPN Gateway if applicable
-    icon_x_base = 755  # Starting from right edge of hub
-    icon_y = 400 + 50 - 10
-    icon_spacing = -25  # Distance between icons
-
-    if hub_vnet.get("expressroute", "").lower() == "yes":
-        express_icon = etree.SubElement(
+        # Default style for hub VNets
+        default_style = "shape=rectangle;rounded=1;whiteSpace=wrap;html=1;strokeColor=#0078D4;fontColor=#004578;fillColor=#E6F1FB"
+        
+        # Add VNet box as child of group (using relative positioning)
+        vnet_element = etree.SubElement(
             root,
             "mxCell",
-            id="hub_expressroute_image",
-            style="shape=image;html=1;image=img/lib/azure2/networking/ExpressRoute_Circuits.svg;",
+            id=vnet_id,
+            style=style_override or default_style,
             vertex="1",
-            parent="1",
+            parent=group_id,
         )
+        vnet_element.set("value", f"Subscription: {vnet_data['subscription_name']}\n{vnet_data.get('name', 'VNet')}\n{vnet_data.get('address_space', 'N/A')}")
         etree.SubElement(
-            express_icon,
+            vnet_element,
             "mxGeometry",
-            attrib={"x": str(icon_x_base), "y": str(icon_y), "width": "20", "height": "20", "as": "geometry"},
+            attrib={"x": "0", "y": "0", "width": "400", "height": str(vnet_height), "as": "geometry"},
         )
-        icon_x_base += icon_spacing
 
-    if hub_vnet.get("firewall", "").lower() == "yes":
-        firewall_icon = etree.SubElement(
+        # Add VNet image as child of group
+        image = etree.SubElement(
             root,
             "mxCell",
-            id="hub_firewall_image",
-            style="shape=image;html=1;image=img/lib/azure2/networking/Firewalls.svg;",
+            id=f"{vnet_id}_image",
+            style="shape=image;html=1;image=img/lib/azure2/networking/Virtual_Networks.svg;",
             vertex="1",
-            parent="1",
+            parent=group_id,
         )
         etree.SubElement(
-            firewall_icon,
+            image,
             "mxGeometry",
-            attrib={"x": str(icon_x_base), "y": str(icon_y), "width": "20", "height": "20", "as": "geometry"},
+            attrib={"x": "380", "y": str(vnet_height + 5), "width": "20", "height": "20", "as": "geometry"},
         )
-        icon_x_base += icon_spacing
+        
+        # Add Virtual Hub icon if applicable
+        if vnet_data.get("type") == "virtual_hub":
+            virtual_hub_icon = etree.SubElement(
+                root,
+                "mxCell",
+                id=f"{vnet_id}_virtualhub_image",
+                style="shape=image;html=1;image=img/lib/azure2/networking/Virtual_WANs.svg;",
+                vertex="1",
+                parent=group_id,
+            )
+            etree.SubElement(
+                virtual_hub_icon,
+                "mxGeometry",
+                attrib={"x": "-10", "y": str(vnet_height - 15), "width": "20", "height": "20", "as": "geometry"},
+            )
+        
+        # Add feature icons as children of group
+        icon_x_base = 355
+        icon_y = vnet_height + 5
+        icon_spacing = -25
 
-    if hub_vnet.get("vpn_gateway", "").lower() == "yes":
-        vpn_icon = etree.SubElement(
-            root,
-            "mxCell",
-            id="hub_vpn_image",
-            style="shape=image;html=1;image=img/lib/azure2/networking/VPN_Gateways.svg;",
-            vertex="1",
-            parent="1",
-        )
-        etree.SubElement(
-            vpn_icon,
-            "mxGeometry",
-            attrib={"x": str(icon_x_base), "y": str(icon_y), "width": "20", "height": "20", "as": "geometry"},
-        )
+        if vnet_data.get("expressroute", "").lower() == "yes":
+            express_icon = etree.SubElement(
+                root,
+                "mxCell",
+                id=f"{vnet_id}_expressroute_image",
+                style="shape=image;html=1;image=img/lib/azure2/networking/ExpressRoute_Circuits.svg;",
+                vertex="1",
+                parent=group_id,
+            )
+            etree.SubElement(
+                express_icon,
+                "mxGeometry",
+                attrib={"x": str(icon_x_base), "y": str(icon_y), "width": "20", "height": "20", "as": "geometry"},
+            )
+            icon_x_base += icon_spacing
+
+        if vnet_data.get("firewall", "").lower() == "yes":
+            firewall_icon = etree.SubElement(
+                root,
+                "mxCell",
+                id=f"{vnet_id}_firewall_image",
+                style="shape=image;html=1;image=img/lib/azure2/networking/Firewalls.svg;",
+                vertex="1",
+                parent=group_id,
+            )
+            etree.SubElement(
+                firewall_icon,
+                "mxGeometry",
+                attrib={"x": str(icon_x_base), "y": str(icon_y), "width": "20", "height": "20", "as": "geometry"},
+            )
+            icon_x_base += icon_spacing
+
+        if vnet_data.get("vpn_gateway", "").lower() == "yes":
+            vpn_icon = etree.SubElement(
+                root,
+                "mxCell",
+                id=f"{vnet_id}_vpn_image",
+                style="shape=image;html=1;image=img/lib/azure2/networking/VPN_Gateways.svg;",
+                vertex="1",
+                parent=group_id,
+            )
+            etree.SubElement(
+                vpn_icon,
+                "mxGeometry",
+                attrib={"x": str(icon_x_base), "y": str(icon_y), "width": "20", "height": "20", "as": "geometry"},
+            )
+        
+        return group_height
+
+    # Render hub VNets (highly connected ones)
+    for hub_index, hub_vnet in enumerate(hub_vnets):
+        x_offset = 400 + (hub_index * 450)  # Space hubs horizontally
+        y_offset = 400
+        hub_id = f"hub_{hub_index}"
+        
+        # Use new grouped function for hubs
+        add_vnet_with_features(hub_vnet, hub_id, x_offset, y_offset)
 
     # Dynamic spacing for spokes
     spacing = 100
@@ -146,7 +192,7 @@ def create_drawio_vnet_hub_and_spokes_diagram(filename, topology_file):
     peered_spokes = []
     
     # Separate peered and non-peered spokes
-    for spoke in spokes:
+    for spoke in spoke_vnets:
         if spoke.get("peerings"):
             peered_spokes.append(spoke)
         else:
@@ -166,162 +212,66 @@ def create_drawio_vnet_hub_and_spokes_diagram(filename, topology_file):
     # Add spokes on the right-hand side
     for index, spoke in enumerate(right_spokes):
         y_position = start_y + index * spacing
-        spoke_cell = etree.SubElement(
-            root,
-            "mxCell",
-            id=f"spoke_right_{index}",
-            style="shape=rectangle;rounded=1;whiteSpace=wrap;html=1;strokeColor=#CC6600;fontColor=#323130;fillColor=#f2f7fc",
-            vertex="1",
-            parent="1",
-        )
-        spoke_cell.set("value", f"Subscription: {spoke['subscription_name']}\n{spoke['name']}\n{spoke['address_space']}")
-        etree.SubElement(
-            spoke_cell,
-            "mxGeometry",
-            attrib={"x": "900", "y": str(y_position), "width": "400", "height": "50", "as": "geometry"},
-        )
+        x_position = 900
+        spoke_id = f"spoke_right_{index}"
         
-        # Add image to the bottom right of each Spoke
-        image = etree.SubElement(
-            root,
-            "mxCell",
-            id=f"spoke{index}_image",
-            style="shape=image;html=1;image=img/lib/azure2/networking/Virtual_Networks.svg;",
-            vertex="1",
-            parent="1",
-        )
-        # Ensure 'x' and 'y' are integers before adding
-        spoke_x = int(spoke_cell.find(".//mxGeometry").attrib['x'])
-        spoke_y = int(spoke_cell.find(".//mxGeometry").attrib['y'])
-        
-        etree.SubElement(
-            image,
-            "mxGeometry",
-            attrib={
-                "x": str(spoke_x + 380),
-                "y": str(spoke_y + 40),
-                "width": "20",
-                "height": "20",
-                "as": "geometry",
-            },
-        )
+        # Use new grouped function for spokes with custom styling
+        spoke_style = "shape=rectangle;rounded=1;whiteSpace=wrap;html=1;strokeColor=#CC6600;fontColor=#323130;fillColor=#f2f7fc"
+        add_vnet_with_features(spoke, spoke_id, x_position, y_position, spoke_style)
 
-        # Add connection from Hub to Spokes
-        edge = etree.SubElement(
-            root,
-            "mxCell",
-            id=f"edge_right_{index}",
-            edge="1",
-            source="hub",
-            target=f"spoke_right_{index}",
-            style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#0078D4;strokeWidth=2;endArrow=block;startArrow=block;",
-            parent="1",
-        )
-        edge_geometry = etree.SubElement(edge, "mxGeometry", attrib={"relative": "1", "as": "geometry"})
-        edge_points = etree.SubElement(edge_geometry, "Array", attrib={"as": "points"})
-        etree.SubElement(edge_points, "mxPoint", attrib={"x": "800", "y": str(y_position + 25)})
-        etree.SubElement(edge_points, "mxPoint", attrib={"x": "900", "y": str(y_position + 25)})
+        # Add connection from primary Hub to Spokes
+        if hub_vnets:
+            edge = etree.SubElement(
+                root,
+                "mxCell",
+                id=f"edge_right_{index}",
+                edge="1",
+                source="hub_0",  # Connect to primary hub
+                target=f"spoke_right_{index}",
+                style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#0078D4;strokeWidth=2;endArrow=block;startArrow=block;",
+                parent="1",
+            )
+            edge_geometry = etree.SubElement(edge, "mxGeometry", attrib={"relative": "1", "as": "geometry"})
+            edge_points = etree.SubElement(edge_geometry, "Array", attrib={"as": "points"})
+            etree.SubElement(edge_points, "mxPoint", attrib={"x": "800", "y": str(y_position + 25)})
+            etree.SubElement(edge_points, "mxPoint", attrib={"x": str(x_position), "y": str(y_position + 25)})
 
     # Add spokes on the left-hand side
     for index, spoke in enumerate(left_spokes):
         y_position = start_y + index * spacing
-        spoke_cell = etree.SubElement(
-            root,
-            "mxCell",
-            id=f"spoke_left_{index}",
-            style="shape=rectangle;rounded=1;whiteSpace=wrap;html=1;strokeColor=#CC6600;fontColor=#323130;fillColor=#f2f7fc",
-            vertex="1",
-            parent="1",
-        )
-        spoke_cell.set("value", f"Subscription: {spoke['subscription_name']}\n{spoke['name']}\n{spoke['address_space']}")
-        etree.SubElement(
-            spoke_cell,
-            "mxGeometry",
-            attrib={"x": "-100", "y": str(y_position), "width": "400", "height": "50", "as": "geometry"},
-        )
-        # Add image to the bottom right of each Spoke
-        image = etree.SubElement(
-            root,
-            "mxCell",
-            id=f"spoke_left{index}_image",
-            style="shape=image;html=1;image=img/lib/azure2/networking/Virtual_Networks.svg;",
-            vertex="1",
-            parent="1",
-        )
-        # Ensure 'x' and 'y' are integers before adding
-        spoke_x = int(spoke_cell.find(".//mxGeometry").attrib['x'])
-        spoke_y = int(spoke_cell.find(".//mxGeometry").attrib['y'])
+        x_position = -100
+        spoke_id = f"spoke_left_{index}"
         
-        etree.SubElement(
-            image,
-            "mxGeometry",
-            attrib={
-                "x": str(spoke_x + 380),
-                "y": str(spoke_y + 40),
-                "width": "20",
-                "height": "20",
-                "as": "geometry",
-            },
-        )
+        # Use new grouped function for spokes with custom styling
+        spoke_style = "shape=rectangle;rounded=1;whiteSpace=wrap;html=1;strokeColor=#CC6600;fontColor=#323130;fillColor=#f2f7fc"
+        add_vnet_with_features(spoke, spoke_id, x_position, y_position, spoke_style)
 
-        # Add connection from Hub to Spokes
-        edge = etree.SubElement(
-            root,
-            "mxCell",
-            id=f"edge_left_{index}",
-            edge="1",
-            source="hub",
-            target=f"spoke_left_{index}",
-            style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#0078D4;strokeWidth=2;endArrow=block;startArrow=block;",
-            parent="1",
-        )
-        edge_geometry = etree.SubElement(edge, "mxGeometry", attrib={"relative": "1", "as": "geometry"})
-        edge_points = etree.SubElement(edge_geometry, "Array", attrib={"as": "points"})
-        etree.SubElement(edge_points, "mxPoint", attrib={"x": "400", "y": str(y_position + 25)})
-        etree.SubElement(edge_points, "mxPoint", attrib={"x": "300", "y": str(y_position + 25)})
+        # Add connection from primary Hub to Spokes
+        if hub_vnets:
+            edge = etree.SubElement(
+                root,
+                "mxCell",
+                id=f"edge_left_{index}",
+                edge="1",
+                source="hub_0",  # Connect to primary hub
+                target=f"spoke_left_{index}",
+                style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#0078D4;strokeWidth=2;endArrow=block;startArrow=block;",
+                parent="1",
+            )
+            edge_geometry = etree.SubElement(edge, "mxGeometry", attrib={"relative": "1", "as": "geometry"})
+            edge_points = etree.SubElement(edge_geometry, "Array", attrib={"as": "points"})
+            etree.SubElement(edge_points, "mxPoint", attrib={"x": "400", "y": str(y_position + 25)})
+            etree.SubElement(edge_points, "mxPoint", attrib={"x": "300", "y": str(y_position + 25)})
     
     # Add non-peered spokes to the right
     for index, spoke in enumerate(non_peered_spokes):
         y_position = start_y + index * spacing
-        spoke_cell = etree.SubElement(
-            root,
-            "mxCell",
-            id=f"nonpeered_spoke{index}",
-            style="shape=rectangle;rounded=1;whiteSpace=wrap;html=1;strokeColor=#A19F9D;fontColor=#201F1E;fillColor=#F3F2F1",
-            vertex="1",
-            parent="1",
-        )
-        spoke_cell.set("value", f"Subscription: {spoke['subscription_name']}\n{spoke['name']}\n{spoke['address_space']}")
-        etree.SubElement(
-            spoke_cell,
-            "mxGeometry",
-            attrib={"x": "1450", "y": str(y_position), "width": "400", "height": "50", "as": "geometry"},
-        )
-
-        # Add image to the bottom right of the non-peered spoke
-        image = etree.SubElement(
-            root,
-            "mxCell",
-            id=f"nonpeered_spoke{index}_image",
-            style="shape=image;html=1;image=img/lib/azure2/networking/Virtual_Networks.svg;",
-            vertex="1",
-            parent="1",
-        )
-        # Ensure 'x' and 'y' are integers before adding
-        spoke_x = int(spoke_cell.find(".//mxGeometry").attrib['x'])
-        spoke_y = int(spoke_cell.find(".//mxGeometry").attrib['y'])
-
-        etree.SubElement(
-            image,
-            "mxGeometry",
-            attrib={
-                "x": str(spoke_x + 380),
-                "y": str(spoke_y + 40),
-                "width": "20",
-                "height": "20",
-                "as": "geometry",
-            },
-        )    
+        x_position = 1450
+        spoke_id = f"nonpeered_spoke{index}"
+        
+        # Use new grouped function for non-peered spokes with custom styling
+        nonpeered_style = "shape=rectangle;rounded=1;whiteSpace=wrap;html=1;strokeColor=#A19F9D;fontColor=#201F1E;fillColor=#F3F2F1"
+        add_vnet_with_features(spoke, spoke_id, x_position, y_position, nonpeered_style)
 
     # Write to file
     tree = etree.ElementTree(mxfile)

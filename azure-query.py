@@ -16,7 +16,7 @@ def extract_resource_group(resource_id):
 
 # Collect all VNets and their details across selected subscriptions
 def get_vnet_topology_for_selected_subscriptions(subscription_ids):
-    network_data = {"hub": {}, "spokes": []}
+    network_data = {"vnets": []}
     vnet_candidates = []
 
     for subscription_id in subscription_ids:
@@ -27,7 +27,7 @@ def get_vnet_topology_for_selected_subscriptions(subscription_ids):
         subscription = subscription_client.subscriptions.get(subscription_id)
         subscription_name = subscription.display_name
 
-        # Detect Virtual WAN Hub if it exists
+        # Detect Virtual WAN Hub if it exists - add to vnets array
         try:
             for vwan in network_client.virtual_wans.list():
                 try:
@@ -39,16 +39,19 @@ def get_vnet_topology_for_selected_subscriptions(subscription_ids):
                         has_vpn_gateway = hasattr(hub, "vpn_gateway") and hub.vpn_gateway is not None
                         has_firewall = hasattr(hub, "azure_firewall") and hub.azure_firewall is not None
 
-                        network_data["hub"] = {
+                        virtual_hub_info = {
                             "name": hub.name,
                             "address_space": hub.address_prefix,
                             "type": "virtual_hub",
+                            "subnets": [],  # Virtual hubs don't have traditional subnets
+                            "peerings": [],  # Will be populated if needed
                             "subscription_name": subscription_name,
                             "expressroute": "Yes" if has_expressroute else "No",
                             "vpn_gateway": "Yes" if has_vpn_gateway else "No",
-                            "firewall": "Yes" if has_firewall else "No"
+                            "firewall": "Yes" if has_firewall else "No",
+                            "peerings_count": 0  # Virtual hubs use different connectivity model
                         }
-                        break  # Assume only one hub is needed
+                        vnet_candidates.append(virtual_hub_info)
                 except Exception as e:
                     print(f"Warning: Could not retrieve virtual hub details for {vwan.name} in subscription {subscription_id}. Error: {e}")
         except Exception as e:
@@ -89,12 +92,8 @@ def get_vnet_topology_for_selected_subscriptions(subscription_ids):
             vnet_info["peerings_count"] = len(vnet_info["peerings"])
             vnet_candidates.append(vnet_info)
 
-    # If no virtual hub found, select the VNet with the most peerings
-    if not network_data["hub"] and vnet_candidates:
-        vnet_candidates.sort(key=lambda x: x["peerings_count"], reverse=True)
-        network_data["hub"] = vnet_candidates.pop(0)
-
-    network_data["spokes"] = vnet_candidates
+    # All VNets are equal - no hub detection needed
+    network_data["vnets"] = vnet_candidates
     return network_data
 
 # List all subscriptions and allow user to select
