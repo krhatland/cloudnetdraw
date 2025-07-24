@@ -1,5 +1,6 @@
 import json
 import logging
+import re
 from lxml import etree
 from config import config
 # Configure logging
@@ -253,6 +254,97 @@ def create_drawio_vnet_hub_and_spokes_diagram(filename, topology_file):
         
         return group_height
 
+    def create_vnet_id_mapping(vnets, hub_vnets, left_spokes, right_spokes, non_peered_spokes):
+        """Create bidirectional mapping between VNet names and diagram IDs"""
+        mapping = {}
+        
+        # Map hub VNets
+        for i, hub in enumerate(hub_vnets):
+            mapping[hub['name']] = f"hub_{i}"
+        
+        # Map spoke VNets
+        for i, spoke in enumerate(right_spokes):
+            mapping[spoke['name']] = f"right_spoke{i}"
+        
+        for i, spoke in enumerate(left_spokes):
+            mapping[spoke['name']] = f"left_spoke{i}"
+        
+        # Map non-peered VNets
+        for i, nonpeered in enumerate(non_peered_spokes):
+            mapping[nonpeered['name']] = f"nonpeered_spoke{i}"
+        
+        return mapping
+
+    def parse_peering_name(peering_name):
+        """Extract VNet names from peering strings"""
+        # Pattern 1: "vnet1_to_vnet2" or "vnet1-to-vnet2"
+        if '_to_' in peering_name:
+            parts = peering_name.split('_to_')
+            if len(parts) == 2:
+                return parts[0], parts[1]
+        elif '-to-' in peering_name:
+            parts = peering_name.split('-to-')
+            if len(parts) == 2:
+                return parts[0], parts[1]
+        
+        # Pattern 2: Direct VNet name reference
+        return None, peering_name
+
+    def add_peering_edges(vnets, vnet_mapping, root, config):
+        """Add edges for all VNet peerings to create full mesh connectivity"""
+        edge_counter = 1000  # Start high to avoid conflicts with existing edge IDs
+        
+        for vnet in vnets:
+            source_vnet_name = vnet['name']
+            source_id = vnet_mapping.get(source_vnet_name)
+            
+            if not source_id:
+                continue  # Skip if source VNet not in diagram
+                
+            for peering in vnet.get('peerings', []):
+                # Parse the peering name to get target VNet
+                vnet1, vnet2 = parse_peering_name(peering)
+                
+                # Determine which is the target VNet (not the source)
+                target_vnet_name = None
+                if vnet1 and vnet1 != source_vnet_name:
+                    target_vnet_name = vnet1
+                elif vnet2 and vnet2 != source_vnet_name:
+                    target_vnet_name = vnet2
+                elif vnet2:  # Direct reference case
+                    target_vnet_name = vnet2
+                
+                if not target_vnet_name:
+                    continue
+                    
+                target_id = vnet_mapping.get(target_vnet_name)
+                if not target_id:
+                    continue  # Skip if target VNet not in diagram
+                
+                # Skip if this is a hub-to-spoke connection (already drawn)
+                if source_id.startswith('hub_') and (target_id.startswith('spoke') or target_id.startswith('nonpeered_')):
+                    continue
+                if target_id.startswith('hub_') and (source_id.startswith('spoke') or source_id.startswith('nonpeered_')):
+                    continue
+                
+                # Create edge for spoke-to-spoke or hub-to-hub connections
+                edge = etree.SubElement(
+                    root,
+                    "mxCell",
+                    id=f"peering_edge_{edge_counter}",
+                    edge="1",
+                    source=source_id,
+                    target=target_id,
+                    style=config.get_edge_style_string(),
+                    parent="1",
+                )
+                
+                # Add basic geometry (draw.io will auto-route)
+                edge_geometry = etree.SubElement(edge, "mxGeometry", attrib={"relative": "1", "as": "geometry"})
+                
+                edge_counter += 1
+                logging.info(f"Added peering edge: {source_vnet_name} ({source_id}) → {target_vnet_name} ({target_id})")
+
     # Render hub VNets (highly connected ones)
     for hub_index, hub_vnet in enumerate(hub_vnets):
         x_offset = 200 + (hub_index * config.layout['hub']['spacing_x'])
@@ -337,6 +429,14 @@ def create_drawio_vnet_hub_and_spokes_diagram(filename, topology_file):
         vnet_height = add_vnet_with_subnets(spoke, spoke_id, config.layout['non_peered']['x'], y_position, nonpeered_style)
 
         current_y_nonpeered += vnet_height + config.layout['non_peered']['spacing_y']
+
+    # Create VNet ID mapping for peering connections
+    vnet_mapping = create_vnet_id_mapping(vnets, hub_vnets, left_spokes, right_spokes, non_peered_spokes)
+    
+    # Add all peering edges to create full mesh connectivity
+    add_peering_edges(vnets, vnet_mapping, root, config)
+    
+    logging.info(f"Added full mesh peering connections for {len(vnets)} VNets")
 
     # Write to file
     tree = etree.ElementTree(mxfile)

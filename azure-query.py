@@ -99,6 +99,9 @@ def get_vnet_topology_for_selected_subscriptions(subscription_ids):
 # List all subscriptions and allow user to select
 def list_and_select_subscriptions():
     subscriptions = list(subscription_client.subscriptions.list())
+    # Sort subscriptions alphabetically by display_name to ensure consistent ordinals
+    subscriptions.sort(key=lambda sub: sub.display_name)
+    
     for idx, subscription in enumerate(subscriptions):
         print(f"[{idx}] {subscription.display_name} ({subscription.subscription_id})")
 
