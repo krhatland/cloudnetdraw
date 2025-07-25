@@ -7,6 +7,7 @@ import argparse
 import logging
 import sys
 import os
+import re
 
 def get_sp_credentials():
     """Get Service Principal credentials from environment variables"""
@@ -26,6 +27,44 @@ def get_credentials(use_service_principal=False):
         return get_sp_credentials()
     else:
         return AzureCliCredential()
+
+def is_subscription_id(subscription_string):
+    """Check if a subscription string is in UUID format (ID) or name format"""
+    # Azure subscription ID pattern: 8-4-4-4-12 hexadecimal digits
+    uuid_pattern = r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$'
+    return re.match(uuid_pattern, subscription_string) is not None
+
+def read_subscriptions_from_file(file_path):
+    """Read subscriptions from file, one per line"""
+    try:
+        with open(file_path, 'r') as f:
+            subscriptions = [line.strip() for line in f if line.strip()]
+        return subscriptions
+    except FileNotFoundError:
+        logging.error(f"Subscriptions file not found: {file_path}")
+        sys.exit(1)
+    except Exception as e:
+        logging.error(f"Error reading subscriptions file {file_path}: {e}")
+        sys.exit(1)
+
+def resolve_subscription_names_to_ids(subscription_names, credentials):
+    """Resolve subscription names to IDs using the Azure API"""
+    subscription_client = SubscriptionClient(credentials)
+    all_subscriptions = list(subscription_client.subscriptions.list())
+    
+    # Create name-to-ID mapping
+    name_to_id = {sub.display_name: sub.subscription_id for sub in all_subscriptions}
+    
+    resolved_ids = []
+    for name in subscription_names:
+        if name in name_to_id:
+            resolved_ids.append(name_to_id[name])
+        else:
+            logging.error(f"Subscription not found: {name}")
+            logging.info(f"Available subscriptions: {list(name_to_id.keys())}")
+            sys.exit(1)
+    
+    return resolved_ids
 
 # Helper function to extract resource group from resource ID
 def extract_resource_group(resource_id):
@@ -140,12 +179,42 @@ def query_command(args):
     # Get credentials based on service principal flag
     credentials = get_credentials(args.service_principal)
     
-    print("Listing available subscriptions...")
-    selected_subscriptions = list_and_select_subscriptions(credentials)
+    # Determine subscription selection mode
+    if args.subscriptions or args.subscriptions_file:
+        # Non-interactive mode
+        selected_subscriptions = get_subscriptions_non_interactive(args, credentials)
+    else:
+        # Interactive mode (existing behavior)
+        print("Listing available subscriptions...")
+        selected_subscriptions = list_and_select_subscriptions(credentials)
+    
     print("Collecting VNets and topology...")
     topology = get_vnet_topology_for_selected_subscriptions(selected_subscriptions, credentials)
     output_file = args.output if args.output else "network_topology.json"
     save_to_json(topology, output_file)
+
+def get_subscriptions_non_interactive(args, credentials):
+    """Get subscriptions from command line arguments or file in non-interactive mode"""
+    if args.subscriptions and args.subscriptions_file:
+        logging.error("Cannot specify both --subscriptions and --subscriptions-file")
+        sys.exit(1)
+    
+    if args.subscriptions:
+        # Parse comma-separated subscriptions
+        subscriptions = [sub.strip() for sub in args.subscriptions.split(',')]
+    else:
+        # Read subscriptions from file
+        subscriptions = read_subscriptions_from_file(args.subscriptions_file)
+    
+    # Detect if subscriptions are IDs or names by checking the first subscription
+    if subscriptions and is_subscription_id(subscriptions[0]):
+        # All subscriptions are assumed to be IDs
+        print(f"Using subscription IDs: {subscriptions}")
+        return subscriptions
+    else:
+        # All subscriptions are assumed to be names, resolve to IDs
+        print(f"Resolving subscription names to IDs: {subscriptions}")
+        return resolve_subscription_names_to_ids(subscriptions, credentials)
 
 def generate_hld_diagram(filename, topology_file):
     """Generate high-level diagram (VNets only) from topology JSON"""
@@ -1082,6 +1151,11 @@ def mld_command(args):
     logging.info("MLD diagram generation complete.")
     print(f"MLD diagram saved to {output_file}")
 
+class CustomHelpFormatter(argparse.RawDescriptionHelpFormatter):
+    """Custom formatter to prevent help text from wrapping to multiple lines"""
+    def __init__(self, prog):
+        super().__init__(prog, max_help_position=70, width=180)
+
 def main():
     """Main CLI entry point with subcommand dispatch"""
     # Configure logging
@@ -1089,7 +1163,7 @@ def main():
     
     parser = argparse.ArgumentParser(
         description="CloudNet Draw - Azure VNet topology visualization tool",
-        formatter_class=argparse.RawDescriptionHelpFormatter,
+        formatter_class=CustomHelpFormatter,
         epilog="""
 Examples:
   %(prog)s query                    # Query Azure and save topology to JSON
@@ -1100,31 +1174,38 @@ Examples:
         """
     )
     
-    subparsers = parser.add_subparsers(dest='command', help='Available commands')
+    subparsers = parser.add_subparsers(dest='command', title='subcommands', help='Available commands')
     subparsers.required = True
     
     # Query command
-    query_parser = subparsers.add_parser('query', help='Query Azure and collect VNet topology')
+    query_parser = subparsers.add_parser('query', help='Query Azure and collect VNet topology',
+                                        formatter_class=CustomHelpFormatter)
     query_parser.add_argument('-o', '--output', default='network_topology.json',
                              help='Output JSON file (default: network_topology.json)')
-    query_parser.add_argument('-s', '--service-principal', action='store_true',
-                             help='Use Service Principal authentication instead of Azure CLI')
+    query_parser.add_argument('-p', '--service-principal', action='store_true',
+                             help='Use Service Principal authentication')
+    query_parser.add_argument('-s', '--subscriptions',
+                             help='Comma separated list of subscriptions (names or IDs)')
+    query_parser.add_argument('-f', '--subscriptions-file',
+                             help='File containing subscriptions (one per line)')
     query_parser.set_defaults(func=query_command)
     
     # HLD command
-    hld_parser = subparsers.add_parser('hld', help='Generate high-level diagram (VNets only)')
+    hld_parser = subparsers.add_parser('hld', help='Generate high-level diagram (VNets only)',
+                                      formatter_class=CustomHelpFormatter)
     hld_parser.add_argument('-o', '--output', default='network_hld.drawio',
                            help='Output diagram file (default: network_hld.drawio)')
     hld_parser.add_argument('-t', '--topology', default='network_topology.json',
-                           help='Input topology JSON file (default: network_topology.json)')
+                           help='Input topology JSON file')
     hld_parser.set_defaults(func=hld_command)
     
     # MLD command
-    mld_parser = subparsers.add_parser('mld', help='Generate mid-level diagram (VNets + subnets)')
+    mld_parser = subparsers.add_parser('mld', help='Generate mid-level diagram (VNets + subnets)',
+                                      formatter_class=CustomHelpFormatter)
     mld_parser.add_argument('-o', '--output', default='network_mld.drawio',
                            help='Output diagram file (default: network_mld.drawio)')
     mld_parser.add_argument('-t', '--topology', default='network_topology.json',
-                           help='Input topology JSON file (default: network_topology.json)')
+                           help='Input topology JSON file')
     mld_parser.set_defaults(func=mld_command)
     
     # Parse arguments and dispatch to appropriate function
