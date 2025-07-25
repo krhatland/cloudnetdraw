@@ -1,4 +1,4 @@
-from azure.identity import AzureCliCredential
+from azure.identity import AzureCliCredential, ClientSecretCredential
 from azure.mgmt.network import NetworkManagementClient
 from azure.mgmt.resource import SubscriptionClient
 from azure.core.exceptions import ResourceNotFoundError
@@ -6,25 +6,41 @@ import json
 import argparse
 import logging
 import sys
+import os
 
-# Azure authentication using CLI credentials
-credential = AzureCliCredential()
+def get_sp_credentials():
+    """Get Service Principal credentials from environment variables"""
+    client_id = os.getenv('AZURE_CLIENT_ID')
+    client_secret = os.getenv('AZURE_CLIENT_SECRET')
+    tenant_id = os.getenv('AZURE_TENANT_ID')
 
-# Initialize Subscription client to get all subscriptions
-subscription_client = SubscriptionClient(credential)
+    if not all([client_id, client_secret, tenant_id]):
+        logging.error("Service Principal credentials not set. Please set AZURE_CLIENT_ID, AZURE_CLIENT_SECRET, AZURE_TENANT_ID.")
+        sys.exit(1)
+
+    return ClientSecretCredential(tenant_id, client_id, client_secret)
+
+def get_credentials(use_service_principal=False):
+    """Get appropriate credentials based on authentication method"""
+    if use_service_principal:
+        return get_sp_credentials()
+    else:
+        return AzureCliCredential()
 
 # Helper function to extract resource group from resource ID
 def extract_resource_group(resource_id):
     return resource_id.split("/")[4]  # Resource group is always the 5th item
 
 # Collect all VNets and their details across selected subscriptions
-def get_vnet_topology_for_selected_subscriptions(subscription_ids):
+def get_vnet_topology_for_selected_subscriptions(subscription_ids, credentials):
     network_data = {"vnets": []}
     vnet_candidates = []
+    
+    subscription_client = SubscriptionClient(credentials)
 
     for subscription_id in subscription_ids:
         print(f"Processing Subscription: {subscription_id}")
-        network_client = NetworkManagementClient(credential, subscription_id)
+        network_client = NetworkManagementClient(credentials, subscription_id)
 
         # Get subscription name
         subscription = subscription_client.subscriptions.get(subscription_id)
@@ -100,7 +116,8 @@ def get_vnet_topology_for_selected_subscriptions(subscription_ids):
     return network_data
 
 # List all subscriptions and allow user to select
-def list_and_select_subscriptions():
+def list_and_select_subscriptions(credentials):
+    subscription_client = SubscriptionClient(credentials)
     subscriptions = list(subscription_client.subscriptions.list())
     # Sort subscriptions alphabetically by display_name to ensure consistent ordinals
     subscriptions.sort(key=lambda sub: sub.display_name)
@@ -120,10 +137,13 @@ def save_to_json(data, filename="network_topology.json"):
 
 def query_command(args):
     """Execute the query command to collect VNet topology from Azure"""
+    # Get credentials based on service principal flag
+    credentials = get_credentials(args.service_principal)
+    
     print("Listing available subscriptions...")
-    selected_subscriptions = list_and_select_subscriptions()
+    selected_subscriptions = list_and_select_subscriptions(credentials)
     print("Collecting VNets and topology...")
-    topology = get_vnet_topology_for_selected_subscriptions(selected_subscriptions)
+    topology = get_vnet_topology_for_selected_subscriptions(selected_subscriptions, credentials)
     output_file = args.output if args.output else "network_topology.json"
     save_to_json(topology, output_file)
 
@@ -1087,6 +1107,8 @@ Examples:
     query_parser = subparsers.add_parser('query', help='Query Azure and collect VNet topology')
     query_parser.add_argument('-o', '--output', default='network_topology.json',
                              help='Output JSON file (default: network_topology.json)')
+    query_parser.add_argument('-s', '--service-principal', action='store_true',
+                             help='Use Service Principal authentication instead of Azure CLI')
     query_parser.set_defaults(func=query_command)
     
     # HLD command
