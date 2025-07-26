@@ -2,6 +2,7 @@ from azure.identity import AzureCliCredential, ClientSecretCredential
 from azure.mgmt.network import NetworkManagementClient
 from azure.mgmt.resource import SubscriptionClient
 from azure.core.exceptions import ResourceNotFoundError
+from typing import Dict, List, Any, Optional, Union, Tuple
 import json
 import argparse
 import logging
@@ -9,7 +10,7 @@ import sys
 import os
 import re
 
-def get_sp_credentials():
+def get_sp_credentials() -> ClientSecretCredential:
     """Get Service Principal credentials from environment variables"""
     client_id = os.getenv('AZURE_CLIENT_ID')
     client_secret = os.getenv('AZURE_CLIENT_SECRET')
@@ -21,20 +22,20 @@ def get_sp_credentials():
 
     return ClientSecretCredential(tenant_id, client_id, client_secret)
 
-def get_credentials(use_service_principal=False):
+def get_credentials(use_service_principal: bool = False) -> Union[ClientSecretCredential, AzureCliCredential]:
     """Get appropriate credentials based on authentication method"""
     if use_service_principal:
         return get_sp_credentials()
     else:
         return AzureCliCredential()
 
-def is_subscription_id(subscription_string):
+def is_subscription_id(subscription_string: str) -> bool:
     """Check if a subscription string is in UUID format (ID) or name format"""
     # Azure subscription ID pattern: 8-4-4-4-12 hexadecimal digits
     uuid_pattern = r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$'
     return re.match(uuid_pattern, subscription_string) is not None
 
-def read_subscriptions_from_file(file_path):
+def read_subscriptions_from_file(file_path: str) -> List[str]:
     """Read subscriptions from file, one per line"""
     try:
         with open(file_path, 'r') as f:
@@ -47,7 +48,7 @@ def read_subscriptions_from_file(file_path):
         logging.error(f"Error reading subscriptions file {file_path}: {e}")
         sys.exit(1)
 
-def resolve_subscription_names_to_ids(subscription_names, credentials):
+def resolve_subscription_names_to_ids(subscription_names: List[str], credentials: Union[ClientSecretCredential, AzureCliCredential]) -> List[str]:
     """Resolve subscription names to IDs using the Azure API"""
     subscription_client = SubscriptionClient(credentials)
     all_subscriptions = list(subscription_client.subscriptions.list())
@@ -67,11 +68,11 @@ def resolve_subscription_names_to_ids(subscription_names, credentials):
     return resolved_ids
 
 # Helper function to extract resource group from resource ID
-def extract_resource_group(resource_id):
-    return resource_id.split("/")[4]  # Resource group is always the 5th item
+def extract_resource_group(resource_id: str) -> str:
+    return resource_id.split("/")[4]  # Resource group is at index 4 (5th element)
 
 # Collect all VNets and their details across selected subscriptions
-def get_vnet_topology_for_selected_subscriptions(subscription_ids, credentials):
+def get_vnet_topology_for_selected_subscriptions(subscription_ids: List[str], credentials: Union[ClientSecretCredential, AzureCliCredential]) -> Dict[str, Any]:
     network_data = {"vnets": []}
     vnet_candidates = []
     
@@ -82,8 +83,13 @@ def get_vnet_topology_for_selected_subscriptions(subscription_ids, credentials):
         network_client = NetworkManagementClient(credentials, subscription_id)
 
         # Get subscription name
-        subscription = subscription_client.subscriptions.get(subscription_id)
-        subscription_name = subscription.display_name
+        try:
+            subscription = subscription_client.subscriptions.get(subscription_id)
+            subscription_name = subscription.display_name
+        except Exception as e:
+            error_msg = f"Could not access subscription {subscription_id}: {e}"
+            logging.error(error_msg)
+            sys.exit(1)
 
         # Detect Virtual WAN Hub if it exists - add to vnets array
         try:
@@ -111,51 +117,75 @@ def get_vnet_topology_for_selected_subscriptions(subscription_ids, credentials):
                         }
                         vnet_candidates.append(virtual_hub_info)
                 except Exception as e:
-                    logging.warning(f"Could not retrieve virtual hub details for {vwan.name} in subscription {subscription_id}. Error: {e}")
+                    error_msg = f"Could not retrieve virtual hub details for {vwan.name} in subscription {subscription_id}: {e}"
+                    logging.error(error_msg)
+                    sys.exit(1)
         except Exception as e:
-            logging.warning(f"Could not list virtual WANs for subscription {subscription_id}. Error: {e}")
+            error_msg = f"Could not list virtual WANs for subscription {subscription_id}: {e}"
+            logging.error(error_msg)
+            sys.exit(1)
 
         # Process VNets
-        for vnet in network_client.virtual_networks.list_all():
-            resource_group_name = extract_resource_group(vnet.id)
-            subnet_names = [subnet.name for subnet in vnet.subnets]
+        try:
+            for vnet in network_client.virtual_networks.list_all():
+                try:
+                    resource_group_name = extract_resource_group(vnet.id)
+                    subnet_names = [subnet.name for subnet in vnet.subnets]
 
-            vnet_info = {
-                "name": vnet.name,
-                "address_space": vnet.address_space.address_prefixes[0],
-                "subnets": [
-                    {
-                        "name": subnet.name,
-                        "address": (
-                            subnet.address_prefixes[0]
-                            if hasattr(subnet, "address_prefixes") and subnet.address_prefixes
-                            else subnet.address_prefix or "N/A"
-                        ),
-                        "nsg": 'Yes' if subnet.network_security_group else 'No',
-                        "udr": 'Yes' if subnet.route_table else 'No'
+                    vnet_info = {
+                        "name": vnet.name,
+                        "address_space": vnet.address_space.address_prefixes[0],
+                        "subnets": [
+                            {
+                                "name": subnet.name,
+                                "address": (
+                                    subnet.address_prefixes[0]
+                                    if hasattr(subnet, "address_prefixes") and subnet.address_prefixes
+                                    else subnet.address_prefix or "N/A"
+                                ),
+                                "nsg": 'Yes' if subnet.network_security_group else 'No',
+                                "udr": 'Yes' if subnet.route_table else 'No'
+                            }
+                            for subnet in vnet.subnets
+                        ],
+                        "peerings": [],
+                        "subscription_name": subscription_name,
+                        "expressroute": "Yes" if "GatewaySubnet" in subnet_names else "No",
+                        "vpn_gateway": "Yes" if "GatewaySubnet" in subnet_names else "No",
+                        "firewall": "Yes" if "AzureFirewallSubnet" in subnet_names else "No"
                     }
-                    for subnet in vnet.subnets
-                ],
-                "peerings": [],
-                "subscription_name": subscription_name,
-                "expressroute": "Yes" if "GatewaySubnet" in subnet_names else "No",
-                "vpn_gateway": "Yes" if "GatewaySubnet" in subnet_names else "No",
-                "firewall": "Yes" if "AzureFirewallSubnet" in subnet_names else "No"
-            }
 
-            peerings = network_client.virtual_network_peerings.list(resource_group_name, vnet.name)
-            for peering in peerings:
-                vnet_info["peerings"].append(peering.name)
+                    # Get peerings for this VNet
+                    peerings = network_client.virtual_network_peerings.list(resource_group_name, vnet.name)
+                    for peering in peerings:
+                        vnet_info["peerings"].append(peering.name)
 
-            vnet_info["peerings_count"] = len(vnet_info["peerings"])
-            vnet_candidates.append(vnet_info)
+                    vnet_info["peerings_count"] = len(vnet_info["peerings"])
+                    vnet_candidates.append(vnet_info)
+                    
+                except Exception as e:
+                    error_msg = f"Could not process VNet {vnet.name} in subscription {subscription_id}: {e}"
+                    logging.error(error_msg)
+                    sys.exit(1)
+                    
+        except Exception as e:
+            error_msg = f"Could not retrieve VNets for subscription {subscription_id}: {e}"
+            logging.error(error_msg)
+            sys.exit(1)
 
     # All VNets are equal - no hub detection needed
     network_data["vnets"] = vnet_candidates
+    
+    # Check if no VNets were found across all subscriptions - this is fatal
+    if not vnet_candidates:
+        logging.error("No VNets found across all subscriptions. This is a fatal error.")
+        logging.info("Individual subscriptions without VNets is normal, but finding zero VNets total is not supported.")
+        sys.exit(1)
+    
     return network_data
 
 # List all subscriptions and allow user to select
-def list_and_select_subscriptions(credentials):
+def list_and_select_subscriptions(credentials: Union[ClientSecretCredential, AzureCliCredential]) -> List[str]:
     subscription_client = SubscriptionClient(credentials)
     subscriptions = list(subscription_client.subscriptions.list())
     # Sort subscriptions alphabetically by display_name to ensure consistent ordinals
@@ -169,12 +199,12 @@ def list_and_select_subscriptions(credentials):
     return [subscriptions[idx].subscription_id for idx in selected_indices]
 
 # Save the data to a JSON file
-def save_to_json(data, filename="network_topology.json"):
+def save_to_json(data: Dict[str, Any], filename: str = "network_topology.json") -> None:
     with open(filename, "w") as f:
         json.dump(data, f, indent=4)
     logging.info(f"Network topology saved to {filename}")
 
-def query_command(args):
+def query_command(args: argparse.Namespace) -> None:
     """Execute the query command to collect VNet topology from Azure"""
     # Get credentials based on service principal flag
     credentials = get_credentials(args.service_principal)
@@ -193,7 +223,7 @@ def query_command(args):
     output_file = args.output if args.output else "network_topology.json"
     save_to_json(topology, output_file)
 
-def get_subscriptions_non_interactive(args, credentials):
+def get_subscriptions_non_interactive(args: argparse.Namespace, credentials: Union[ClientSecretCredential, AzureCliCredential]) -> List[str]:
     """Get subscriptions from command line arguments or file in non-interactive mode"""
     if args.subscriptions and args.subscriptions_file:
         logging.error("Cannot specify both --subscriptions and --subscriptions-file")
@@ -216,7 +246,7 @@ def get_subscriptions_non_interactive(args, credentials):
         logging.info(f"Resolving subscription names to IDs: {subscriptions}")
         return resolve_subscription_names_to_ids(subscriptions, credentials)
 
-def determine_hub_for_spoke(spoke_vnet, hub_vnets):
+def determine_hub_for_spoke(spoke_vnet: Dict[str, Any], hub_vnets: List[Dict[str, Any]]) -> Optional[str]:
     """Determine which hub this spoke is connected to based on peering relationships"""
     spoke_peerings = spoke_vnet.get('peerings', [])
     
@@ -231,7 +261,7 @@ def determine_hub_for_spoke(spoke_vnet, hub_vnets):
     # Fallback to first hub if no specific connection found
     return "hub_0" if hub_vnets else None
 
-def parse_peering_name(peering_name):
+def parse_peering_name(peering_name: str) -> Tuple[Optional[str], str]:
     """Extract VNet names from peering strings"""
     # Pattern 1: "vnet1_to_vnet2" or "vnet1-to-vnet2"
     if '_to_' in peering_name:
@@ -246,13 +276,14 @@ def parse_peering_name(peering_name):
     # Pattern 2: Direct VNet name reference
     return None, peering_name
 
-def create_vnet_id_mapping(vnets, zones, all_non_peered):
+def create_vnet_id_mapping(vnets: List[Dict[str, Any]], zones: List[Dict[str, Any]], all_non_peered: List[Dict[str, Any]]) -> Dict[str, str]:
     """Create bidirectional mapping between VNet names and diagram IDs for multi-zone layout"""
     mapping = {}
     
     # Map hub VNets
     for zone in zones:
-        mapping[zone['hub']['name']] = f"hub_{zone['hub_index']}"
+        if 'name' in zone['hub']:
+            mapping[zone['hub']['name']] = f"hub_{zone['hub_index']}"
     
     # Map spoke VNets with zone-aware IDs
     for zone_index, zone in enumerate(zones):
@@ -271,19 +302,22 @@ def create_vnet_id_mapping(vnets, zones, all_non_peered):
         
         # Map right spokes
         for i, spoke in enumerate(right_spokes):
-            mapping[spoke['name']] = f"right_spoke{zone_index}_{i}"
+            if 'name' in spoke:
+                mapping[spoke['name']] = f"right_spoke{zone_index}_{i}"
         
         # Map left spokes
         for i, spoke in enumerate(left_spokes):
-            mapping[spoke['name']] = f"left_spoke{zone_index}_{i}"
+            if 'name' in spoke:
+                mapping[spoke['name']] = f"left_spoke{zone_index}_{i}"
     
     # Map non-peered VNets
     for i, nonpeered in enumerate(all_non_peered):
-        mapping[nonpeered['name']] = f"nonpeered_spoke{i}"
+        if 'name' in nonpeered:
+            mapping[nonpeered['name']] = f"nonpeered_spoke{i}"
     
     return mapping
 
-def generate_hld_diagram(filename, topology_file, config):
+def generate_hld_diagram(filename: str, topology_file: str, config: Any) -> None:
     """Generate high-level diagram (VNets only) from topology JSON"""
     from lxml import etree
     
@@ -293,6 +327,11 @@ def generate_hld_diagram(filename, topology_file, config):
 
     logging.info("Loaded topology data from JSON")
     vnets = topology.get("vnets", [])
+    
+    # Check for empty VNet list - this should be fatal
+    if not vnets:
+        logging.error("No VNets found in topology file. Cannot generate diagram.")
+        sys.exit(1)
     
     # Classify VNets for layout purposes (keep existing layout logic)
     # Highly connected VNets (hubs) vs others
@@ -322,10 +361,10 @@ def generate_hld_diagram(filename, topology_file, config):
     def add_vnet_with_features(vnet_data, vnet_id, x_offset, y_offset, style_override=None):
         """Universal function to add any VNet with feature decorators as a grouped unit"""
         vnet_height = 50 if vnet_data.get("type") == "virtual_hub" else 50
-        
+
         # Calculate total group dimensions to encompass all elements including icons
-        group_width = 400
-        group_height = vnet_height + 20  # Extra space for icons below VNet
+        group_width = config.vnet_width
+        group_height = vnet_height + config.group_height_extra  # Extra space for icons below VNet
         
         # Create group container for this VNet and all its elements
         group_id = f"{vnet_id}_group"
@@ -357,7 +396,7 @@ def generate_hld_diagram(filename, topology_file, config):
             vertex="1",
             parent=group_id,
         )
-        vnet_element.set("value", f"Subscription: {vnet_data['subscription_name']}\n{vnet_data.get('name', 'VNet')}\n{vnet_data.get('address_space', 'N/A')}")
+        vnet_element.set("value", f"Subscription: {vnet_data.get('subscription_name', 'N/A')}\n{vnet_data.get('name', 'VNet')}\n{vnet_data.get('address_space', 'N/A')}")
         etree.SubElement(
             vnet_element,
             "mxGeometry",
@@ -381,7 +420,7 @@ def generate_hld_diagram(filename, topology_file, config):
             )
         
         # Dynamic VNet icon positioning (top-right aligned)
-        vnet_width = 400  # VNet box width
+        vnet_width = config.vnet_width  # VNet box width
         y_offset = config.icon_positioning['vnet_icons']['y_offset']
         right_margin = config.icon_positioning['vnet_icons']['right_margin']
         icon_gap = config.icon_positioning['vnet_icons']['icon_gap']
@@ -489,6 +528,9 @@ def generate_hld_diagram(filename, topology_file, config):
         edge_counter = 1000  # Start high to avoid conflicts with existing edge IDs
         
         for vnet in vnets:
+            if 'name' not in vnet:
+                continue  # Skip VNets without names
+                
             source_vnet_name = vnet['name']
             source_id = vnet_mapping.get(source_vnet_name)
             
@@ -562,9 +604,9 @@ def generate_hld_diagram(filename, topology_file, config):
         })
     
     # Calculate zone width for horizontal positioning with top-left alignment
-    canvas_padding = 20  # 20px padding from canvas edge
-    zone_width = 1300  # Adjusted zone width: 920 - 20 + 400 = 1300
-    zone_spacing = 500  # Increased gap between zones to prevent overlap
+    canvas_padding = config.canvas_padding
+    zone_width = 920 - canvas_padding + config.vnet_width  # Adjusted zone width calculated from layout
+    zone_spacing = config.zone_spacing
     
     # Dynamic spacing for spokes - adjusted for hub above spokes
     spacing = 100  # Original HLD.py spacing
@@ -574,8 +616,8 @@ def generate_hld_diagram(filename, topology_file, config):
     # Original positions: left=-100, hub=400, right=900
     # Adjusted for 20px padding with proper spacing: left=20, hub=470, right=920
     base_left_x = canvas_padding
-    base_hub_x = canvas_padding + 450  # Hub positioned with 50px gap after left spokes (400px wide)
-    base_right_x = canvas_padding + 900  # Right spokes with 50px gap after hub (400px wide)
+    base_hub_x = canvas_padding + config.vnet_spacing_x  # Hub positioned with 50px gap after left spokes (400px wide)
+    base_right_x = canvas_padding + config.vnet_spacing_x + config.vnet_width + 50  # Right spokes with 50px gap after hub
     hub_y = canvas_padding  # Hub positioned at top, above spokes
     
     # Process each zone
@@ -699,7 +741,7 @@ def generate_hld_diagram(filename, topology_file, config):
         total_zones_width = len(zones) * zone_width + (len(zones) - 1) * zone_spacing
         
         # Calculate unpeered network layout with row wrapping
-        unpeered_spacing = 450  # VNet width (400) + gap (50)
+        unpeered_spacing = config.vnet_width + 50  # VNet width + gap
         vnets_per_row = max(1, int(total_zones_width // unpeered_spacing))  # How many fit in one row
         row_height = 70  # Height for each row (VNet height + gap)
         
@@ -728,7 +770,7 @@ def generate_hld_diagram(filename, topology_file, config):
         tree.write(f, encoding="utf-8", xml_declaration=True, pretty_print=True)
     logging.info(f"Draw.io diagram generated and saved to {filename}")
 
-def hld_command(args):
+def hld_command(args: argparse.Namespace) -> None:
     """Execute the HLD command to generate high-level diagrams"""
     from config import Config
     
@@ -744,7 +786,7 @@ def hld_command(args):
     logging.info("HLD diagram generation complete.")
     logging.info(f"HLD diagram saved to {output_file}")
 
-def generate_mld_diagram(filename, topology_file, config):
+def generate_mld_diagram(filename: str, topology_file: str, config: Any) -> None:
     """Generate mid-level diagram (VNets + subnets) from topology JSON"""
     from lxml import etree
     
@@ -754,6 +796,11 @@ def generate_mld_diagram(filename, topology_file, config):
 
     logging.info("Loaded topology data from JSON")
     vnets = topology.get("vnets", [])
+    
+    # Check for empty VNet list - this should be fatal
+    if not vnets:
+        logging.error("No VNets found in topology file. Cannot generate diagram.")
+        sys.exit(1)
     
     # Classify VNets for layout purposes (keep existing layout logic)
     # Highly connected VNets (hubs) vs others
@@ -819,7 +866,7 @@ def generate_mld_diagram(filename, topology_file, config):
             vertex="1",
             parent=group_id,
         )
-        vnet_element.set("value", f"Subscription: {vnet_data['subscription_name']}\n{vnet_data.get('name', 'VNet')}\n{vnet_data.get('address_space', 'N/A')}")
+        vnet_element.set("value", f"Subscription: {vnet_data.get('subscription_name', 'N/A')}\n{vnet_data.get('name', 'VNet')}\n{vnet_data.get('address_space', 'N/A')}")
         etree.SubElement(
             vnet_element,
             "mxGeometry",
@@ -1067,6 +1114,9 @@ def generate_mld_diagram(filename, topology_file, config):
         edge_counter = 1000  # Start high to avoid conflicts with existing edge IDs
         
         for vnet in vnets:
+            if 'name' not in vnet:
+                continue  # Skip VNets without names
+                
             source_vnet_name = vnet['name']
             source_id = vnet_mapping.get(source_vnet_name)
             
@@ -1140,9 +1190,9 @@ def generate_mld_diagram(filename, topology_file, config):
         })
     
     # Calculate zone width for horizontal positioning with top-left alignment (MLD values)
-    canvas_padding = 20  # 20px padding from canvas edge
-    zone_width = 1300  # Adjusted zone width: 920 - 20 + 400 = 1300
-    zone_spacing = 500  # Increased gap between zones to prevent overlap
+    canvas_padding = config.canvas_padding
+    zone_width = 920 - canvas_padding + config.vnet_width  # Adjusted zone width calculated from layout
+    zone_spacing = config.zone_spacing
     
     # Dynamic spacing for spokes - adjusted for hub above spokes
     padding = 20   # Original MLD.py padding
@@ -1151,8 +1201,8 @@ def generate_mld_diagram(filename, topology_file, config):
     # Original positions: left=-400, hub=200, right=700
     # Adjusted for 20px padding with proper spacing: left=20, hub=470, right=920
     base_left_x = canvas_padding
-    base_hub_x = canvas_padding + 450  # Hub positioned with 50px gap after left spokes (400px wide)
-    base_right_x = canvas_padding + 900  # Right spokes with 50px gap after hub (400px wide)
+    base_hub_x = canvas_padding + config.vnet_spacing_x  # Hub positioned with 50px gap after left spokes (400px wide)
+    base_right_x = canvas_padding + config.vnet_spacing_x + config.vnet_width + 50  # Right spokes with 50px gap after hub
     hub_y = canvas_padding  # Hub positioned at top, above spokes
     
     # Process each zone
@@ -1272,7 +1322,7 @@ def generate_mld_diagram(filename, topology_file, config):
         total_zones_width = len(zones) * zone_width + (len(zones) - 1) * zone_spacing
         
         # Calculate unpeered network layout with row wrapping
-        unpeered_spacing = 450  # VNet width (400) + gap (50)
+        unpeered_spacing = config.vnet_width + 50  # VNet width + gap
         vnets_per_row = max(1, int(total_zones_width // unpeered_spacing))  # How many fit in one row
         row_height = 120  # Height for each row (VNet height + gap, larger for MLD with subnets)
         
@@ -1301,7 +1351,7 @@ def generate_mld_diagram(filename, topology_file, config):
         tree.write(f, encoding="utf-8", xml_declaration=True, pretty_print=True)
     logging.info(f"Draw.io diagram generated and saved to {filename}")
 
-def mld_command(args):
+def mld_command(args: argparse.Namespace) -> None:
     """Execute the MLD command to generate mid-level diagrams"""
     from config import Config
     
@@ -1319,25 +1369,17 @@ def mld_command(args):
 
 class CustomHelpFormatter(argparse.RawDescriptionHelpFormatter):
     """Custom formatter to prevent help text from wrapping to multiple lines"""
-    def __init__(self, prog):
+    def __init__(self, prog: str) -> None:
         super().__init__(prog, max_help_position=70, width=180)
 
-def main():
+def main() -> None:
     """Main CLI entry point with subcommand dispatch"""
     parser = argparse.ArgumentParser(
         description="CloudNet Draw - Azure VNet topology visualization tool",
-        formatter_class=CustomHelpFormatter,
-        epilog="""
-Examples:
-  %(prog)s query                    # Query Azure and save topology to JSON
-  %(prog)s hld                      # Generate high-level diagram from topology
-  %(prog)s mld                      # Generate mid-level diagram with subnets
-  %(prog)s hld -o custom_hld.drawio # Generate HLD with custom output filename
-  %(prog)s mld -t custom_topo.json  # Generate MLD from custom topology file
-        """
+        formatter_class=CustomHelpFormatter
     )
     
-    subparsers = parser.add_subparsers(dest='command', title='subcommands', help='Available commands')
+    subparsers = parser.add_subparsers(dest='command')
     subparsers.required = True
     
     # Query command
@@ -1363,7 +1405,7 @@ Examples:
     hld_parser.add_argument('-o', '--output', default='network_hld.drawio',
                            help='Output diagram file (default: network_hld.drawio)')
     hld_parser.add_argument('-t', '--topology', default='network_topology.json',
-                           help='Input topology JSON file')
+                           help='Input topology JSON file (default: network_topology.json)')
     hld_parser.add_argument('-c', '--config-file', default='config.yaml',
                            help='Configuration file (default: config.yaml)')
     hld_parser.add_argument('-v', '--verbose', action='store_true',
@@ -1376,7 +1418,7 @@ Examples:
     mld_parser.add_argument('-o', '--output', default='network_mld.drawio',
                            help='Output diagram file (default: network_mld.drawio)')
     mld_parser.add_argument('-t', '--topology', default='network_topology.json',
-                           help='Input topology JSON file')
+                           help='Input topology JSON file (default: network_topology.json)')
     mld_parser.add_argument('-c', '--config-file', default='config.yaml',
                            help='Configuration file (default: config.yaml)')
     mld_parser.add_argument('-v', '--verbose', action='store_true',

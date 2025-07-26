@@ -1,18 +1,16 @@
 # CLOUDNET DRAW
 
-A Python-based tool for automatically generating visual diagrams of Azure virtual networks using topology data exported from the Azure API. This script creates `.drawio` diagram files representing Hub-and-Spoke network architectures, making it easier to audit, present, and understand complex Azure network infrastructures.
+Python tool for automatically generating visual diagrams of Azure virtual network infrastructures from topology data. CloudNet Draw converts Azure VNet topology JSON into `.drawio` diagram files, targeting Hub-and-Spoke network architectures.
 
-Just passed 80 Stars! Thank you so much for the confidence!
 ![GitHub stars](https://img.shields.io/github/stars/krhatland/cloudnet-draw?style=social)
 
-Now supporting direct deployment to Azure Function in your own tenant! Check it out!
+Website: [CloudNetDraw](https://www.cloudnetdraw.com/)
+
+Blog: [Technical Deep Dive](https://hatnes.no/posts/cloudnet-draw/) 
+
 ## Deploy to Azure
 
 [![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fkrhatland%2Fcloudnet-draw%2Fmain%2Fazure-function%2Finfra%2Fmain.json)
-
-🚀 Try it free on the Website: ([CloudNetDraw](https://www.cloudnetdraw.com/)) 
-
-🌐 Check the blogpost: ([Blog](https://hatnes.no/posts/cloudnet-draw/)) 
 
 ## 📌 Key Features
 
@@ -21,147 +19,254 @@ Now supporting direct deployment to Azure Function in your own tenant! Check it 
 - 🖼️ Supports hub, spoke, subnets, peerings, and Azure service icons (NSG, UDR, Firewall, etc.)
 - 🧠 Logic-based layout:
   - Peered vs non-peered spokes
-  - Left/right layout split for better readability
+  - Left/right layout split
   - Icon placement and subnet expansion
 - 🧩 Extendable for MLD, HLD, and custom peerings
 
 ---
 
-## Update
-Added support for deployment through local Azure Function to self-host a timed function in own tenant
+## Quick Start Guide
 
-## 🖼️ Example Output
+Setup:
 
-> 💡 The tool outputs `.drawio` files. You can export them to PNG, JPG, PDF, or SVG using the [Draw.io Desktop CLI](https://github.com/jgraph/drawio-desktop).
-
-<img src="examples/MLD_example1.png" alt="CloudNet Draw" width="700"/>
-
----
-
-## ⚙️ Requirements
-
-- Python 3.8+
-- Azure topology JSON export (your own format or adapted from Azure API)
-- Recommended: [Draw.io Desktop](https://github.com/jgraph/drawio-desktop/releases) for viewing/exporting diagrams
-
-Install dependencies:
-pip install -r requirements.txt
-
-## Setup
-## macOS / Linux
-
-### Using uv (Recommended)
+### 1. Install and Setup
 ```bash
-# Create virtual environment
+git clone https://github.com/krhatland/cloudnet-draw.git
+cd cloudnet-draw
 uv venv
-
-# Install dependencies
 uv pip install -r requirements.txt
-
-# Run scripts directly with uv
-uv run azure-query.py
-uv run HLD.py
-uv run MLD.py
 ```
 
-### Traditional venv
+### 2. Authenticate with Azure
 ```bash
+az login
+```
+
+### 3. Generate Your First Diagram
+```bash
+uv run azure-query.py query
+uv run azure-query.py hld
+uv run azure-query.py mld
+```
+
+### 4. View Results
+Open the generated `network_hld.drawio` and `network_mld.drawio` files with [Draw.io Desktop](https://github.com/jgraph/drawio-desktop/releases) or the web version at [diagrams.net](https://diagrams.net).
+
+## Installation
+
+### Prerequisites
+- Python 3.8+
+- Azure cli (`az`)
+- Azure access to subscriptions and vnets
+- [Draw.io Desktop](https://github.com/jgraph/drawio-desktop/releases) (recommended for viewing diagrams)
+- make (optional, for testing with Makefile)
+
+### Setup
+
+**MacOS/Linux:**
+```bash
+git clone https://github.com/krhatland/cloudnet-draw.git
+cd cloudnet-draw
 python3 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-To activate the virtual environment manually:
-```bash
-source .venv/bin/activate
-```
-
-## Windows
+**Windows:**
+```cmd
+git clone https://github.com/krhatland/cloudnet-draw.git
+cd cloudnet-draw
 python -m venv venv
 venv\Scripts\activate
+pip install -r requirements.txt
+```
+
+## Configuration
+
+CloudNet Draw uses YAML-based configuration for diagram styling and layout settings.
+
+### Configuration Parameters
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `thresholds.hub_peering_count` | `3` | VNets with this many peerings are classified as hubs |
+| `styles.hub.border_color` | `"#0078D4"` | Hub VNet border color |
+| `styles.hub.fill_color` | `"#E6F1FB"` | Hub VNet background color |
+| `styles.hub.font_color` | `"#004578"` | Hub VNet text color |
+| `styles.hub.line_color` | `"#0078D4"` | Hub VNet line color |
+| `styles.hub.text_align` | `"left"` | Hub VNet text alignment |
+| `styles.spoke.border_color` | `"#CC6600"` | Spoke VNet border color |
+| `styles.spoke.fill_color` | `"#f2f7fc"` | Spoke VNet background color |
+| `styles.spoke.font_color` | `"#CC6600"` | Spoke VNet text color |
+| `styles.spoke.line_color` | `"#0078D4"` | Spoke VNet line color |
+| `styles.spoke.text_align` | `"left"` | Spoke VNet text alignment |
+| `styles.non_peered.border_color` | `"gray"` | Non-peered VNet border color |
+| `styles.non_peered.fill_color` | `"#f5f5f5"` | Non-peered VNet background color |
+| `styles.non_peered.font_color` | `"gray"` | Non-peered VNet text color |
+| `styles.non_peered.line_color` | `"gray"` | Non-peered VNet line color |
+| `styles.non_peered.text_align` | `"left"` | Non-peered VNet text alignment |
+| `subnet.border_color` | `"#C8C6C4"` | Subnet border color |
+| `subnet.fill_color` | `"#FAF9F8"` | Subnet background color |
+| `subnet.font_color` | `"#323130"` | Subnet text color |
+| `subnet.text_align` | `"left"` | Subnet text alignment |
+| `layout.canvas.padding` | `20` | Padding from canvas edges |
+| `layout.zone.spacing` | `500` | Gap between different zones |
+| `layout.vnet.width` | `400` | Standard width for VNet boxes |
+| `layout.vnet.spacing_x` | `450` | Horizontal spacing between VNets |
+| `layout.vnet.spacing_y` | `100` | Vertical spacing between VNets |
+| `layout.hub.spacing_x` | `450` | Horizontal spacing between hubs |
+| `layout.hub.spacing_y` | `400` | Vertical position of hubs |
+| `layout.hub.width` | `400` | Width of hub VNet boxes |
+| `layout.hub.height` | `50` | Height of hub VNet boxes |
+| `layout.spoke.spacing_y` | `100` | Vertical spacing between spokes |
+| `layout.spoke.start_y` | `200` | Starting Y position for spokes |
+| `layout.spoke.width` | `400` | Width of spoke VNet boxes |
+| `layout.spoke.height` | `50` | Height of spoke VNet boxes |
+| `layout.spoke.left_x` | `-100` | X position for left-side spokes |
+| `layout.spoke.right_x` | `900` | X position for right-side spokes |
+| `layout.non_peered.spacing_y` | `100` | Vertical spacing between non-peered VNets |
+| `layout.non_peered.start_y` | `200` | Starting Y position for non-peered VNets |
+| `layout.non_peered.x` | `1450` | X position for non-peered spokes |
+| `layout.non_peered.width` | `400` | Width of non-peered VNet boxes |
+| `layout.non_peered.height` | `50` | Height of non-peered VNet boxes |
+| `layout.subnet.width` | `350` | Width of subnet boxes |
+| `layout.subnet.height` | `20` | Height of subnet boxes |
+| `layout.subnet.padding_x` | `25` | Horizontal padding for subnets |
+| `layout.subnet.padding_y` | `55` | Vertical padding for subnets |
+| `layout.subnet.spacing_y` | `30` | Vertical spacing between subnets |
+| `edges.stroke_color` | `"#0078D4"` | Edge stroke color |
+| `edges.stroke_width` | `2` | Edge stroke width |
+| `edges.style` | `"edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#0078D4;strokeWidth=2;endArrow=block;startArrow=block;"` | Edge style string |
+| `icons.vnet.path` | `"img/lib/azure2/networking/Virtual_Networks.svg"` | VNet icon path |
+| `icons.vnet.width` | `20` | VNet icon width |
+| `icons.vnet.height` | `20` | VNet icon height |
+| `icons.virtual_hub.path` | `"img/lib/azure2/networking/Virtual_WANs.svg"` | Virtual Hub icon path |
+| `icons.virtual_hub.width` | `20` | Virtual Hub icon width |
+| `icons.virtual_hub.height` | `20` | Virtual Hub icon height |
+| `icons.expressroute.path` | `"img/lib/azure2/networking/ExpressRoute_Circuits.svg"` | ExpressRoute icon path |
+| `icons.expressroute.width` | `20` | ExpressRoute icon width |
+| `icons.expressroute.height` | `20` | ExpressRoute icon height |
+| `icons.firewall.path` | `"img/lib/azure2/networking/Firewalls.svg"` | Azure Firewall icon path |
+| `icons.firewall.width` | `20` | Azure Firewall icon width |
+| `icons.firewall.height` | `20` | Azure Firewall icon height |
+| `icons.vpn_gateway.path` | `"img/lib/azure2/networking/Virtual_Network_Gateways.svg"` | VPN Gateway icon path |
+| `icons.vpn_gateway.width` | `20` | VPN Gateway icon width |
+| `icons.vpn_gateway.height` | `20` | VPN Gateway icon height |
+| `icons.nsg.path` | `"img/lib/azure2/networking/Network_Security_Groups.svg"` | NSG icon path |
+| `icons.nsg.width` | `16` | NSG icon width |
+| `icons.nsg.height` | `16` | NSG icon height |
+| `icons.route_table.path` | `"img/lib/azure2/networking/Route_Tables.svg"` | Route Table icon path |
+| `icons.route_table.width` | `16` | Route Table icon width |
+| `icons.route_table.height` | `16` | Route Table icon height |
+| `icons.subnet.path` | `"img/lib/azure2/networking/Subnet.svg"` | Subnet icon path |
+| `icons.subnet.width` | `20` | Subnet icon width |
+| `icons.subnet.height` | `12` | Subnet icon height |
+| `icon_positioning.vnet_icons.y_offset` | `3.39` | Y position from top of VNet |
+| `icon_positioning.vnet_icons.right_margin` | `6` | Margin from right edge of VNet |
+| `icon_positioning.vnet_icons.icon_gap` | `5` | Gap between icons |
+| `icon_positioning.virtual_hub_icon.offset_x` | `-10` | X offset from VNet left edge |
+| `icon_positioning.virtual_hub_icon.offset_y` | `-15` | Y offset from VNet bottom |
+| `icon_positioning.subnet_icons.icon_y_offset` | `2` | Y offset from subnet top edge |
+| `icon_positioning.subnet_icons.subnet_icon_y_offset` | `3` | Subnet icon height alignment offset |
+| `icon_positioning.subnet_icons.icon_gap` | `3` | Gap between icons in pixels |
+| `drawio.canvas.dx` | `"371"` | Canvas X offset |
+| `drawio.canvas.dy` | `"1462"` | Canvas Y offset |
+| `drawio.canvas.grid` | `"0"` | Grid display setting |
+| `drawio.canvas.gridSize` | `"10"` | Grid size |
+| `drawio.canvas.guides` | `"1"` | Guides display setting |
+| `drawio.canvas.tooltips` | `"1"` | Tooltips display setting |
+| `drawio.canvas.connect` | `"1"` | Connection display setting |
+| `drawio.canvas.arrows` | `"1"` | Arrow display setting |
+| `drawio.canvas.fold` | `"1"` | Fold display setting |
+| `drawio.canvas.page` | `"0"` | Page display setting |
+| `drawio.canvas.pageScale` | `"1"` | Page scale setting |
+| `drawio.canvas.pageWidth` | `"827"` | Page width |
+| `drawio.canvas.pageHeight` | `"1169"` | Page height |
+| `drawio.canvas.background` | `"#ffffff"` | Canvas background color |
+| `drawio.canvas.math` | `"0"` | Math display setting |
+| `drawio.canvas.shadow` | `"0"` | Shadow display setting |
+| `drawio.group.extra_height` | `20` | Extra space in group for icons below VNet |
+| `drawio.group.connectable` | `"0"` | Group connectable setting |
+
+## Usage Examples
+
+### Example 1: Single Hub with Multiple Spokes
+
+```bash
+# Query specific subscription
+uv run azure-query.py query --subscriptions "Production-Network"
+
+# Generate both diagram types
+uv run azure-query.py hld
+uv run azure-query.py mld
+```
+
+**Expected Output:**
+- `network_hld.drawio` - High-level view showing VNet relationships
+- `network_mld.drawio` - Detailed view including subnets and services
+
+### Example 2: Multi-Subscription Environment
+
+```bash
+# Interactive subscription selection
+uv run azure-query.py query
+
+# Follow prompts to select subscriptions
+# Example: 1,3,5 for subscriptions 1, 3, and 5
+
+# Generate consolidated diagrams
+uv run azure-query.py hld
+```
+
+### Example 3: Custom Configuration
+
+```bash
+# Create custom config
+cp config.yaml my_config.yaml
+# Edit my_config.yaml with your settings
+
+# Use custom config
+uv run azure-query.py query --config-file my_config.yaml
+```
+
+## Testing
+
+### Running Tests
+
+```bash
+# Run all tests with coverage
+make test
+
+# Run specific test tiers
+make unit          # Unit tests only
+make integration   # Integration tests only
+
+# Generate coverage report
+make coverage
+```
 
 
-## 🚀 Usage
-For just testing the solution use Azure CLI with "az login" and run the "azure-query.py" file. The script will list out subscriptions you have access to and ask that you choose which of them to include, comma separated.
 
-For normal usage create a service principal in Azure and delegate access to the service principal to the network environments you wish to map out.
-Add the credentials for the service principal in the "azure-query-sp.py"
 
-Both of them will generate the "network_topology.json" output file.
 
-The HLD.py and MLD.py files both use the same JSON file as input, you can run them to generate a drawio file from the JSON.
+## License and Contact
 
-HLD.py / MLD.py
-By default, the script creates:
-
-network_hld.drawio & network_mld.drawio
-
-## 📄 License
+### License
 This project is licensed under the MIT License.
 You are free to use, modify, and distribute it with attribution.
 
-## 🤝 Contributing
-Pull requests and suggestions are welcome!
-If you have ideas for enhancements (e.g. support for internal peerings, multi-hub views, or layout options), feel free to open an issue or PR.
+### Author
+**Kristoffer Hatland**  
+🔗 [LinkedIn](https://www.linkedin.com/in/hatland) • 🐙 [GitHub](https://github.com/krhatland)
 
-## 👨‍💻 Author
-Kristoffer Hatland
-🔗 ([LinkedIn](https://www.linkedin.com/in/hatland))  • 🐙 ([GitHub](https://github.com/krhatland))
-
-## 🚧 Coming Up Next
-Azure Function App integration for cloud-native execution
-Optional image export (.png) using Draw.io CLI
-GitHub Actions support
-
-
-<details> <summary><strong>🛠 Troubleshooting</strong></summary>
-
-## Able to list out Subscriptions with the script, but nothing happens after
-
-If you are able to list out the subscriptions, but nothing happens after that:
-This is usually an issue where Defender for endpont blocks pip. 
-It should be resolved when you allow it in Defender
-
-## SSL Certificate Errors on macOS
-
-If you encounter an error like this:
-
-"SSLError: certificate verify failed: unable to get local issuer certificate (_ssl.c:1129)
-It's usually due to missing trusted root certificates in your Python environment."
-
-✅ Fix for macOS (python.org installs)
-If you're using Python installed from python.org, run this command outside your virtual environment:
-
-/Applications/Python\ 3.X/Install\ Certificates.command
-Replace 3.X with your Python version (e.g. Python 3.11 or Python 3.13)
-
-This is a one-time fix that installs the correct trusted certificates.
-
-💡 After running the fix
-Recreate or activate your virtual environment:
-
-python3 -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-Test certificate validation:
-
-python -c "import requests; print(requests.get('https://pypi.org').status_code)"
-✅ You should see 200 as the output, confirming SSL works correctly.
-
-🧯 Still not working?
-If you're in a corporate network or using a managed device, the issue may be related to firewalls, proxies, or custom certificates. Please contact your IT department for assistance.
-
-## 🛠️ Note for Users in Corporate Networks (SSL Errors)
-
-If you're behind a corporate proxy that injects SSL certificates (e.g. ZScaler, Palo Alto, company CA), you may experience `certificate verify failed: Missing Authority Key Identifier`.
-
-Try these fixes:
-1. Use `az login` _outside_ the virtual environment first.
-2. Export your corporate root CA together with certifi:
-
-cat ~/your-company.crt $(python3 -m certifi) > ~/full_bundle.crt
-export SSL_CERT_FILE=~/full_bundle.crt
-export REQUESTS_CA_BUNDLE=~/full_bundle.crt
+### Resources
+- **Website**: [CloudNetDraw.com](https://www.cloudnetdraw.com/)
+- **Blog**: [Technical Deep Dive](https://hatnes.no/posts/cloudnet-draw/)
+- **Issues**: [GitHub Issues](https://github.com/krhatland/cloudnet-draw/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/krhatland/cloudnet-draw/discussions)
 
 
 
+---
+
+**Made with ❤️ for the Azure community**

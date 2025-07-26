@@ -1,0 +1,68 @@
+# Complete configuration with all options specified
+hub_threshold: 3
+
+style:
+  vnet:
+    hub: "fillColor=#e6f3ff;strokeColor=#0066cc;strokeWidth=2;fontFamily=Arial;fontSize=12;fontColor=#003366"
+    spoke: "fillColor=#f0f8ff;strokeColor=#4d94ff;strokeWidth=1;fontFamily=Arial;fontSize=10;fontColor=#001a66"
+    non_peered: "fillColor=#f5f5f5;strokeColor=#999999;strokeWidth=1;fontFamily=Arial;fontSize=10;fontColor=#666666"
+    default: "fillColor=#ffffff;strokeColor=#cccccc;strokeWidth=1;fontFamily=Arial;fontSize=10;fontColor=#333333"
+  
+  subnet:
+    default: "fillColor=#ffffff;strokeColor=#cccccc;strokeWidth=1;fontFamily=Arial;fontSize=8;fontColor=#666666"
+    gateway: "fillColor=#ffe6e6;strokeColor=#cc0000;strokeWidth=1;fontFamily=Arial;fontSize=8;fontColor=#800000"
+    public: "fillColor=#e6ffe6;strokeColor=#00cc00;strokeWidth=1;fontFamily=Arial;fontSize=8;fontColor=#004d00"
+    private: "fillColor=#ffe6f3;strokeColor=#cc0066;strokeWidth=1;fontFamily=Arial;fontSize=8;fontColor=#660033"
+
+  edges:
+    default: "strokeColor=#333333;strokeWidth=1;endArrow=none;startArrow=none"
+    peering: "strokeColor=#0066cc;strokeWidth=2;endArrow=none;startArrow=none"
+    gateway: "strokeColor=#cc0000;strokeWidth=2;endArrow=classic;startArrow=none"
+
+layout:
+  zone_width: 400
+  zone_padding: 50
+  zone_spacing: 100
+  spoke_spacing: 80
+  non_peered_spacing: 60
+  hub_spacing: 120
+  subnet_spacing: 30
+  icon_spacing: 20
+  vertical_margin: 40
+  horizontal_margin: 40
+
+icons:
+  vnet: "img/lib/azure2/networking/Virtual_Networks.svg"
+  subnet: "img/lib/azure2/networking/Subnets.svg"
+  gateway: "img/lib/azure2/networking/Virtual_Network_Gateways.svg"
+  peering: "img/lib/azure2/networking/Virtual_Network_Peerings.svg"
+  vpn: "img/lib/azure2/networking/VPN_Gateways.svg"
+  expressroute: "img/lib/azure2/networking/ExpressRoute_Circuits.svg"
+  load_balancer: "img/lib/azure2/networking/Load_Balancers.svg"
+  application_gateway: "img/lib/azure2/networking/Application_Gateways.svg"
+
+icon_positioning:
+  enabled: true
+  max_icons_per_vnet: 4
+  icon_size: 24
+  icon_margin: 5
+  icon_gap: 8
+  position: "bottom-right"
+
+drawio:
+  canvas_width: 1600
+  canvas_height: 1200
+  background_color: "#ffffff"
+  grid_enabled: true
+  grid_size: 20
+  snap_to_grid: true
+  page_format: "A4"
+  page_orientation: "landscape"
+  margin_top: 30
+  margin_bottom: 30
+  margin_left: 30
+  margin_right: 30
+  font_family: "Arial"
+  font_size: 10
+  line_height: 1.2
+  text_align: "center"

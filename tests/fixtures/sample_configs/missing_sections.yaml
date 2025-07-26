@@ -1,0 +1,17 @@
+# Incomplete configuration missing several required sections
+hub_threshold: 3
+
+style:
+  vnet:
+    hub: "fillColor=#e6f3ff;strokeColor=#0066cc;strokeWidth=2"
+    spoke: "fillColor=#f0f8ff;strokeColor=#4d94ff;strokeWidth=1"
+  # Missing subnet section
+  # Missing edges section
+
+# Missing layout section entirely
+
+icons:
+  vnet: "img/lib/azure2/networking/Virtual_Networks.svg"
+  # Missing subnet icon
+
+# Missing drawio section

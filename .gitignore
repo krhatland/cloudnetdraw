@@ -258,4 +258,7 @@ network_mld.drawio
 
 
 # draw.io temp files
-*.dtmp
+*.dtmpazure_query.py
+examples/*.drawio
+azure_query.py
+*.drawio

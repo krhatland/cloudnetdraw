@@ -1,0 +1,341 @@
+{
+  "minimal": {
+    "vnets": [
+      {
+        "id": "/subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/test-rg/providers/Microsoft.Network/virtualNetworks/test-vnet",
+        "name": "test-vnet",
+        "location": "eastus",
+        "addressSpace": {
+          "addressPrefixes": ["10.0.0.0/16"]
+        },
+        "subnets": [
+          {
+            "name": "default",
+            "addressPrefix": "10.0.1.0/24"
+          }
+        ],
+        "peerings": []
+      }
+    ]
+  },
+  "simple_hub_spoke": {
+    "vnets": [
+      {
+        "id": "/subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/hub-rg/providers/Microsoft.Network/virtualNetworks/hub-vnet",
+        "name": "hub-vnet",
+        "location": "eastus",
+        "addressSpace": {
+          "addressPrefixes": ["10.0.0.0/16"]
+        },
+        "subnets": [
+          {
+            "name": "GatewaySubnet",
+            "addressPrefix": "10.0.1.0/24"
+          },
+          {
+            "name": "default",
+            "addressPrefix": "10.0.2.0/24"
+          }
+        ],
+        "peerings": [
+          {
+            "name": "hub-to-spoke1",
+            "remoteVirtualNetwork": {
+              "id": "/subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/spoke-rg/providers/Microsoft.Network/virtualNetworks/spoke1-vnet"
+            },
+            "allowVirtualNetworkAccess": true,
+            "allowForwardedTraffic": true,
+            "allowGatewayTransit": true,
+            "useRemoteGateways": false,
+            "peeringState": "Connected"
+          },
+          {
+            "name": "hub-to-spoke2",
+            "remoteVirtualNetwork": {
+              "id": "/subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/spoke-rg/providers/Microsoft.Network/virtualNetworks/spoke2-vnet"
+            },
+            "allowVirtualNetworkAccess": true,
+            "allowForwardedTraffic": true,
+            "allowGatewayTransit": true,
+            "useRemoteGateways": false,
+            "peeringState": "Connected"
+          },
+          {
+            "name": "hub-to-spoke3",
+            "remoteVirtualNetwork": {
+              "id": "/subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/spoke-rg/providers/Microsoft.Network/virtualNetworks/spoke3-vnet"
+            },
+            "allowVirtualNetworkAccess": true,
+            "allowForwardedTraffic": true,
+            "allowGatewayTransit": true,
+            "useRemoteGateways": false,
+            "peeringState": "Connected"
+          }
+        ]
+      },
+      {
+        "id": "/subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/spoke-rg/providers/Microsoft.Network/virtualNetworks/spoke1-vnet",
+        "name": "spoke1-vnet",
+        "location": "eastus",
+        "addressSpace": {
+          "addressPrefixes": ["10.1.0.0/16"]
+        },
+        "subnets": [
+          {
+            "name": "default",
+            "addressPrefix": "10.1.1.0/24"
+          }
+        ],
+        "peerings": [
+          {
+            "name": "spoke1-to-hub",
+            "remoteVirtualNetwork": {
+              "id": "/subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/hub-rg/providers/Microsoft.Network/virtualNetworks/hub-vnet"
+            },
+            "allowVirtualNetworkAccess": true,
+            "allowForwardedTraffic": true,
+            "allowGatewayTransit": false,
+            "useRemoteGateways": true,
+            "peeringState": "Connected"
+          }
+        ]
+      },
+      {
+        "id": "/subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/spoke-rg/providers/Microsoft.Network/virtualNetworks/spoke2-vnet",
+        "name": "spoke2-vnet",
+        "location": "eastus",
+        "addressSpace": {
+          "addressPrefixes": ["10.2.0.0/16"]
+        },
+        "subnets": [
+          {
+            "name": "default",
+            "addressPrefix": "10.2.1.0/24"
+          }
+        ],
+        "peerings": [
+          {
+            "name": "spoke2-to-hub",
+            "remoteVirtualNetwork": {
+              "id": "/subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/hub-rg/providers/Microsoft.Network/virtualNetworks/hub-vnet"
+            },
+            "allowVirtualNetworkAccess": true,
+            "allowForwardedTraffic": true,
+            "allowGatewayTransit": false,
+            "useRemoteGateways": true,
+            "peeringState": "Connected"
+          }
+        ]
+      },
+      {
+        "id": "/subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/spoke-rg/providers/Microsoft.Network/virtualNetworks/spoke3-vnet",
+        "name": "spoke3-vnet",
+        "location": "eastus",
+        "addressSpace": {
+          "addressPrefixes": ["10.3.0.0/16"]
+        },
+        "subnets": [
+          {
+            "name": "default",
+            "addressPrefix": "10.3.1.0/24"
+          }
+        ],
+        "peerings": [
+          {
+            "name": "spoke3-to-hub",
+            "remoteVirtualNetwork": {
+              "id": "/subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/hub-rg/providers/Microsoft.Network/virtualNetworks/hub-vnet"
+            },
+            "allowVirtualNetworkAccess": true,
+            "allowForwardedTraffic": true,
+            "allowGatewayTransit": false,
+            "useRemoteGateways": true,
+            "peeringState": "Connected"
+          }
+        ]
+      }
+    ]
+  },
+  "complex_multi_hub": {
+    "vnets": [
+      {
+        "id": "/subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/hub-rg/providers/Microsoft.Network/virtualNetworks/hub1-vnet",
+        "name": "hub1-vnet",
+        "location": "eastus",
+        "addressSpace": {
+          "addressPrefixes": ["10.0.0.0/16"]
+        },
+        "subnets": [
+          {
+            "name": "GatewaySubnet",
+            "addressPrefix": "10.0.1.0/24"
+          }
+        ],
+        "peerings": [
+          {
+            "name": "hub1-to-spoke1",
+            "remoteVirtualNetwork": {
+              "id": "/subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/spoke-rg/providers/Microsoft.Network/virtualNetworks/spoke1-vnet"
+            },
+            "allowVirtualNetworkAccess": true,
+            "allowForwardedTraffic": true,
+            "allowGatewayTransit": true,
+            "useRemoteGateways": false,
+            "peeringState": "Connected"
+          },
+          {
+            "name": "hub1-to-spoke2",
+            "remoteVirtualNetwork": {
+              "id": "/subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/spoke-rg/providers/Microsoft.Network/virtualNetworks/spoke2-vnet"
+            },
+            "allowVirtualNetworkAccess": true,
+            "allowForwardedTraffic": true,
+            "allowGatewayTransit": true,
+            "useRemoteGateways": false,
+            "peeringState": "Connected"
+          },
+          {
+            "name": "hub1-to-spoke3",
+            "remoteVirtualNetwork": {
+              "id": "/subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/spoke-rg/providers/Microsoft.Network/virtualNetworks/spoke3-vnet"
+            },
+            "allowVirtualNetworkAccess": true,
+            "allowForwardedTraffic": true,
+            "allowGatewayTransit": true,
+            "useRemoteGateways": false,
+            "peeringState": "Connected"
+          },
+          {
+            "name": "hub1-to-spoke4",
+            "remoteVirtualNetwork": {
+              "id": "/subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/spoke-rg/providers/Microsoft.Network/virtualNetworks/spoke4-vnet"
+            },
+            "allowVirtualNetworkAccess": true,
+            "allowForwardedTraffic": true,
+            "allowGatewayTransit": true,
+            "useRemoteGateways": false,
+            "peeringState": "Connected"
+          }
+        ]
+      },
+      {
+        "id": "/subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/hub-rg/providers/Microsoft.Network/virtualNetworks/hub2-vnet",
+        "name": "hub2-vnet",
+        "location": "westus",
+        "addressSpace": {
+          "addressPrefixes": ["10.100.0.0/16"]
+        },
+        "subnets": [
+          {
+            "name": "GatewaySubnet",
+            "addressPrefix": "10.100.1.0/24"
+          }
+        ],
+        "peerings": [
+          {
+            "name": "hub2-to-spoke5",
+            "remoteVirtualNetwork": {
+              "id": "/subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/spoke-rg/providers/Microsoft.Network/virtualNetworks/spoke5-vnet"
+            },
+            "allowVirtualNetworkAccess": true,
+            "allowForwardedTraffic": true,
+            "allowGatewayTransit": true,
+            "useRemoteGateways": false,
+            "peeringState": "Connected"
+          },
+          {
+            "name": "hub2-to-spoke6",
+            "remoteVirtualNetwork": {
+              "id": "/subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/spoke-rg/providers/Microsoft.Network/virtualNetworks/spoke6-vnet"
+            },
+            "allowVirtualNetworkAccess": true,
+            "allowForwardedTraffic": true,
+            "allowGatewayTransit": true,
+            "useRemoteGateways": false,
+            "peeringState": "Connected"
+          },
+          {
+            "name": "hub2-to-spoke7",
+            "remoteVirtualNetwork": {
+              "id": "/subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/spoke-rg/providers/Microsoft.Network/virtualNetworks/spoke7-vnet"
+            },
+            "allowVirtualNetworkAccess": true,
+            "allowForwardedTraffic": true,
+            "allowGatewayTransit": true,
+            "useRemoteGateways": false,
+            "peeringState": "Connected"
+          },
+          {
+            "name": "hub2-to-spoke8",
+            "remoteVirtualNetwork": {
+              "id": "/subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/spoke-rg/providers/Microsoft.Network/virtualNetworks/spoke8-vnet"
+            },
+            "allowVirtualNetworkAccess": true,
+            "allowForwardedTraffic": true,
+            "allowGatewayTransit": true,
+            "useRemoteGateways": false,
+            "peeringState": "Connected"
+          }
+        ]
+      }
+    ]
+  },
+  "edge_cases": {
+    "empty_vnets": {
+      "vnets": []
+    },
+    "single_vnet": {
+      "vnets": [
+        {
+          "id": "/subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/test-rg/providers/Microsoft.Network/virtualNetworks/single-vnet",
+          "name": "single-vnet",
+          "location": "eastus",
+          "addressSpace": {
+            "addressPrefixes": ["10.0.0.0/16"]
+          },
+          "subnets": [
+            {
+              "name": "default",
+              "addressPrefix": "10.0.1.0/24"
+            }
+          ],
+          "peerings": []
+        }
+      ]
+    },
+    "no_peerings": {
+      "vnets": [
+        {
+          "id": "/subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/test-rg/providers/Microsoft.Network/virtualNetworks/isolated1-vnet",
+          "name": "isolated1-vnet",
+          "location": "eastus",
+          "addressSpace": {
+            "addressPrefixes": ["10.1.0.0/16"]
+          },
+          "subnets": [
+            {
+              "name": "default",
+              "addressPrefix": "10.1.1.0/24"
+            }
+          ],
+          "peerings": []
+        },
+        {
+          "id": "/subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/test-rg/providers/Microsoft.Network/virtualNetworks/isolated2-vnet",
+          "name": "isolated2-vnet",
+          "location": "eastus",
+          "addressSpace": {
+            "addressPrefixes": ["10.2.0.0/16"]
+          },
+          "subnets": [
+            {
+              "name": "default",
+              "addressPrefix": "10.2.1.0/24"
+            }
+          ],
+          "peerings": []
+        }
+      ]
+    }
+  }
+}

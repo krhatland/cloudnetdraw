@@ -37,16 +37,29 @@ subnet:
 
 # Layout settings
 layout:
+  # Canvas and zone settings
+  canvas:
+    padding: 20      # CANVAS_PADDING - Padding from canvas edges
+    
+  zone:
+    spacing: 500     # ZONE_SPACING - Gap between different zones
+    
+  # VNet common settings
+  vnet:
+    width: 400       # VNET_WIDTH - Standard width for VNet boxes
+    spacing_x: 450   # Horizontal spacing between VNets
+    spacing_y: 100   # Vertical spacing between VNets
+    
   hub:
     spacing_x: 450  # Horizontal spacing between hubs
     spacing_y: 400  # Vertical position of hubs
-    width: 400
+    width: 400      # Will use vnet.width in code
     height: 50
     
   spoke:
     spacing_y: 100  # Vertical spacing between spokes
     start_y: 200    # Starting Y position for spokes
-    width: 400
+    width: 400      # Will use vnet.width in code
     height: 50
     left_x: -100    # X position for left-side spokes
     right_x: 900    # X position for right-side spokes
@@ -55,7 +68,7 @@ layout:
     spacing_y: 100
     start_y: 200
     x: 1450         # X position for non-peered spokes
-    width: 400
+    width: 400      # Will use vnet.width in code
     height: 50
     
   subnet:
@@ -163,5 +176,5 @@ drawio:
     
   # Group settings
   group:
-    extra_height: 20  # Extra space in group for icons
+    extra_height: 20  # GROUP_HEIGHT_EXTRA - Extra space in group for icons below VNet
     connectable: "0"
