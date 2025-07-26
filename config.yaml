@@ -99,7 +99,7 @@ icons:
     
   # VPN Gateway icon
   vpn_gateway:
-    path: "img/lib/azure2/networking/VPN_Gateways.svg"
+    path: "img/lib/azure2/networking/Virtual_Network_Gateways.svg"
     width: 20
     height: 20
     

@@ -112,5 +112,5 @@ class Config:
         """Get draw.io canvas attributes"""
         return self.drawio['canvas']
 
-# Global configuration instance
-config = Config()
+# Note: Config instances are now created dynamically in command functions
+# No global instance to avoid import-time file dependencies

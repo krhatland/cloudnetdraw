@@ -1,0 +1,543 @@
+{
+  "vnets": [
+    {
+      "name": "hub-vnet",
+      "address_space": "10.0.0.0/16",
+      "subnets": [
+        {
+          "name": "default",
+          "address": "10.0.1.0/24",
+          "nsg": "Yes",
+          "udr": "No"
+        },
+        {
+          "name": "GatewaySubnet",
+          "address": "10.0.2.0/24",
+          "nsg": "No",
+          "udr": "Yes"
+        },
+        {
+          "name": "AzureFirewallSubnet",
+          "address": "10.0.3.0/24",
+          "nsg": "No",
+          "udr": "No"
+        },
+        {
+          "name": "management",
+          "address": "10.0.4.0/24",
+          "nsg": "Yes",
+          "udr": "Yes"
+        }
+      ],
+      "peerings": [
+        "hub-to-spoke1", "hub-to-spoke2", "hub-to-spoke3", "hub-to-spoke4", "hub-to-spoke5",
+        "hub-to-spoke6", "hub-to-spoke7", "hub-to-spoke8", "hub-to-spoke9", "hub-to-spoke10",
+        "hub-to-spoke11", "hub-to-spoke12", "hub-to-spoke13", "hub-to-spoke14", "hub-to-spoke15",
+        "hub-to-spoke16", "hub-to-spoke17", "hub-to-spoke18", "hub-to-spoke19", "hub-to-spoke20"
+      ],
+      "subscription_name": "Hub-Subscription",
+      "expressroute": "Yes",
+      "vpn_gateway": "Yes",
+      "firewall": "Yes",
+      "peerings_count": 20
+    },
+    {
+      "name": "spoke1-vnet",
+      "address_space": "10.1.0.0/16",
+      "subnets": [
+        {
+          "name": "web",
+          "address": "10.1.1.0/24",
+          "nsg": "Yes",
+          "udr": "Yes"
+        },
+        {
+          "name": "app",
+          "address": "10.1.2.0/24",
+          "nsg": "Yes",
+          "udr": "No"
+        }
+      ],
+      "peerings": ["hub-to-spoke1", "spoke1-vnet-to-spoke2-vnet"],
+      "subscription_name": "Spoke1-Subscription",
+      "expressroute": "No",
+      "vpn_gateway": "No",
+      "firewall": "No",
+      "peerings_count": 1
+    },
+    {
+      "name": "spoke2-vnet",
+      "address_space": "10.2.0.0/16",
+      "subnets": [
+        {
+          "name": "database",
+          "address": "10.2.1.0/24",
+          "nsg": "Yes",
+          "udr": "Yes"
+        }
+      ],
+      "peerings": ["hub-to-spoke2", "spoke1-vnet-to-spoke2-vnet"],
+      "subscription_name": "Spoke2-Subscription",
+      "expressroute": "No",
+      "vpn_gateway": "No",
+      "firewall": "No",
+      "peerings_count": 1
+    },
+    {
+      "name": "spoke3-vnet",
+      "address_space": "10.3.0.0/16",
+      "subnets": [
+        {
+          "name": "compute",
+          "address": "10.3.1.0/24",
+          "nsg": "Yes",
+          "udr": "No"
+        },
+        {
+          "name": "storage",
+          "address": "10.3.2.0/24",
+          "nsg": "No",
+          "udr": "Yes"
+        }
+      ],
+      "peerings": ["hub-to-spoke3", "spoke3-vnet-to-spoke4-vnet"],
+      "subscription_name": "Spoke3-Subscription",
+      "expressroute": "No",
+      "vpn_gateway": "No",
+      "firewall": "No",
+      "peerings_count": 1
+    },
+    {
+      "name": "spoke4-vnet",
+      "address_space": "10.4.0.0/16",
+      "subnets": [
+        {
+          "name": "analytics",
+          "address": "10.4.1.0/24",
+          "nsg": "Yes",
+          "udr": "Yes"
+        }
+      ],
+      "peerings": ["hub-to-spoke4", "spoke3-vnet-to-spoke4-vnet"],
+      "subscription_name": "Spoke4-Subscription",
+      "expressroute": "No",
+      "vpn_gateway": "No",
+      "firewall": "No",
+      "peerings_count": 1
+    },
+    {
+      "name": "spoke5-vnet",
+      "address_space": "10.5.0.0/16",
+      "subnets": [
+        {
+          "name": "frontend",
+          "address": "10.5.1.0/24",
+          "nsg": "Yes",
+          "udr": "No"
+        },
+        {
+          "name": "backend",
+          "address": "10.5.2.0/24",
+          "nsg": "Yes",
+          "udr": "Yes"
+        }
+      ],
+      "peerings": ["hub-to-spoke5"],
+      "subscription_name": "Spoke5-Subscription",
+      "expressroute": "No",
+      "vpn_gateway": "No",
+      "firewall": "No",
+      "peerings_count": 1
+    },
+    {
+      "name": "spoke6-vnet",
+      "address_space": "10.6.0.0/16",
+      "subnets": [
+        {
+          "name": "identity",
+          "address": "10.6.1.0/24",
+          "nsg": "Yes",
+          "udr": "Yes"
+        }
+      ],
+      "peerings": ["hub-to-spoke6"],
+      "subscription_name": "Spoke6-Subscription",
+      "expressroute": "No",
+      "vpn_gateway": "Yes",
+      "firewall": "No",
+      "peerings_count": 1
+    },
+    {
+      "name": "spoke7-vnet",
+      "address_space": "10.7.0.0/16",
+      "subnets": [
+        {
+          "name": "monitoring",
+          "address": "10.7.1.0/24",
+          "nsg": "Yes",
+          "udr": "No"
+        },
+        {
+          "name": "logging",
+          "address": "10.7.2.0/24",
+          "nsg": "No",
+          "udr": "Yes"
+        }
+      ],
+      "peerings": ["hub-to-spoke7"],
+      "subscription_name": "Spoke7-Subscription",
+      "expressroute": "No",
+      "vpn_gateway": "No",
+      "firewall": "No",
+      "peerings_count": 1
+    },
+    {
+      "name": "spoke8-vnet",
+      "address_space": "10.8.0.0/16",
+      "subnets": [
+        {
+          "name": "api",
+          "address": "10.8.1.0/24",
+          "nsg": "Yes",
+          "udr": "Yes"
+        }
+      ],
+      "peerings": ["hub-to-spoke8"],
+      "subscription_name": "Spoke8-Subscription",
+      "expressroute": "No",
+      "vpn_gateway": "No",
+      "firewall": "No",
+      "peerings_count": 1
+    },
+    {
+      "name": "spoke9-vnet",
+      "address_space": "10.9.0.0/16",
+      "subnets": [
+        {
+          "name": "cache",
+          "address": "10.9.1.0/24",
+          "nsg": "No",
+          "udr": "No"
+        }
+      ],
+      "peerings": ["hub-to-spoke9"],
+      "subscription_name": "Spoke9-Subscription",
+      "expressroute": "No",
+      "vpn_gateway": "No",
+      "firewall": "No",
+      "peerings_count": 1
+    },
+    {
+      "name": "spoke10-vnet",
+      "address_space": "10.10.0.0/16",
+      "subnets": [
+        {
+          "name": "messaging",
+          "address": "10.10.1.0/24",
+          "nsg": "Yes",
+          "udr": "Yes"
+        },
+        {
+          "name": "queue",
+          "address": "10.10.2.0/24",
+          "nsg": "Yes",
+          "udr": "No"
+        }
+      ],
+      "peerings": ["hub-to-spoke10", "spoke10-vnet-to-spoke13-vnet", "spoke10-vnet-to-spoke19-vnet"],
+      "subscription_name": "Spoke10-Subscription",
+      "expressroute": "No",
+      "vpn_gateway": "No",
+      "firewall": "No",
+      "peerings_count": 1
+    },
+    {
+      "name": "spoke11-vnet",
+      "address_space": "10.11.0.0/16",
+      "subnets": [
+        {
+          "name": "backup",
+          "address": "10.11.1.0/24",
+          "nsg": "Yes",
+          "udr": "Yes"
+        }
+      ],
+      "peerings": ["hub-to-spoke11"],
+      "subscription_name": "Spoke11-Subscription",
+      "expressroute": "No",
+      "vpn_gateway": "No",
+      "firewall": "No",
+      "peerings_count": 1
+    },
+    {
+      "name": "spoke12-vnet",
+      "address_space": "10.12.0.0/16",
+      "subnets": [
+        {
+          "name": "security",
+          "address": "10.12.1.0/24",
+          "nsg": "Yes",
+          "udr": "Yes"
+        }
+      ],
+      "peerings": ["hub-to-spoke12"],
+      "subscription_name": "Spoke12-Subscription",
+      "expressroute": "No",
+      "vpn_gateway": "No",
+      "firewall": "Yes",
+      "peerings_count": 1
+    },
+    {
+      "name": "spoke13-vnet",
+      "address_space": "10.13.0.0/16",
+      "subnets": [
+        {
+          "name": "devops",
+          "address": "10.13.1.0/24",
+          "nsg": "Yes",
+          "udr": "No"
+        },
+        {
+          "name": "ci-cd",
+          "address": "10.13.2.0/24",
+          "nsg": "No",
+          "udr": "Yes"
+        }
+      ],
+      "peerings": ["hub-to-spoke13", "spoke10-vnet-to-spoke13-vnet"],
+      "subscription_name": "Spoke13-Subscription",
+      "expressroute": "No",
+      "vpn_gateway": "No",
+      "firewall": "No",
+      "peerings_count": 1
+    },
+    {
+      "name": "spoke14-vnet",
+      "address_space": "10.14.0.0/16",
+      "subnets": [
+        {
+          "name": "testing",
+          "address": "10.14.1.0/24",
+          "nsg": "Yes",
+          "udr": "Yes"
+        }
+      ],
+      "peerings": ["hub-to-spoke14"],
+      "subscription_name": "Spoke14-Subscription",
+      "expressroute": "No",
+      "vpn_gateway": "No",
+      "firewall": "No",
+      "peerings_count": 1
+    },
+    {
+      "name": "spoke15-vnet",
+      "address_space": "10.15.0.0/16",
+      "subnets": [
+        {
+          "name": "staging",
+          "address": "10.15.1.0/24",
+          "nsg": "Yes",
+          "udr": "No"
+        }
+      ],
+      "peerings": ["hub-to-spoke15"],
+      "subscription_name": "Spoke15-Subscription",
+      "expressroute": "No",
+      "vpn_gateway": "No",
+      "firewall": "No",
+      "peerings_count": 1
+    },
+    {
+      "name": "spoke16-vnet",
+      "address_space": "10.16.0.0/16",
+      "subnets": [
+        {
+          "name": "production",
+          "address": "10.16.1.0/24",
+          "nsg": "Yes",
+          "udr": "Yes"
+        },
+        {
+          "name": "maintenance",
+          "address": "10.16.2.0/24",
+          "nsg": "No",
+          "udr": "Yes"
+        }
+      ],
+      "peerings": ["hub-to-spoke16"],
+      "subscription_name": "Spoke16-Subscription",
+      "expressroute": "No",
+      "vpn_gateway": "No",
+      "firewall": "No",
+      "peerings_count": 1
+    },
+    {
+      "name": "spoke17-vnet",
+      "address_space": "10.17.0.0/16",
+      "subnets": [
+        {
+          "name": "ml-training",
+          "address": "10.17.1.0/24",
+          "nsg": "Yes",
+          "udr": "Yes"
+        }
+      ],
+      "peerings": ["hub-to-spoke17"],
+      "subscription_name": "Spoke17-Subscription",
+      "expressroute": "No",
+      "vpn_gateway": "No",
+      "firewall": "No",
+      "peerings_count": 1
+    },
+    {
+      "name": "spoke18-vnet",
+      "address_space": "10.18.0.0/16",
+      "subnets": [
+        {
+          "name": "data-lake",
+          "address": "10.18.1.0/24",
+          "nsg": "No",
+          "udr": "Yes"
+        }
+      ],
+      "peerings": ["hub-to-spoke18"],
+      "subscription_name": "Spoke18-Subscription",
+      "expressroute": "No",
+      "vpn_gateway": "No",
+      "firewall": "No",
+      "peerings_count": 1
+    },
+    {
+      "name": "spoke19-vnet",
+      "address_space": "10.19.0.0/16",
+      "subnets": [
+        {
+          "name": "iot-hub",
+          "address": "10.19.1.0/24",
+          "nsg": "Yes",
+          "udr": "No"
+        },
+        {
+          "name": "iot-devices",
+          "address": "10.19.2.0/24",
+          "nsg": "Yes",
+          "udr": "Yes"
+        }
+      ],
+      "peerings": ["hub-to-spoke19", "spoke10-vnet-to-spoke19-vnet"],
+      "subscription_name": "Spoke19-Subscription",
+      "expressroute": "No",
+      "vpn_gateway": "No",
+      "firewall": "No",
+      "peerings_count": 1
+    },
+    {
+      "name": "spoke20-vnet",
+      "address_space": "10.20.0.0/16",
+      "subnets": [
+        {
+          "name": "edge-computing",
+          "address": "10.20.1.0/24",
+          "nsg": "Yes",
+          "udr": "Yes"
+        }
+      ],
+      "peerings": ["hub-to-spoke20"],
+      "subscription_name": "Spoke20-Subscription",
+      "expressroute": "No",
+      "vpn_gateway": "No",
+      "firewall": "No",
+      "peerings_count": 1
+    },
+    {
+      "name": "unpeered1-vnet",
+      "address_space": "10.51.0.0/16",
+      "subnets": [
+        {
+          "name": "isolated-dev",
+          "address": "10.51.1.0/24",
+          "nsg": "No",
+          "udr": "No"
+        }
+      ],
+      "peerings": [],
+      "subscription_name": "Unpeered1-Subscription",
+      "expressroute": "No",
+      "vpn_gateway": "No",
+      "firewall": "No",
+      "peerings_count": 0
+    },
+    {
+      "name": "unpeered2-vnet",
+      "address_space": "10.52.0.0/16",
+      "subnets": [
+        {
+          "name": "sandbox",
+          "address": "10.52.1.0/24",
+          "nsg": "Yes",
+          "udr": "No"
+        }
+      ],
+      "peerings": [],
+      "subscription_name": "Unpeered2-Subscription",
+      "expressroute": "No",
+      "vpn_gateway": "No",
+      "firewall": "No",
+      "peerings_count": 0
+    },
+    {
+      "name": "unpeered3-vnet",
+      "address_space": "10.53.0.0/16",
+      "subnets": [
+        {
+          "name": "legacy-system",
+          "address": "10.53.1.0/24",
+          "nsg": "Yes",
+          "udr": "Yes"
+        }
+      ],
+      "peerings": [],
+      "subscription_name": "Unpeered3-Subscription",
+      "expressroute": "No",
+      "vpn_gateway": "No",
+      "firewall": "No",
+      "peerings_count": 0
+    },
+    {
+      "name": "unpeered4-vnet",
+      "address_space": "10.54.0.0/16",
+      "subnets": [
+        {
+          "name": "experimental",
+          "address": "10.54.1.0/24",
+          "nsg": "No",
+          "udr": "Yes"
+        }
+      ],
+      "peerings": [],
+      "subscription_name": "Unpeered4-Subscription",
+      "expressroute": "No",
+      "vpn_gateway": "No",
+      "firewall": "No",
+      "peerings_count": 0
+    },
+    {
+      "name": "unpeered5-vnet",
+      "address_space": "10.55.0.0/16",
+      "subnets": [
+        {
+          "name": "temporary",
+          "address": "10.55.1.0/24",
+          "nsg": "Yes",
+          "udr": "No"
+        }
+      ],
+      "peerings": [],
+      "subscription_name": "Unpeered5-Subscription",
+      "expressroute": "No",
+      "vpn_gateway": "No",
+      "firewall": "No",
+      "peerings_count": 0
+    }
+  ]
+}

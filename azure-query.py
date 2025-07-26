@@ -216,10 +216,76 @@ def get_subscriptions_non_interactive(args, credentials):
         print(f"Resolving subscription names to IDs: {subscriptions}")
         return resolve_subscription_names_to_ids(subscriptions, credentials)
 
-def generate_hld_diagram(filename, topology_file):
+def determine_hub_for_spoke(spoke_vnet, hub_vnets):
+    """Determine which hub this spoke is connected to based on peering relationships"""
+    spoke_peerings = spoke_vnet.get('peerings', [])
+    
+    for hub_index, hub_vnet in enumerate(hub_vnets):
+        hub_peerings = hub_vnet.get('peerings', [])
+        
+        # Check if any of the spoke's peerings match this hub's peerings
+        for spoke_peering in spoke_peerings:
+            if spoke_peering in hub_peerings:
+                return f"hub_{hub_index}"
+    
+    # Fallback to first hub if no specific connection found
+    return "hub_0" if hub_vnets else None
+
+def parse_peering_name(peering_name):
+    """Extract VNet names from peering strings"""
+    # Pattern 1: "vnet1_to_vnet2" or "vnet1-to-vnet2"
+    if '_to_' in peering_name:
+        parts = peering_name.split('_to_')
+        if len(parts) == 2:
+            return parts[0], parts[1]
+    elif '-to-' in peering_name:
+        parts = peering_name.split('-to-')
+        if len(parts) == 2:
+            return parts[0], parts[1]
+    
+    # Pattern 2: Direct VNet name reference
+    return None, peering_name
+
+def create_vnet_id_mapping(vnets, zones, all_non_peered):
+    """Create bidirectional mapping between VNet names and diagram IDs for multi-zone layout"""
+    mapping = {}
+    
+    # Map hub VNets
+    for zone in zones:
+        mapping[zone['hub']['name']] = f"hub_{zone['hub_index']}"
+    
+    # Map spoke VNets with zone-aware IDs
+    for zone_index, zone in enumerate(zones):
+        peered_spokes = zone['spokes']
+        
+        # Determine layout for this zone
+        use_dual_column = len(peered_spokes) > 6
+        if use_dual_column:
+            total_spokes = len(peered_spokes)
+            half_spokes = (total_spokes + 1) // 2
+            left_spokes = peered_spokes[:half_spokes]
+            right_spokes = peered_spokes[half_spokes:]
+        else:
+            left_spokes = []
+            right_spokes = peered_spokes
+        
+        # Map right spokes
+        for i, spoke in enumerate(right_spokes):
+            mapping[spoke['name']] = f"right_spoke{zone_index}_{i}"
+        
+        # Map left spokes
+        for i, spoke in enumerate(left_spokes):
+            mapping[spoke['name']] = f"left_spoke{zone_index}_{i}"
+    
+    # Map non-peered VNets
+    for i, nonpeered in enumerate(all_non_peered):
+        mapping[nonpeered['name']] = f"nonpeered_spoke{i}"
+    
+    return mapping
+
+def generate_hld_diagram(filename, topology_file, config):
     """Generate high-level diagram (VNets only) from topology JSON"""
     from lxml import etree
-    from config import config
     
     # Load the topology JSON data
     with open(topology_file, 'r') as file:
@@ -418,42 +484,6 @@ def generate_hld_diagram(filename, topology_file):
         
         return group_height
 
-    def create_vnet_id_mapping(vnets, hub_vnets, left_spokes, right_spokes, non_peered_spokes):
-        """Create bidirectional mapping between VNet names and diagram IDs"""
-        mapping = {}
-        
-        # Map hub VNets
-        for i, hub in enumerate(hub_vnets):
-            mapping[hub['name']] = f"hub_{i}"
-        
-        # Map spoke VNets
-        for i, spoke in enumerate(right_spokes):
-            mapping[spoke['name']] = f"spoke_right_{i}"
-        
-        for i, spoke in enumerate(left_spokes):
-            mapping[spoke['name']] = f"spoke_left_{i}"
-        
-        # Map non-peered VNets
-        for i, nonpeered in enumerate(non_peered_spokes):
-            mapping[nonpeered['name']] = f"nonpeered_spoke{i}"
-        
-        return mapping
-
-    def parse_peering_name(peering_name):
-        """Extract VNet names from peering strings"""
-        # Pattern 1: "vnet1_to_vnet2" or "vnet1-to-vnet2"
-        if '_to_' in peering_name:
-            parts = peering_name.split('_to_')
-            if len(parts) == 2:
-                return parts[0], parts[1]
-        elif '-to-' in peering_name:
-            parts = peering_name.split('-to-')
-            if len(parts) == 2:
-                return parts[0], parts[1]
-        
-        # Pattern 2: Direct VNet name reference
-        return None, peering_name
-
     def add_peering_edges(vnets, vnet_mapping, root, config):
         """Add edges for all VNet peerings to create full mesh connectivity"""
         edge_counter = 1000  # Start high to avoid conflicts with existing edge IDs
@@ -509,107 +539,183 @@ def generate_hld_diagram(filename, topology_file):
                 edge_counter += 1
                 logging.info(f"Added peering edge: {source_vnet_name} ({source_id}) → {target_vnet_name} ({target_id})")
 
-    # Render hub VNets (highly connected ones)
+    # Group spokes by their hub for multi-zone layout
+    zones = []
     for hub_index, hub_vnet in enumerate(hub_vnets):
-        x_offset = 400 + (hub_index * config.layout['hub']['spacing_x'])
-        y_offset = config.layout['hub']['spacing_y']
-        hub_id = f"hub_{hub_index}"
+        zone_spokes = []
+        zone_non_peered = []
         
-        # Use new grouped function for hubs
-        add_vnet_with_features(hub_vnet, hub_id, x_offset, y_offset)
-
-    # Dynamic spacing for spokes
-    spacing = config.layout['spoke']['spacing_y']
-    start_y = config.layout['spoke']['start_y']
-    left_spokes = []
-    right_spokes = []
-    non_peered_spokes = []
-    peered_spokes = []
+        # Find spokes that belong to this hub
+        for spoke in spoke_vnets:
+            if spoke.get("peerings"):
+                hub_id = determine_hub_for_spoke(spoke, hub_vnets)
+                if hub_id == f"hub_{hub_index}":
+                    zone_spokes.append(spoke)
+            else:
+                zone_non_peered.append(spoke)
+        
+        zones.append({
+            'hub': hub_vnet,
+            'hub_index': hub_index,
+            'spokes': zone_spokes,
+            'non_peered': zone_non_peered if hub_index == 0 else []  # Only first zone gets non-peered
+        })
     
-    # Separate peered and non-peered spokes
-    for spoke in spoke_vnets:
-        if spoke.get("peerings"):
-            peered_spokes.append(spoke)
-        else:
-            non_peered_spokes.append(spoke)
-
-    # Determine if we should use dual-column layout
-    use_dual_column = len(peered_spokes) > 6
-    if use_dual_column:
-        total_spokes = len(peered_spokes)
-        half_spokes = (total_spokes + 1) // 2
-        left_spokes = peered_spokes[:half_spokes]
-        right_spokes = peered_spokes[half_spokes:]
-    else:
+    # Calculate zone width for horizontal positioning with top-left alignment
+    canvas_padding = 20  # 20px padding from canvas edge
+    zone_width = 1300  # Adjusted zone width: 920 - 20 + 400 = 1300
+    zone_spacing = 500  # Increased gap between zones to prevent overlap
+    
+    # Dynamic spacing for spokes - adjusted for hub above spokes
+    spacing = 100  # Original HLD.py spacing
+    hub_height = 50  # HLD hub height (fixed)
+    
+    # Calculate base positions for top-left alignment
+    # Original positions: left=-100, hub=400, right=900
+    # Adjusted for 20px padding with proper spacing: left=20, hub=470, right=920
+    base_left_x = canvas_padding
+    base_hub_x = canvas_padding + 450  # Hub positioned with 50px gap after left spokes (400px wide)
+    base_right_x = canvas_padding + 900  # Right spokes with 50px gap after hub (400px wide)
+    hub_y = canvas_padding  # Hub positioned at top, above spokes
+    
+    # Process each zone
+    for zone_index, zone in enumerate(zones):
+        # Calculate zone offset
+        zone_offset_x = zone_index * (zone_width + zone_spacing)
+        
+        # Position hub
+        hub_x = base_hub_x + zone_offset_x
+        hub_y = hub_y
+        hub_id = f"hub_{zone['hub_index']}"
+        add_vnet_with_features(zone['hub'], hub_id, hub_x, hub_y)
+        
+        # Separate peered spokes into left and right
+        peered_spokes = zone['spokes']
         left_spokes = []
-        right_spokes = peered_spokes
-
-    # Add spokes on the right-hand side
-    for index, spoke in enumerate(right_spokes):
-        y_position = start_y + index * spacing
-        x_position = config.layout['spoke']['right_x']
-        spoke_id = f"spoke_right_{index}"
+        right_spokes = []
         
-        # Use new grouped function for spokes with custom styling
-        spoke_style = config.get_vnet_style_string('spoke')
-        add_vnet_with_features(spoke, spoke_id, x_position, y_position, spoke_style)
-
-        # Add connection from primary Hub to Spokes
-        if hub_vnets:
+        # Determine if we should use dual-column layout
+        use_dual_column = len(peered_spokes) > 6
+        if use_dual_column:
+            total_spokes = len(peered_spokes)
+            half_spokes = (total_spokes + 1) // 2
+            left_spokes = peered_spokes[:half_spokes]
+            right_spokes = peered_spokes[half_spokes:]
+        else:
+            left_spokes = []
+            right_spokes = peered_spokes
+        
+        # Add right spokes
+        for index, spoke in enumerate(right_spokes):
+            y_position = hub_y + hub_height + index * spacing
+            x_position = base_right_x + zone_offset_x
+            spoke_id = f"right_spoke{zone_index}_{index}"
+            
+            spoke_style = config.get_vnet_style_string('spoke')
+            add_vnet_with_features(spoke, spoke_id, x_position, y_position, spoke_style)
+            
+            # Add connection to zone's hub
             edge = etree.SubElement(
                 root,
                 "mxCell",
-                id=f"edge_right_{index}",
+                id=f"edge_right_{zone_index}_{index}",
                 edge="1",
-                source="hub_0",  # Connect to primary hub
-                target=f"spoke_right_{index}",
-                style=config.get_edge_style_string(),
+                source=hub_id,
+                target=spoke_id,
+                style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#0078D4;strokeWidth=2;endArrow=block;startArrow=block;",
                 parent="1",
             )
             edge_geometry = etree.SubElement(edge, "mxGeometry", attrib={"relative": "1", "as": "geometry"})
             edge_points = etree.SubElement(edge_geometry, "Array", attrib={"as": "points"})
-            etree.SubElement(edge_points, "mxPoint", attrib={"x": "800", "y": str(y_position + 25)})
-            etree.SubElement(edge_points, "mxPoint", attrib={"x": str(x_position), "y": str(y_position + 25)})
-
-    # Add spokes on the left-hand side
-    for index, spoke in enumerate(left_spokes):
-        y_position = start_y + index * spacing
-        x_position = config.layout['spoke']['left_x']
-        spoke_id = f"spoke_left_{index}"
+            
+            # Add waypoint only if spoke is not aligned with hub
+            if y_position != hub_y:
+                hub_center_x = base_hub_x + 200 + zone_offset_x  # Hub center
+                etree.SubElement(edge_points, "mxPoint", attrib={"x": str(hub_center_x + 100), "y": str(y_position + 25)})
         
-        # Use new grouped function for spokes with custom styling
-        spoke_style = config.get_vnet_style_string('spoke')
-        add_vnet_with_features(spoke, spoke_id, x_position, y_position, spoke_style)
-
-        # Add connection from primary Hub to Spokes
-        if hub_vnets:
+        # Add left spokes
+        for index, spoke in enumerate(left_spokes):
+            y_position = hub_y + hub_height + index * spacing
+            x_position = base_left_x + zone_offset_x
+            spoke_id = f"left_spoke{zone_index}_{index}"
+            
+            spoke_style = config.get_vnet_style_string('spoke')
+            add_vnet_with_features(spoke, spoke_id, x_position, y_position, spoke_style)
+            
+            # Add connection to zone's hub
             edge = etree.SubElement(
                 root,
                 "mxCell",
-                id=f"edge_left_{index}",
+                id=f"edge_left_{zone_index}_{index}",
                 edge="1",
-                source="hub_0",  # Connect to primary hub
-                target=f"spoke_left_{index}",
-                style=config.get_edge_style_string(),
+                source=hub_id,
+                target=spoke_id,
+                style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#0078D4;strokeWidth=2;endArrow=block;startArrow=block;",
                 parent="1",
             )
             edge_geometry = etree.SubElement(edge, "mxGeometry", attrib={"relative": "1", "as": "geometry"})
             edge_points = etree.SubElement(edge_geometry, "Array", attrib={"as": "points"})
-            etree.SubElement(edge_points, "mxPoint", attrib={"x": "400", "y": str(y_position + 25)})
-            etree.SubElement(edge_points, "mxPoint", attrib={"x": "300", "y": str(y_position + 25)})
+            
+            # Add waypoint only if spoke is not aligned with hub
+            if y_position != hub_y:
+                hub_center_x = base_hub_x + 200 + zone_offset_x  # Hub center
+                etree.SubElement(edge_points, "mxPoint", attrib={"x": str(hub_center_x - 100), "y": str(y_position + 25)})
     
-    # Add non-peered spokes to the right
-    for index, spoke in enumerate(non_peered_spokes):
-        y_position = start_y + index * spacing
-        x_position = config.layout['non_peered']['x']
-        spoke_id = f"nonpeered_spoke{index}"
+    # Calculate overall bottom boundary for unpeered VNets
+    overall_bottom_y = hub_y + hub_height
+    for zone in zones:
+        peered_spokes = zone['spokes']
+        use_dual_column = len(peered_spokes) > 6
+        if use_dual_column:
+            total_spokes = len(peered_spokes)
+            half_spokes = (total_spokes + 1) // 2
+            left_count = half_spokes
+            right_count = total_spokes - half_spokes
+        else:
+            left_count = 0
+            right_count = len(peered_spokes)
         
-        # Use new grouped function for non-peered spokes with custom styling
-        nonpeered_style = config.get_vnet_style_string('non_peered')
-        add_vnet_with_features(spoke, spoke_id, x_position, y_position, nonpeered_style)
+        zone_bottom = hub_y + hub_height
+        if left_count > 0:
+            zone_bottom = max(zone_bottom, hub_y + hub_height + left_count * spacing + 50)
+        if right_count > 0:
+            zone_bottom = max(zone_bottom, hub_y + hub_height + right_count * spacing + 50)
+        
+        # If no spokes, position below hub
+        if left_count == 0 and right_count == 0:
+            zone_bottom = hub_y + hub_height + 50
+        
+        overall_bottom_y = max(overall_bottom_y, zone_bottom)
+    
+    # Add non-peered spokes in horizontal row below all zones
+    all_non_peered = []
+    for zone in zones:
+        all_non_peered.extend(zone['non_peered'])
+    
+    if all_non_peered:
+        unpeered_y = overall_bottom_y + 100  # 100px buffer below lowest spoke
+        
+        # Calculate total width of all zones
+        total_zones_width = len(zones) * zone_width + (len(zones) - 1) * zone_spacing
+        
+        # Calculate unpeered network layout with row wrapping
+        unpeered_spacing = 450  # VNet width (400) + gap (50)
+        vnets_per_row = max(1, int(total_zones_width // unpeered_spacing))  # How many fit in one row
+        row_height = 70  # Height for each row (VNet height + gap)
+        
+        for index, spoke in enumerate(all_non_peered):
+            row_number = index // vnets_per_row
+            position_in_row = index % vnets_per_row
+            
+            x_position = base_left_x + (position_in_row * unpeered_spacing)
+            y_position = unpeered_y + (row_number * row_height)
+            spoke_id = f"nonpeered_spoke{index}"
+            
+            nonpeered_style = config.get_vnet_style_string('non_peered')
+            add_vnet_with_features(spoke, spoke_id, x_position, y_position, nonpeered_style)
 
     # Create VNet ID mapping for peering connections
-    vnet_mapping = create_vnet_id_mapping(vnets, hub_vnets, left_spokes, right_spokes, non_peered_spokes)
+    vnet_mapping = create_vnet_id_mapping(vnets, zones, all_non_peered)
     
     # Add all peering edges to create full mesh connectivity
     add_peering_edges(vnets, vnet_mapping, root, config)
@@ -624,18 +730,23 @@ def generate_hld_diagram(filename, topology_file):
 
 def hld_command(args):
     """Execute the HLD command to generate high-level diagrams"""
+    from config import Config
+    
     topology_file = args.topology if args.topology else "network_topology.json"
     output_file = args.output if args.output else "network_hld.drawio"
+    config_file = args.config_file
+    
+    # Create config instance with specified file
+    config = Config(config_file)
     
     logging.info("Starting HLD diagram generation...")
-    generate_hld_diagram(output_file, topology_file)
+    generate_hld_diagram(output_file, topology_file, config)
     logging.info("HLD diagram generation complete.")
     print(f"HLD diagram saved to {output_file}")
 
-def generate_mld_diagram(filename, topology_file):
+def generate_mld_diagram(filename, topology_file, config):
     """Generate mid-level diagram (VNets + subnets) from topology JSON"""
     from lxml import etree
-    from config import config
     
     # Load the topology JSON data
     with open(topology_file, 'r') as file:
@@ -951,42 +1062,6 @@ def generate_mld_diagram(filename, topology_file):
         
         return group_height
 
-    def create_vnet_id_mapping(vnets, hub_vnets, left_spokes, right_spokes, non_peered_spokes):
-        """Create bidirectional mapping between VNet names and diagram IDs"""
-        mapping = {}
-        
-        # Map hub VNets
-        for i, hub in enumerate(hub_vnets):
-            mapping[hub['name']] = f"hub_{i}"
-        
-        # Map spoke VNets
-        for i, spoke in enumerate(right_spokes):
-            mapping[spoke['name']] = f"right_spoke{i}"
-        
-        for i, spoke in enumerate(left_spokes):
-            mapping[spoke['name']] = f"left_spoke{i}"
-        
-        # Map non-peered VNets
-        for i, nonpeered in enumerate(non_peered_spokes):
-            mapping[nonpeered['name']] = f"nonpeered_spoke{i}"
-        
-        return mapping
-
-    def parse_peering_name(peering_name):
-        """Extract VNet names from peering strings"""
-        # Pattern 1: "vnet1_to_vnet2" or "vnet1-to-vnet2"
-        if '_to_' in peering_name:
-            parts = peering_name.split('_to_')
-            if len(parts) == 2:
-                return parts[0], parts[1]
-        elif '-to-' in peering_name:
-            parts = peering_name.split('-to-')
-            if len(parts) == 2:
-                return parts[0], parts[1]
-        
-        # Pattern 2: Direct VNet name reference
-        return None, peering_name
-
     def add_peering_edges(vnets, vnet_mapping, root, config):
         """Add edges for all VNet peerings to create full mesh connectivity"""
         edge_counter = 1000  # Start high to avoid conflicts with existing edge IDs
@@ -1042,93 +1117,178 @@ def generate_mld_diagram(filename, topology_file):
                 edge_counter += 1
                 logging.info(f"Added peering edge: {source_vnet_name} ({source_id}) → {target_vnet_name} ({target_id})")
 
-    # Render hub VNets (highly connected ones)
+    # Group spokes by their hub for multi-zone layout
+    zones = []
     for hub_index, hub_vnet in enumerate(hub_vnets):
-        x_offset = 200 + (hub_index * config.layout['hub']['spacing_x'])
-        y_offset = config.layout['hub']['spacing_y']
-        hub_id = f"hub_{hub_index}"
+        zone_spokes = []
+        zone_non_peered = []
         
-        add_vnet_with_subnets(hub_vnet, hub_id, x_offset, y_offset)
-
-    # Dynamic spacing for spokes
-    start_y = config.layout['spoke']['start_y']
-    padding = config.layout['spoke']['spacing_y']
-    left_spokes = []
-    right_spokes = []
-    non_peered_spokes = []
-    peered_spokes = []
-
-    # Separate peered and non-peered spokes
-    for spoke in spoke_vnets:
-        if spoke.get("peerings"):
-            peered_spokes.append(spoke)
-        else:
-            non_peered_spokes.append(spoke)
-
-    # Split based on total number
-    if len(peered_spokes) <= 6:
-        right_spokes = peered_spokes
+        # Find spokes that belong to this hub
+        for spoke in spoke_vnets:
+            if spoke.get("peerings"):
+                hub_id = determine_hub_for_spoke(spoke, hub_vnets)
+                if hub_id == f"hub_{hub_index}":
+                    zone_spokes.append(spoke)
+            else:
+                zone_non_peered.append(spoke)
+        
+        zones.append({
+            'hub': hub_vnet,
+            'hub_index': hub_index,
+            'spokes': zone_spokes,
+            'non_peered': zone_non_peered if hub_index == 0 else []  # Only first zone gets non-peered
+        })
+    
+    # Calculate zone width for horizontal positioning with top-left alignment (MLD values)
+    canvas_padding = 20  # 20px padding from canvas edge
+    zone_width = 1300  # Adjusted zone width: 920 - 20 + 400 = 1300
+    zone_spacing = 500  # Increased gap between zones to prevent overlap
+    
+    # Dynamic spacing for spokes - adjusted for hub above spokes
+    padding = 20   # Original MLD.py padding
+    
+    # Calculate base positions for top-left alignment (MLD values)
+    # Original positions: left=-400, hub=200, right=700
+    # Adjusted for 20px padding with proper spacing: left=20, hub=470, right=920
+    base_left_x = canvas_padding
+    base_hub_x = canvas_padding + 450  # Hub positioned with 50px gap after left spokes (400px wide)
+    base_right_x = canvas_padding + 900  # Right spokes with 50px gap after hub (400px wide)
+    hub_y = canvas_padding  # Hub positioned at top, above spokes
+    
+    # Process each zone
+    zone_bottoms = []
+    
+    for zone_index, zone in enumerate(zones):
+        # Calculate zone offset
+        zone_offset_x = zone_index * (zone_width + zone_spacing)
+        
+        # Position hub
+        hub_x = base_hub_x + zone_offset_x
+        hub_y = hub_y
+        hub_id = f"hub_{zone['hub_index']}"
+        hub_actual_height = add_vnet_with_subnets(zone['hub'], hub_id, hub_x, hub_y)
+        
+        # Separate peered spokes into left and right
+        peered_spokes = zone['spokes']
         left_spokes = []
-    else:
-        total_spokes = len(peered_spokes)
-        half_spokes = (total_spokes + 1) // 2
-        left_spokes = peered_spokes[:half_spokes]
-        right_spokes = peered_spokes[half_spokes:]
-
-    current_y_right = start_y
-    current_y_left = start_y
-    current_y_nonpeered = start_y
-
-    # Draw out the spokes using universal function
-    def draw_spokes(spokes_list, side, base_x, current_y):
-        for idx, spoke in enumerate(spokes_list):
-            spoke_id = f"{side}_spoke{idx}"
-            y_position = current_y
-            
-            # Use universal function with spoke styling from config
-            spoke_style = config.get_vnet_style_string('spoke')
-            vnet_height = add_vnet_with_subnets(spoke, spoke_id, base_x, y_position, spoke_style)
-            
-            # Add connections between hub and spokes
-            if hub_vnets:
-                edge = etree.SubElement(
-                    root,
-                    "mxCell",
-                    id=f"edge_{side}_{idx}_{spoke['name']}",
-                    edge="1",
-                    source="hub_0",  # Connect to primary hub
-                    target=spoke_id,
-                    style=config.get_edge_style_string(),
-                    parent="1",
-                )
-                edge_geometry = etree.SubElement(edge, "mxGeometry", attrib={"relative": "1", "as": "geometry"})
-                edge_points = etree.SubElement(edge_geometry, "Array", attrib={"as": "points"})
-
-                if side == "left":
-                    etree.SubElement(edge_points, "mxPoint", attrib={"x": "200", "y": str(y_position + 25)})
-                    etree.SubElement(edge_points, "mxPoint", attrib={"x": str(base_x + config.layout['spoke']['width']), "y": str(y_position + 25)})
-                else:
-                    etree.SubElement(edge_points, "mxPoint", attrib={"x": "600", "y": str(y_position + 25)})
-                    etree.SubElement(edge_points, "mxPoint", attrib={"x": str(base_x), "y": str(y_position + 25)})
-
-            current_y += vnet_height + padding
-
-    draw_spokes(right_spokes, "right", config.layout['spoke']['right_x'], current_y_right)
-    draw_spokes(left_spokes, "left", config.layout['spoke']['left_x'], current_y_left)
-
-    # Add non-peered spokes to the far right using universal function
-    for index, spoke in enumerate(non_peered_spokes):
-        y_position = current_y_nonpeered
-        spoke_id = f"nonpeered_spoke{index}"
+        right_spokes = []
         
-        # Use universal function with non-peered styling from config
-        nonpeered_style = config.get_vnet_style_string('non_peered')
-        vnet_height = add_vnet_with_subnets(spoke, spoke_id, config.layout['non_peered']['x'], y_position, nonpeered_style)
-
-        current_y_nonpeered += vnet_height + config.layout['non_peered']['spacing_y']
+        # Split based on total number
+        if len(peered_spokes) <= 6:
+            right_spokes = peered_spokes
+            left_spokes = []
+        else:
+            total_spokes = len(peered_spokes)
+            half_spokes = (total_spokes + 1) // 2
+            left_spokes = peered_spokes[:half_spokes]
+            right_spokes = peered_spokes[half_spokes:]
+        
+        # Calculate actual hub VNet height (not group height)
+        hub_vnet = zone['hub']
+        num_subnets = len(hub_vnet.get("subnets", []))
+        hub_vnet_height = config.layout['hub']['height'] if hub_vnet.get("type") == "virtual_hub" else config.layout['subnet']['padding_y'] + (num_subnets * config.layout['subnet']['spacing_y'])
+        
+        current_y_right = hub_y + hub_vnet_height  # Start spokes after hub VNet
+        current_y_left = hub_y + hub_vnet_height   # Start spokes after hub VNet
+        
+        # Draw right spokes
+        for idx, spoke in enumerate(right_spokes):
+            spoke_id = f"right_spoke{zone_index}_{idx}"
+            y_position = current_y_right
+            x_position = base_right_x + zone_offset_x
+            
+            spoke_style = config.get_vnet_style_string('spoke')
+            vnet_height = add_vnet_with_subnets(spoke, spoke_id, x_position, y_position, spoke_style)
+            
+            # Add connection to zone's hub
+            edge = etree.SubElement(
+                root,
+                "mxCell",
+                id=f"edge_right_{zone_index}_{idx}_{spoke['name']}",
+                edge="1",
+                source=hub_id,
+                target=spoke_id,
+                style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#0078D4;strokeWidth=2;endArrow=block;startArrow=block;",
+                parent="1",
+            )
+            edge_geometry = etree.SubElement(edge, "mxGeometry", attrib={"relative": "1", "as": "geometry"})
+            edge_points = etree.SubElement(edge_geometry, "Array", attrib={"as": "points"})
+            
+            # Add waypoint only if spoke is not aligned with hub
+            if y_position != hub_y:
+                hub_center_x = base_hub_x + 200 + zone_offset_x  # Hub center
+                etree.SubElement(edge_points, "mxPoint", attrib={"x": str(hub_center_x + 100), "y": str(y_position + 25)})
+            
+            current_y_right += vnet_height + padding
+        
+        # Draw left spokes
+        for idx, spoke in enumerate(left_spokes):
+            spoke_id = f"left_spoke{zone_index}_{idx}"
+            y_position = current_y_left
+            x_position = base_left_x + zone_offset_x
+            
+            spoke_style = config.get_vnet_style_string('spoke')
+            vnet_height = add_vnet_with_subnets(spoke, spoke_id, x_position, y_position, spoke_style)
+            
+            # Add connection to zone's hub
+            edge = etree.SubElement(
+                root,
+                "mxCell",
+                id=f"edge_left_{zone_index}_{idx}_{spoke['name']}",
+                edge="1",
+                source=hub_id,
+                target=spoke_id,
+                style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#0078D4;strokeWidth=2;endArrow=block;startArrow=block;",
+                parent="1",
+            )
+            edge_geometry = etree.SubElement(edge, "mxGeometry", attrib={"relative": "1", "as": "geometry"})
+            edge_points = etree.SubElement(edge_geometry, "Array", attrib={"as": "points"})
+            
+            # Add waypoint only if spoke is not aligned with hub
+            if y_position != hub_y:
+                hub_center_x = base_hub_x + 200 + zone_offset_x  # Hub center
+                etree.SubElement(edge_points, "mxPoint", attrib={"x": str(hub_center_x - 100), "y": str(y_position + 25)})
+            
+            current_y_left += vnet_height + padding
+        
+        # Track zone bottom
+        zone_bottom = hub_y + hub_vnet_height
+        if left_spokes or right_spokes:
+            zone_bottom = max(current_y_left, current_y_right) + 60
+        else:
+            zone_bottom = hub_y + hub_vnet_height + 60  # Hub height + buffer
+        zone_bottoms.append(zone_bottom)
+    
+    # Add non-peered spokes in horizontal row below all zones
+    all_non_peered = []
+    for zone in zones:
+        all_non_peered.extend(zone['non_peered'])
+    
+    if all_non_peered:
+        overall_bottom_y = max(zone_bottoms) if zone_bottoms else hub_y + hub_vnet_height
+        unpeered_y = overall_bottom_y + 60  # 60px buffer below lowest spoke
+        
+        # Calculate total width of all zones
+        total_zones_width = len(zones) * zone_width + (len(zones) - 1) * zone_spacing
+        
+        # Calculate unpeered network layout with row wrapping
+        unpeered_spacing = 450  # VNet width (400) + gap (50)
+        vnets_per_row = max(1, int(total_zones_width // unpeered_spacing))  # How many fit in one row
+        row_height = 120  # Height for each row (VNet height + gap, larger for MLD with subnets)
+        
+        for index, spoke in enumerate(all_non_peered):
+            row_number = index // vnets_per_row
+            position_in_row = index % vnets_per_row
+            
+            x_position = base_left_x + (position_in_row * unpeered_spacing)
+            y_position = unpeered_y + (row_number * row_height)
+            spoke_id = f"nonpeered_spoke{index}"
+            
+            nonpeered_style = config.get_vnet_style_string('non_peered')
+            add_vnet_with_subnets(spoke, spoke_id, x_position, y_position, nonpeered_style)
 
     # Create VNet ID mapping for peering connections
-    vnet_mapping = create_vnet_id_mapping(vnets, hub_vnets, left_spokes, right_spokes, non_peered_spokes)
+    vnet_mapping = create_vnet_id_mapping(vnets, zones, all_non_peered)
     
     # Add all peering edges to create full mesh connectivity
     add_peering_edges(vnets, vnet_mapping, root, config)
@@ -1143,11 +1303,17 @@ def generate_mld_diagram(filename, topology_file):
 
 def mld_command(args):
     """Execute the MLD command to generate mid-level diagrams"""
+    from config import Config
+    
     topology_file = args.topology if args.topology else "network_topology.json"
     output_file = args.output if args.output else "network_mld.drawio"
+    config_file = args.config_file
+    
+    # Create config instance with specified file
+    config = Config(config_file)
     
     logging.info("Starting MLD diagram generation...")
-    generate_mld_diagram(output_file, topology_file)
+    generate_mld_diagram(output_file, topology_file, config)
     logging.info("MLD diagram generation complete.")
     print(f"MLD diagram saved to {output_file}")
 
@@ -1188,6 +1354,8 @@ Examples:
                              help='Comma separated list of subscriptions (names or IDs)')
     query_parser.add_argument('-f', '--subscriptions-file',
                              help='File containing subscriptions (one per line)')
+    query_parser.add_argument('-c', '--config-file', default='config.yaml',
+                             help='Configuration file (default: config.yaml)')
     query_parser.set_defaults(func=query_command)
     
     # HLD command
@@ -1198,6 +1366,8 @@ Examples:
     hld_parser.add_argument('-t', '--topology', default='network_topology.json',
                            help='Input topology JSON file')
     hld_parser.set_defaults(func=hld_command)
+    hld_parser.add_argument('-c', '--config-file', default='config.yaml',
+                           help='Configuration file (default: config.yaml)')
     
     # MLD command
     mld_parser = subparsers.add_parser('mld', help='Generate mid-level diagram (VNets + subnets)',
@@ -1207,6 +1377,8 @@ Examples:
     mld_parser.add_argument('-t', '--topology', default='network_topology.json',
                            help='Input topology JSON file')
     mld_parser.set_defaults(func=mld_command)
+    mld_parser.add_argument('-c', '--config-file', default='config.yaml',
+                           help='Configuration file (default: config.yaml)')
     
     # Parse arguments and dispatch to appropriate function
     args = parser.parse_args()
