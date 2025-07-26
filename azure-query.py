@@ -78,7 +78,7 @@ def get_vnet_topology_for_selected_subscriptions(subscription_ids, credentials):
     subscription_client = SubscriptionClient(credentials)
 
     for subscription_id in subscription_ids:
-        print(f"Processing Subscription: {subscription_id}")
+        logging.info(f"Processing Subscription: {subscription_id}")
         network_client = NetworkManagementClient(credentials, subscription_id)
 
         # Get subscription name
@@ -111,9 +111,9 @@ def get_vnet_topology_for_selected_subscriptions(subscription_ids, credentials):
                         }
                         vnet_candidates.append(virtual_hub_info)
                 except Exception as e:
-                    print(f"Warning: Could not retrieve virtual hub details for {vwan.name} in subscription {subscription_id}. Error: {e}")
+                    logging.warning(f"Could not retrieve virtual hub details for {vwan.name} in subscription {subscription_id}. Error: {e}")
         except Exception as e:
-            print(f"Warning: Could not list virtual WANs for subscription {subscription_id}. Error: {e}")
+            logging.warning(f"Could not list virtual WANs for subscription {subscription_id}. Error: {e}")
 
         # Process VNets
         for vnet in network_client.virtual_networks.list_all():
@@ -162,7 +162,7 @@ def list_and_select_subscriptions(credentials):
     subscriptions.sort(key=lambda sub: sub.display_name)
     
     for idx, subscription in enumerate(subscriptions):
-        print(f"[{idx}] {subscription.display_name} ({subscription.subscription_id})")
+        logging.info(f"[{idx}] {subscription.display_name} ({subscription.subscription_id})")
 
     selected_indices = input("Enter the indices of subscriptions to include (comma-separated): ")
     selected_indices = [int(idx.strip()) for idx in selected_indices.split(",")]
@@ -172,7 +172,7 @@ def list_and_select_subscriptions(credentials):
 def save_to_json(data, filename="network_topology.json"):
     with open(filename, "w") as f:
         json.dump(data, f, indent=4)
-    print(f"Network topology saved to {filename}")
+    logging.info(f"Network topology saved to {filename}")
 
 def query_command(args):
     """Execute the query command to collect VNet topology from Azure"""
@@ -185,10 +185,10 @@ def query_command(args):
         selected_subscriptions = get_subscriptions_non_interactive(args, credentials)
     else:
         # Interactive mode (existing behavior)
-        print("Listing available subscriptions...")
+        logging.info("Listing available subscriptions...")
         selected_subscriptions = list_and_select_subscriptions(credentials)
     
-    print("Collecting VNets and topology...")
+    logging.info("Collecting VNets and topology...")
     topology = get_vnet_topology_for_selected_subscriptions(selected_subscriptions, credentials)
     output_file = args.output if args.output else "network_topology.json"
     save_to_json(topology, output_file)
@@ -209,11 +209,11 @@ def get_subscriptions_non_interactive(args, credentials):
     # Detect if subscriptions are IDs or names by checking the first subscription
     if subscriptions and is_subscription_id(subscriptions[0]):
         # All subscriptions are assumed to be IDs
-        print(f"Using subscription IDs: {subscriptions}")
+        logging.info(f"Using subscription IDs: {subscriptions}")
         return subscriptions
     else:
         # All subscriptions are assumed to be names, resolve to IDs
-        print(f"Resolving subscription names to IDs: {subscriptions}")
+        logging.info(f"Resolving subscription names to IDs: {subscriptions}")
         return resolve_subscription_names_to_ids(subscriptions, credentials)
 
 def determine_hub_for_spoke(spoke_vnet, hub_vnets):
@@ -742,7 +742,7 @@ def hld_command(args):
     logging.info("Starting HLD diagram generation...")
     generate_hld_diagram(output_file, topology_file, config)
     logging.info("HLD diagram generation complete.")
-    print(f"HLD diagram saved to {output_file}")
+    logging.info(f"HLD diagram saved to {output_file}")
 
 def generate_mld_diagram(filename, topology_file, config):
     """Generate mid-level diagram (VNets + subnets) from topology JSON"""
@@ -1315,7 +1315,7 @@ def mld_command(args):
     logging.info("Starting MLD diagram generation...")
     generate_mld_diagram(output_file, topology_file, config)
     logging.info("MLD diagram generation complete.")
-    print(f"MLD diagram saved to {output_file}")
+    logging.info(f"MLD diagram saved to {output_file}")
 
 class CustomHelpFormatter(argparse.RawDescriptionHelpFormatter):
     """Custom formatter to prevent help text from wrapping to multiple lines"""
@@ -1324,9 +1324,6 @@ class CustomHelpFormatter(argparse.RawDescriptionHelpFormatter):
 
 def main():
     """Main CLI entry point with subcommand dispatch"""
-    # Configure logging
-    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-    
     parser = argparse.ArgumentParser(
         description="CloudNet Draw - Azure VNet topology visualization tool",
         formatter_class=CustomHelpFormatter,
@@ -1356,6 +1353,8 @@ Examples:
                              help='File containing subscriptions (one per line)')
     query_parser.add_argument('-c', '--config-file', default='config.yaml',
                              help='Configuration file (default: config.yaml)')
+    query_parser.add_argument('-v', '--verbose', action='store_true',
+                             help='Enable verbose logging')
     query_parser.set_defaults(func=query_command)
     
     # HLD command
@@ -1365,9 +1364,11 @@ Examples:
                            help='Output diagram file (default: network_hld.drawio)')
     hld_parser.add_argument('-t', '--topology', default='network_topology.json',
                            help='Input topology JSON file')
-    hld_parser.set_defaults(func=hld_command)
     hld_parser.add_argument('-c', '--config-file', default='config.yaml',
                            help='Configuration file (default: config.yaml)')
+    hld_parser.add_argument('-v', '--verbose', action='store_true',
+                           help='Enable verbose logging')
+    hld_parser.set_defaults(func=hld_command)
     
     # MLD command
     mld_parser = subparsers.add_parser('mld', help='Generate mid-level diagram (VNets + subnets)',
@@ -1376,12 +1377,18 @@ Examples:
                            help='Output diagram file (default: network_mld.drawio)')
     mld_parser.add_argument('-t', '--topology', default='network_topology.json',
                            help='Input topology JSON file')
-    mld_parser.set_defaults(func=mld_command)
     mld_parser.add_argument('-c', '--config-file', default='config.yaml',
                            help='Configuration file (default: config.yaml)')
+    mld_parser.add_argument('-v', '--verbose', action='store_true',
+                           help='Enable verbose logging')
+    mld_parser.set_defaults(func=mld_command)
     
     # Parse arguments and dispatch to appropriate function
     args = parser.parse_args()
+    
+    # Configure logging based on verbose flag
+    log_level = logging.INFO if args.verbose else logging.WARNING
+    logging.basicConfig(level=log_level, format='%(asctime)s - %(levelname)s - %(message)s')
     
     try:
         args.func(args)
