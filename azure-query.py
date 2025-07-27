@@ -93,7 +93,7 @@ def extract_resource_group(resource_id: str) -> str:
     return resource_id.split("/")[4]  # Resource group is at index 4 (5th element)
 
 def parse_vnet_identifier(vnet_identifier: str) -> Tuple[Optional[str], Optional[str], str]:
-    """Parse VNet identifier (rg/vnet or resource ID) and return (subscription_id, resource_group, vnet_name)"""
+    """Parse VNet identifier (resource ID or subscription/resource_group/vnet_name) and return (subscription_id, resource_group, vnet_name)"""
     if vnet_identifier.startswith('/'):
         # Resource ID format: /subscriptions/{sub}/resourceGroups/{rg}/providers/Microsoft.Network/virtualNetworks/{vnet}
         parts = vnet_identifier.split('/')
@@ -107,29 +107,23 @@ def parse_vnet_identifier(vnet_identifier: str) -> Tuple[Optional[str], Optional
     elif '/' in vnet_identifier:
         parts = vnet_identifier.split('/')
         if len(parts) == 3:
-            # New format: subscription/resource_group/vnet_name
+            # Format: subscription/resource_group/vnet_name
             subscription_id = parts[0]
             resource_group = parts[1]
             vnet_name = parts[2]
             return subscription_id, resource_group, vnet_name
-        elif len(parts) == 2:
-            # Legacy format: resource_group/vnet_name
-            resource_group = parts[0]
-            vnet_name = parts[1]
-            return None, resource_group, vnet_name
         else:
-            raise ValueError(f"Invalid VNet identifier format. Expected 'subscription/resource_group/vnet_name', 'resource_group/vnet_name', or full resource ID, got: {vnet_identifier}")
+            raise ValueError(f"Invalid VNet identifier format. Expected 'subscription/resource_group/vnet_name' or full resource ID, got: {vnet_identifier}")
     else:
-        # Simple VNet name (deprecated)
-        return None, None, vnet_identifier
+        raise ValueError(f"Invalid VNet identifier format. Expected 'subscription/resource_group/vnet_name' or full resource ID, got: {vnet_identifier}")
 
 def find_hub_vnet_using_resource_graph(vnet_identifier: str) -> Dict[str, Any]:
     """Find the specified hub VNet using Azure Resource Graph API for efficient search"""
     target_subscription_id, target_resource_group, target_vnet_name = parse_vnet_identifier(vnet_identifier)
     
-    # Must have resource group - either from rg/vnet format or from resource ID
+    # Must have resource group - either from subscription/resource_group/vnet_name format or from resource ID
     if not target_resource_group:
-        logging.error(f"VNet identifier must be in 'subscription/resource_group/vnet_name', 'resource_group/vnet_name' format or full resource ID, got: {vnet_identifier}")
+        logging.error(f"VNet identifier must be in 'subscription/resource_group/vnet_name' format or full resource ID, got: {vnet_identifier}")
         sys.exit(1)
     
     # Create Resource Graph client
@@ -182,7 +176,7 @@ def find_hub_vnet_using_resource_graph(vnet_identifier: str) -> Dict[str, Any]:
                 logging.info(f"Debug VNet found: name='{vnet.get('name')}', resourceGroup='{vnet.get('resourceGroup')}', subscriptionId='{vnet.get('subscriptionId')}'")
         
         if not response.data:
-            logging.error(f"No VNets found matching '{vnet_identifier}'. Please verify the VNet identifier format (resource_group/vnet_name) and ensure the VNet exists.")
+            logging.error(f"No VNets found matching '{vnet_identifier}'. Please verify the VNet identifier format (subscription/resource_group/vnet_name) and ensure the VNet exists.")
             if debug_response.data:
                 logging.error("Available VNets in the target subscription/resource group:")
                 for vnet in debug_response.data:
@@ -625,6 +619,21 @@ def save_to_json(data: Dict[str, Any], filename: str = "network_topology.json") 
 
 def query_command(args: argparse.Namespace) -> None:
     """Execute the query command to collect VNet topology from Azure"""
+    # Validate file arguments - they should not be empty strings
+    file_args = [
+        ('--output', args.output),
+        ('--subscriptions-file', getattr(args, 'subscriptions_file', None)),
+        ('--config-file', getattr(args, 'config_file', None))
+    ]
+    
+    empty_file_args = [arg_name for arg_name, arg_value in file_args if arg_value is not None and not arg_value.strip()]
+    
+    if empty_file_args:
+        logging.error(f"Empty file path provided for: {', '.join(empty_file_args)}")
+        logging.error("File arguments cannot be empty strings in non-interactive scenarios")
+        logging.error("Either provide valid file paths or omit the arguments to use defaults")
+        sys.exit(1)
+    
     # Initialize credentials based on service principal flag
     initialize_credentials(args.service_principal)
     
@@ -635,7 +644,39 @@ def query_command(args: argparse.Namespace) -> None:
         ('--vnets', args.vnets)
     ]
     
-    provided_args = [arg_name for arg_name, arg_value in exclusive_args if arg_value is not None]
+    # Check for arguments that are provided (not None) and not empty
+    # For comma-separated arguments like vnets, we need to check if there are any valid values after parsing
+    provided_args = []
+    empty_args = []
+    
+    for arg_name, arg_value in exclusive_args:
+        if arg_value is not None:
+            if not arg_value.strip():
+                # Completely empty argument
+                empty_args.append(arg_name)
+            elif arg_name == '--vnets':
+                # Special handling for comma-separated vnets - check if any valid identifiers exist
+                vnet_identifiers = [vnet.strip() for vnet in arg_value.split(',') if vnet.strip()]
+                if not vnet_identifiers:
+                    empty_args.append(arg_name)
+                else:
+                    provided_args.append(arg_name)
+            elif arg_name == '--subscriptions':
+                # Special handling for comma-separated subscriptions - check if any valid values exist
+                subscription_values = [sub.strip() for sub in arg_value.split(',') if sub.strip()]
+                if not subscription_values:
+                    empty_args.append(arg_name)
+                else:
+                    provided_args.append(arg_name)
+            else:
+                # For other arguments (like --subscriptions-file), just check if not empty after strip
+                provided_args.append(arg_name)
+    
+    if empty_args:
+        logging.error(f"Empty values provided for: {', '.join(empty_args)}")
+        logging.error("Empty argument values are not allowed in non-interactive scenarios like GitHub Actions")
+        logging.error("Either provide valid values or omit the arguments entirely to use interactive mode")
+        sys.exit(1)
     
     if len(provided_args) > 1:
         logging.error(f"The following arguments are mutually exclusive: {', '.join(provided_args)}")
@@ -649,7 +690,8 @@ def query_command(args: argparse.Namespace) -> None:
         vnet_identifiers = [vnet.strip() for vnet in args.vnets.split(',') if vnet.strip()]
         
         if not vnet_identifiers:
-            logging.error("No valid VNet identifiers provided")
+            logging.error("No valid VNet identifiers provided after parsing --vnets argument")
+            logging.error("Please provide valid VNet identifiers in the format: subscription/resource_group/vnet_name or resource_group/vnet_name")
             sys.exit(1)
             
         # Collect all subscriptions needed for the VNets
@@ -659,27 +701,14 @@ def query_command(args: argparse.Namespace) -> None:
             try:
                 subscription_id, resource_group, vnet_name = parse_vnet_identifier(vnet_identifier)
                 
-                if subscription_id:
-                    # Subscription specified in vnet identifier (resource ID or path format)
-                    # Check if it's a subscription name or ID and resolve if needed
-                    if is_subscription_id(subscription_id):
-                        all_subscriptions.add(subscription_id)
-                    else:
-                        # It's a subscription name, resolve to ID
-                        resolved_subs = resolve_subscription_names_to_ids([subscription_id])
-                        all_subscriptions.update(resolved_subs)
+                # Subscription specified in vnet identifier (resource ID or path format)
+                # Check if it's a subscription name or ID and resolve if needed
+                if is_subscription_id(subscription_id):
+                    all_subscriptions.add(subscription_id)
                 else:
-                    # Legacy format - require explicit subscription specification
-                    if not (args.subscriptions or args.subscriptions_file):
-                        logging.error("When using --vnets with 'resource_group/vnet_name' format, you must specify subscriptions using either --subscriptions or --subscriptions-file")
-                        logging.error("This prevents ambiguous results when multiple VNets with the same name exist in different subscriptions")
-                        logging.error("Example: --vnets 'rg-1/hub-vnet,rg-2/hub-vnet2' --subscriptions 'prod-subscription,dev-subscription'")
-                        logging.error("Or use the new format: --vnets 'subscription/resource_group/vnet_name,subscription2/resource_group2/vnet_name2'")
-                        sys.exit(1)
-                    
-                    # Get subscriptions from args for legacy format
-                    legacy_subscriptions = get_subscriptions_non_interactive(args)
-                    all_subscriptions.update(legacy_subscriptions)
+                    # It's a subscription name, resolve to ID
+                    resolved_subs = resolve_subscription_names_to_ids([subscription_id])
+                    all_subscriptions.update(resolved_subs)
             except ValueError as e:
                 logging.error(f"Invalid VNet identifier format '{vnet_identifier}': {e}")
                 sys.exit(1)
@@ -689,7 +718,7 @@ def query_command(args: argparse.Namespace) -> None:
         topology = get_filtered_vnets_topology(vnet_identifiers, selected_subscriptions)
     else:
         # Original behavior for non-VNet filtering
-        if args.subscriptions or args.subscriptions_file:
+        if (args.subscriptions and args.subscriptions.strip()) or (args.subscriptions_file and args.subscriptions_file.strip()):
             # Non-interactive mode
             selected_subscriptions = get_subscriptions_non_interactive(args)
         else:
@@ -709,12 +738,20 @@ def get_subscriptions_non_interactive(args: argparse.Namespace) -> List[str]:
         logging.error("Cannot specify both --subscriptions and --subscriptions-file")
         sys.exit(1)
     
-    if args.subscriptions:
+    if args.subscriptions and args.subscriptions.strip():
         # Parse comma-separated subscriptions
-        subscriptions = [sub.strip() for sub in args.subscriptions.split(',')]
-    else:
+        subscriptions = [sub.strip() for sub in args.subscriptions.split(',') if sub.strip()]
+        if not subscriptions:
+            logging.error("No valid subscriptions found after parsing --subscriptions argument")
+            logging.error("Please provide valid subscription names or IDs, or use 'all' to include all subscriptions")
+            sys.exit(1)
+    elif args.subscriptions_file and args.subscriptions_file.strip():
         # Read subscriptions from file
         subscriptions = read_subscriptions_from_file(args.subscriptions_file)
+    else:
+        logging.error("No valid subscription source provided")
+        logging.error("This should not happen - argument validation should have caught this")
+        sys.exit(1)
     
     # Handle special "all" value to get all subscriptions
     if subscriptions and len(subscriptions) == 1 and subscriptions[0].lower() == "all":
@@ -1574,6 +1611,21 @@ def hld_command(args: argparse.Namespace) -> None:
     """Execute the HLD command to generate high-level diagrams"""
     from config import Config
     
+    # Validate file arguments - they should not be empty strings
+    file_args = [
+        ('--output', args.output),
+        ('--topology', args.topology),
+        ('--config-file', getattr(args, 'config_file', None))
+    ]
+    
+    empty_file_args = [arg_name for arg_name, arg_value in file_args if arg_value is not None and not arg_value.strip()]
+    
+    if empty_file_args:
+        logging.error(f"Empty file path provided for: {', '.join(empty_file_args)}")
+        logging.error("File arguments cannot be empty strings in non-interactive scenarios")
+        logging.error("Either provide valid file paths or omit the arguments to use defaults")
+        sys.exit(1)
+    
     topology_file = args.topology if args.topology else "network_topology.json"
     output_file = args.output if args.output else "network_hld.drawio"
     config_file = args.config_file
@@ -2197,6 +2249,21 @@ def mld_command(args: argparse.Namespace) -> None:
     """Execute the MLD command to generate mid-level diagrams"""
     from config import Config
     
+    # Validate file arguments - they should not be empty strings
+    file_args = [
+        ('--output', args.output),
+        ('--topology', args.topology),
+        ('--config-file', getattr(args, 'config_file', None))
+    ]
+    
+    empty_file_args = [arg_name for arg_name, arg_value in file_args if arg_value is not None and not arg_value.strip()]
+    
+    if empty_file_args:
+        logging.error(f"Empty file path provided for: {', '.join(empty_file_args)}")
+        logging.error("File arguments cannot be empty strings in non-interactive scenarios")
+        logging.error("Either provide valid file paths or omit the arguments to use defaults")
+        sys.exit(1)
+    
     topology_file = args.topology if args.topology else "network_topology.json"
     output_file = args.output if args.output else "network_mld.drawio"
     config_file = args.config_file
@@ -2238,7 +2305,7 @@ def main() -> None:
     query_parser.add_argument('-c', '--config-file', default='config.yaml',
                              help='Configuration file (default: config.yaml)')
     query_parser.add_argument('-n', '--vnets',
-                             help='Specify hub VNets as comma-separated resource_ids (starting with /) or paths (SUBSCRIPTION/RESOURCEGROUP/VNET) to filter topology')
+                             help='Specify hub VNets as comma-separated resource_ids (starting with /) or paths (subscription/resource_group/vnet_name) to filter topology')
     query_parser.add_argument('-v', '--verbose', action='store_true',
                              help='Enable verbose logging')
     query_parser.set_defaults(func=query_command)
