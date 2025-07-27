@@ -1092,22 +1092,38 @@ def _add_vnet_with_optional_subnets(vnet_data, x_offset, y_offset, root, config,
     else:
         default_style = "shape=rectangle;rounded=0;whiteSpace=wrap;html=1;strokeColor=#0078D4;fontColor=#004578;fillColor=#E6F1FB;align=left"
     
-    # Add VNet box as child of group
+    # Add VNet box as child of group with metadata
     main_id = generate_hierarchical_id(vnet_data, 'main')
-    vnet_element = etree.SubElement(
-        root,
+    
+    # Build VNet attributes dictionary with metadata (same as group)
+    vnet_attrs = {
+        "id": main_id,
+        "label": f"Subscription: {vnet_data.get('subscription_name', 'N/A')}\n{vnet_data.get('name', 'VNet')}\n{vnet_data.get('address_space', 'N/A')}",
+        "subscription_name": vnet_data.get('subscription_name', ''),
+        "subscription_id": vnet_data.get('subscription_id', ''),
+        "tenant_id": vnet_data.get('tenant_id', ''),
+        "resourcegroup_id": vnet_data.get('resourcegroup_id', ''),
+        "resourcegroup_name": vnet_data.get('resourcegroup_name', ''),
+        "resource_id": vnet_data.get('resource_id', ''),
+        "azure_console_url": vnet_data.get('azure_console_url', ''),
+        "link": vnet_data.get('azure_console_url', '')
+    }
+    
+    vnet_element = etree.SubElement(root, "object", attrib=vnet_attrs)
+    
+    # Add mxCell child for the VNet styling
+    vnet_cell = etree.SubElement(
+        vnet_element,
         "mxCell",
-        id=main_id,
         style=style_override or default_style,
         vertex="1",
         parent=group_id,
     )
-    vnet_element.set("value", f"Subscription: {vnet_data.get('subscription_name', 'N/A')}\n{vnet_data.get('name', 'VNet')}\n{vnet_data.get('address_space', 'N/A')}")
     
     # Set VNet box geometry based on mode
     vnet_box_width = group_width if show_subnets else 400
     etree.SubElement(
-        vnet_element,
+        vnet_cell,
         "mxGeometry",
         attrib={"x": "0", "y": "0", "width": str(vnet_box_width), "height": str(vnet_height), "as": "geometry"},
     )
