@@ -14,14 +14,14 @@ Blog: [Technical Deep Dive](https://hatnes.no/posts/cloudnet-draw/)
 
 ## 📌 Key Features
 
-- 🔎 Converts Azure VNet topology (JSON) into visual diagrams
+- 🔎 Azure Resource Graph integration for efficient VNet discovery
 - 📄 Outputs `.drawio` files (open with [draw.io / diagrams.net](https://draw.io))
 - 🖼️ Supports hub, spoke, subnets, peerings, and Azure service icons (NSG, UDR, Firewall, etc.)
-- 🧠 Logic-based layout:
-  - Peered vs non-peered spokes
-  - Left/right layout split
-  - Icon placement and subnet expansion
-- 🧩 Extendable for MLD, HLD, and custom peerings
+- 🧠 Logic-based layout with hub-spoke architecture detection
+- 🎯 VNet filtering by resource ID or path for focused diagrams
+- 🔐 Multiple authentication methods (Azure CLI or Service Principal)
+- 🔗 Integrated Azure portal hyperlinks and resource metadata
+- 🧩 Two diagram types: HLD (VNets only) and MLD (VNets + subnets)
 
 ---
 
@@ -39,13 +39,24 @@ uv pip install -r requirements.txt
 
 ### 2. Authenticate with Azure
 ```bash
+# Option 1: Azure CLI (default)
 az login
+
+# Option 2: Service Principal (set environment variables)
+export AZURE_CLIENT_ID="your-client-id"
+export AZURE_CLIENT_SECRET="your-client-secret"
+export AZURE_TENANT_ID="your-tenant-id"
 ```
 
 ### 3. Generate Your First Diagram
 ```bash
+# Query Azure and save topology
 uv run azure-query.py query
+
+# Generate high-level diagram (VNets only)
 uv run azure-query.py hld
+
+# Generate mid-level diagram (VNets + subnets)
 uv run azure-query.py mld
 ```
 
@@ -83,184 +94,123 @@ pip install -r requirements.txt
 
 ## Configuration
 
-CloudNet Draw uses YAML-based configuration for diagram styling and layout settings.
+CloudNet Draw uses [`config.yaml`](config.yaml) for diagram styling and layout settings. Key configuration sections:
 
-### Configuration Parameters
+### Hub Classification
+- `thresholds.hub_peering_count: 10` - VNets with 10+ peerings are classified as hubs
 
-| Parameter | Default | Description |
-|-----------|---------|-------------|
-| `thresholds.hub_peering_count` | `3` | VNets with this many peerings are classified as hubs |
-| `styles.hub.border_color` | `"#0078D4"` | Hub VNet border color |
-| `styles.hub.fill_color` | `"#E6F1FB"` | Hub VNet background color |
-| `styles.hub.font_color` | `"#004578"` | Hub VNet text color |
-| `styles.hub.line_color` | `"#0078D4"` | Hub VNet line color |
-| `styles.hub.text_align` | `"left"` | Hub VNet text alignment |
-| `styles.spoke.border_color` | `"#CC6600"` | Spoke VNet border color |
-| `styles.spoke.fill_color` | `"#f2f7fc"` | Spoke VNet background color |
-| `styles.spoke.font_color` | `"#CC6600"` | Spoke VNet text color |
-| `styles.spoke.line_color` | `"#0078D4"` | Spoke VNet line color |
-| `styles.spoke.text_align` | `"left"` | Spoke VNet text alignment |
-| `styles.non_peered.border_color` | `"gray"` | Non-peered VNet border color |
-| `styles.non_peered.fill_color` | `"#f5f5f5"` | Non-peered VNet background color |
-| `styles.non_peered.font_color` | `"gray"` | Non-peered VNet text color |
-| `styles.non_peered.line_color` | `"gray"` | Non-peered VNet line color |
-| `styles.non_peered.text_align` | `"left"` | Non-peered VNet text alignment |
-| `subnet.border_color` | `"#C8C6C4"` | Subnet border color |
-| `subnet.fill_color` | `"#FAF9F8"` | Subnet background color |
-| `subnet.font_color` | `"#323130"` | Subnet text color |
-| `subnet.text_align` | `"left"` | Subnet text alignment |
-| `layout.canvas.padding` | `20` | Padding from canvas edges |
-| `layout.zone.spacing` | `500` | Gap between different zones |
-| `layout.vnet.width` | `400` | Standard width for VNet boxes |
-| `layout.vnet.spacing_x` | `450` | Horizontal spacing between VNets |
-| `layout.vnet.spacing_y` | `100` | Vertical spacing between VNets |
-| `layout.hub.spacing_x` | `450` | Horizontal spacing between hubs |
-| `layout.hub.spacing_y` | `400` | Vertical position of hubs |
-| `layout.hub.width` | `400` | Width of hub VNet boxes |
-| `layout.hub.height` | `50` | Height of hub VNet boxes |
-| `layout.spoke.spacing_y` | `100` | Vertical spacing between spokes |
-| `layout.spoke.start_y` | `200` | Starting Y position for spokes |
-| `layout.spoke.width` | `400` | Width of spoke VNet boxes |
-| `layout.spoke.height` | `50` | Height of spoke VNet boxes |
-| `layout.spoke.left_x` | `-100` | X position for left-side spokes |
-| `layout.spoke.right_x` | `900` | X position for right-side spokes |
-| `layout.non_peered.spacing_y` | `100` | Vertical spacing between non-peered VNets |
-| `layout.non_peered.start_y` | `200` | Starting Y position for non-peered VNets |
-| `layout.non_peered.x` | `1450` | X position for non-peered spokes |
-| `layout.non_peered.width` | `400` | Width of non-peered VNet boxes |
-| `layout.non_peered.height` | `50` | Height of non-peered VNet boxes |
-| `layout.subnet.width` | `350` | Width of subnet boxes |
-| `layout.subnet.height` | `20` | Height of subnet boxes |
-| `layout.subnet.padding_x` | `25` | Horizontal padding for subnets |
-| `layout.subnet.padding_y` | `55` | Vertical padding for subnets |
-| `layout.subnet.spacing_y` | `30` | Vertical spacing between subnets |
-| `edges.stroke_color` | `"#0078D4"` | Edge stroke color |
-| `edges.stroke_width` | `2` | Edge stroke width |
-| `edges.style` | `"edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#0078D4;strokeWidth=2;endArrow=block;startArrow=block;"` | Edge style string |
-| `icons.vnet.path` | `"img/lib/azure2/networking/Virtual_Networks.svg"` | VNet icon path |
-| `icons.vnet.width` | `20` | VNet icon width |
-| `icons.vnet.height` | `20` | VNet icon height |
-| `icons.virtual_hub.path` | `"img/lib/azure2/networking/Virtual_WANs.svg"` | Virtual Hub icon path |
-| `icons.virtual_hub.width` | `20` | Virtual Hub icon width |
-| `icons.virtual_hub.height` | `20` | Virtual Hub icon height |
-| `icons.expressroute.path` | `"img/lib/azure2/networking/ExpressRoute_Circuits.svg"` | ExpressRoute icon path |
-| `icons.expressroute.width` | `20` | ExpressRoute icon width |
-| `icons.expressroute.height` | `20` | ExpressRoute icon height |
-| `icons.firewall.path` | `"img/lib/azure2/networking/Firewalls.svg"` | Azure Firewall icon path |
-| `icons.firewall.width` | `20` | Azure Firewall icon width |
-| `icons.firewall.height` | `20` | Azure Firewall icon height |
-| `icons.vpn_gateway.path` | `"img/lib/azure2/networking/Virtual_Network_Gateways.svg"` | VPN Gateway icon path |
-| `icons.vpn_gateway.width` | `20` | VPN Gateway icon width |
-| `icons.vpn_gateway.height` | `20` | VPN Gateway icon height |
-| `icons.nsg.path` | `"img/lib/azure2/networking/Network_Security_Groups.svg"` | NSG icon path |
-| `icons.nsg.width` | `16` | NSG icon width |
-| `icons.nsg.height` | `16` | NSG icon height |
-| `icons.route_table.path` | `"img/lib/azure2/networking/Route_Tables.svg"` | Route Table icon path |
-| `icons.route_table.width` | `16` | Route Table icon width |
-| `icons.route_table.height` | `16` | Route Table icon height |
-| `icons.subnet.path` | `"img/lib/azure2/networking/Subnet.svg"` | Subnet icon path |
-| `icons.subnet.width` | `20` | Subnet icon width |
-| `icons.subnet.height` | `12` | Subnet icon height |
-| `icon_positioning.vnet_icons.y_offset` | `3.39` | Y position from top of VNet |
-| `icon_positioning.vnet_icons.right_margin` | `6` | Margin from right edge of VNet |
-| `icon_positioning.vnet_icons.icon_gap` | `5` | Gap between icons |
-| `icon_positioning.virtual_hub_icon.offset_x` | `-10` | X offset from VNet left edge |
-| `icon_positioning.virtual_hub_icon.offset_y` | `-15` | Y offset from VNet bottom |
-| `icon_positioning.subnet_icons.icon_y_offset` | `2` | Y offset from subnet top edge |
-| `icon_positioning.subnet_icons.subnet_icon_y_offset` | `3` | Subnet icon height alignment offset |
-| `icon_positioning.subnet_icons.icon_gap` | `3` | Gap between icons in pixels |
-| `drawio.canvas.dx` | `"371"` | Canvas X offset |
-| `drawio.canvas.dy` | `"1462"` | Canvas Y offset |
-| `drawio.canvas.grid` | `"0"` | Grid display setting |
-| `drawio.canvas.gridSize` | `"10"` | Grid size |
-| `drawio.canvas.guides` | `"1"` | Guides display setting |
-| `drawio.canvas.tooltips` | `"1"` | Tooltips display setting |
-| `drawio.canvas.connect` | `"1"` | Connection display setting |
-| `drawio.canvas.arrows` | `"1"` | Arrow display setting |
-| `drawio.canvas.fold` | `"1"` | Fold display setting |
-| `drawio.canvas.page` | `"0"` | Page display setting |
-| `drawio.canvas.pageScale` | `"1"` | Page scale setting |
-| `drawio.canvas.pageWidth` | `"827"` | Page width |
-| `drawio.canvas.pageHeight` | `"1169"` | Page height |
-| `drawio.canvas.background` | `"#ffffff"` | Canvas background color |
-| `drawio.canvas.math` | `"0"` | Math display setting |
-| `drawio.canvas.shadow` | `"0"` | Shadow display setting |
-| `drawio.group.extra_height` | `20` | Extra space in group for icons below VNet |
-| `drawio.group.connectable` | `"0"` | Group connectable setting |
+### VNet Styling
+- **Hub VNets**: Blue theme (`#0078D4` border, `#E6F1FB` fill)
+- **Spoke VNets**: Orange theme (`#CC6600` border, `#f2f7fc` fill)
+- **Non-peered VNets**: Gray theme (`gray` border, `#f5f5f5` fill)
+- **Subnets**: Light gray theme (`#C8C6C4` border, `#FAF9F8` fill)
+
+### Layout Settings
+- **Canvas**: 20px padding, 500px zone spacing
+- **VNets**: 400px width, 50px height
+- **Subnets**: 350px width, 20px height with 25px/55px padding
+
+### Edge Styling
+- **Hub-Spoke**: Black solid lines (3px width)
+- **Spoke-Spoke**: Gray dashed lines (2px width)
+- **Cross-Zone**: Blue dashed lines (2px width)
+
+### Azure Icons
+Includes paths and sizing for VNet, ExpressRoute, Firewall, VPN Gateway, NSG, Route Table, and Subnet icons from Azure icon library.
+
+### Custom Configuration
+```bash
+# Copy and modify default configuration
+cp config.yaml my-config.yaml
+
+# Use custom configuration
+uv run azure-query.py query --config-file my-config.yaml
+uv run azure-query.py hld --config-file my-config.yaml
+```
 
 ## Usage Examples
 
-### Example 1: Single Hub with Multiple Spokes
+### Example 1: Basic Usage
 
 ```bash
-# Query specific subscription
-uv run azure-query.py query --subscriptions "Production-Network"
-
-# Generate both diagram types
-uv run azure-query.py hld
-uv run azure-query.py mld
-```
-
-**Expected Output:**
-- `network_hld.drawio` - High-level view showing VNet relationships
-- `network_mld.drawio` - Detailed view including subnets and services
-
-### Example 2: Multi-Subscription Environment
-
-```bash
-# Interactive subscription selection
+# Query all subscriptions interactively
 uv run azure-query.py query
 
-# Follow prompts to select subscriptions
-# Example: 1,3,5 for subscriptions 1, 3, and 5
+# Query specific subscriptions
+uv run azure-query.py query --subscriptions "Production-Network,Dev-Network"
 
-# Generate consolidated diagrams
-uv run azure-query.py hld
+# Query all subscriptions non-interactively
+uv run azure-query.py query --subscriptions all
+
+# Generate diagrams
+uv run azure-query.py hld  # High-level (VNets only)
+uv run azure-query.py mld  # Mid-level (VNets + subnets)
 ```
 
-### Example 3: Custom Configuration
+### Example 2: Service Principal Authentication
 
 ```bash
-# Create custom config
-cp config.yaml my_config.yaml
-# Edit my_config.yaml with your settings
+# Set environment variables
+export AZURE_CLIENT_ID="your-client-id"
+export AZURE_CLIENT_SECRET="your-client-secret"
+export AZURE_TENANT_ID="your-tenant-id"
 
-# Use custom config
-uv run azure-query.py query --config-file my_config.yaml
+# Use service principal
+uv run azure-query.py query --service-principal
 ```
 
-### Example 4: Hub VNet Filtering
+### Example 3: VNet Filtering
 
-Filter topology to focus on a specific hub VNet and its directly connected spokes:
+Filter topology to focus on specific hub VNets and their directly connected spokes:
 
 ```bash
-# Filter by resource group and VNet name (recommended - fast and precise)
-uv run azure-query.py query --vnet "ops-mcg-vnet-dev-rg/OPS-network-dev-vnet" --verbose
+# Multiple VNet identifier formats supported:
 
-# Filter by full Azure resource ID
-uv run azure-query.py query --vnet "/subscriptions/98e9a6c7-c9c0-4419-bd65-2b18c741a0f4/resourceGroups/ops-mcg-vnet-dev-rg/providers/Microsoft.Network/virtualNetworks/OPS-network-dev-vnet"
+# Format 1: Full Azure resource ID
+uv run azure-query.py query --vnets "/subscriptions/sub-id/resourceGroups/rg-name/providers/Microsoft.Network/virtualNetworks/vnet-name"
+
+# Format 2: subscription/resource_group/vnet_name
+uv run azure-query.py query --vnets "production-sub/network-rg/hub-vnet"
+
+# Format 3: resource_group/vnet_name (searches all accessible subscriptions)
+uv run azure-query.py query --vnets "network-rg/hub-vnet"
+
+# Multiple VNets (comma-separated)
+uv run azure-query.py query --vnets "prod-rg/hub-prod,dev-rg/hub-dev"
 
 # Generate diagrams from filtered topology
 uv run azure-query.py hld
 uv run azure-query.py mld
 ```
 
-**Key Features:**
-- **⚡ Fast Azure Resource Graph API**: Single efficient query instead of scanning all subscriptions
-- **🎯 Unique identification**: Uses `resource_group/vnet_name` format for precise VNet identification
-- **🔍 Automatic discovery**: No need to specify `--subscriptions` parameter
-- **📊 Filtered topology**: Contains only hub and directly connected spokes
+**VNet Filtering Benefits:**
+- Uses Azure Resource Graph API for fast, precise discovery
+- Automatically resolves subscription names to IDs
+- Contains only specified hubs and their directly peered spokes
+- Significantly faster than full topology collection
 
-**Expected Output:**
-- Filtered JSON containing only the specified hub and its directly peered spokes
-- Focused diagrams showing hub-spoke relationships for the selected VNet
-- Significantly faster processing compared to full topology collection
+### Example 4: File-Based Configuration
 
-**Use Cases:**
-- Focus on specific network segments in large multi-hub environments
-- Troubleshoot connectivity issues for a particular hub
-- Generate documentation for specific application network boundaries
-- Isolate network components for security or compliance reviews
+```bash
+# Create subscription list file
+echo "Production-Network" > subscriptions.txt
+echo "Development-Network" >> subscriptions.txt
+
+# Use subscription file
+uv run azure-query.py query --subscriptions-file subscriptions.txt
+
+# Custom config file
+uv run azure-query.py query --config-file my-config.yaml
+uv run azure-query.py hld --config-file my-config.yaml
+```
+
+### Example 5: Verbose Logging
+
+```bash
+# Enable detailed logging for troubleshooting
+uv run azure-query.py query --vnets "rg-name/hub-vnet" --verbose
+uv run azure-query.py hld --verbose
+```
 
 ## Testing
 
