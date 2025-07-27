@@ -44,6 +44,8 @@ def get_credentials() -> Union[ClientSecretCredential, AzureCliCredential]:
 
 def is_subscription_id(subscription_string: str) -> bool:
     """Check if a subscription string is in UUID format (ID) or name format"""
+    if subscription_string is None:
+        return False
     # Azure subscription ID pattern: 8-4-4-4-12 hexadecimal digits
     uuid_pattern = r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$'
     return re.match(uuid_pattern, subscription_string) is not None
@@ -112,10 +114,16 @@ def parse_vnet_identifier(vnet_identifier: str) -> Tuple[Optional[str], Optional
             resource_group = parts[1]
             vnet_name = parts[2]
             return subscription_id, resource_group, vnet_name
+        elif len(parts) == 2:
+            # Format: resource_group/vnet_name
+            resource_group = parts[0]
+            vnet_name = parts[1]
+            return None, resource_group, vnet_name
         else:
             raise ValueError(f"Invalid VNet identifier format. Expected 'subscription/resource_group/vnet_name' or full resource ID, got: {vnet_identifier}")
     else:
-        raise ValueError(f"Invalid VNet identifier format. Expected 'subscription/resource_group/vnet_name' or full resource ID, got: {vnet_identifier}")
+        # Simple VNet name or empty string
+        return None, None, vnet_identifier
 
 def find_hub_vnet_using_resource_graph(vnet_identifier: str) -> Dict[str, Any]:
     """Find the specified hub VNet using Azure Resource Graph API for efficient search"""
@@ -948,11 +956,8 @@ def create_vnet_id_mapping(vnets: List[Dict[str, Any]], zones: List[Dict[str, An
     
     return mapping
 
-def generate_hld_diagram(filename: str, topology_file: str, config: Any) -> None:
-    """Generate high-level diagram (VNets only) from topology JSON"""
-    from lxml import etree
-    
-    # Load the topology JSON data
+def _load_and_validate_topology(topology_file: str) -> List[Dict[str, Any]]:
+    """Extract common file loading and validation logic"""
     with open(topology_file, 'r') as file:
         topology = json.load(file)
 
@@ -964,6 +969,10 @@ def generate_hld_diagram(filename: str, topology_file: str, config: Any) -> None
         logging.error("No VNets found in topology file. Cannot generate diagram.")
         sys.exit(1)
     
+    return vnets
+
+def _classify_and_sort_vnets(vnets: List[Dict[str, Any]], config: Any) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
+    """Extract common VNet classification and sorting logic"""
     # Classify VNets for layout purposes (keep existing layout logic)
     # Highly connected VNets (hubs) vs others, including explicitly specified hubs
     hub_vnets = [vnet for vnet in vnets if vnet.get("peerings_count", 0) >= config.hub_threshold or vnet.get("is_explicit_hub", False)]
@@ -977,7 +986,13 @@ def generate_hld_diagram(filename: str, topology_file: str, config: Any) -> None
         spoke_vnets = vnets[1:]
     
     logging.info(f"Found {len(hub_vnets)} hub VNet(s) and {len(spoke_vnets)} spoke VNet(s)")
+    
+    return hub_vnets, spoke_vnets
 
+def _setup_xml_structure(config: Any) -> Tuple[Any, Any]:
+    """Extract common XML document structure setup"""
+    from lxml import etree
+    
     # Root XML structure
     mxfile = etree.Element("mxfile", attrib={"host": "Electron", "version": "25.0.2"})
     diagram = etree.SubElement(mxfile, "diagram", name="Hub and Spoke Topology")
@@ -990,73 +1005,141 @@ def generate_hld_diagram(filename: str, topology_file: str, config: Any) -> None
 
     etree.SubElement(root, "mxCell", id="0")  # Root cell
     etree.SubElement(root, "mxCell", id="1", parent="0")  # Parent cell for all shapes
+    
+    return mxfile, root
 
-    def add_vnet_with_features(vnet_data, vnet_id, x_offset, y_offset, style_override=None):
-        """Universal function to add any VNet with feature decorators as a grouped unit"""
+def _classify_spoke_vnets(vnets: List[Dict[str, Any]], hub_vnets: List[Dict[str, Any]]) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
+    """Extract common spoke VNet classification logic"""
+    spoke_vnets_classified = []
+    unpeered_vnets = []
+    
+    for vnet in vnets:
+        if vnet in hub_vnets:
+            continue  # Skip hubs
+        elif vnet.get("peerings"):
+            spoke_vnets_classified.append(vnet)
+        else:
+            unpeered_vnets.append(vnet)
+    
+    return spoke_vnets_classified, unpeered_vnets
+
+def _create_layout_zones(hub_vnets: List[Dict[str, Any]], spoke_vnets_classified: List[Dict[str, Any]]) -> List[List[Dict[str, Any]]]:
+    """Extract common zone assignment logic"""
+    # Direct zone assignment using simple arrays
+    zone_spokes = [[] for _ in hub_vnets]
+    for spoke in spoke_vnets_classified:
+        zone_index = find_first_hub_zone(spoke, hub_vnets)
+        zone_spokes[zone_index].append(spoke)
+    
+    return zone_spokes
+
+def _add_vnet_with_optional_subnets(vnet_data, x_offset, y_offset, root, config,
+                                   show_subnets: bool = False, style_override=None):
+    """
+    Universal VNet rendering function that handles both modes:
+    - HLD mode: show_subnets=False (VNets only)
+    - MLD mode: show_subnets=True (VNets + subnets)
+    """
+    from lxml import etree
+    
+    # Calculate VNet height based on mode
+    if show_subnets:
+        # MLD mode: height depends on number of subnets
+        num_subnets = len(vnet_data.get("subnets", []))
+        vnet_height = config.layout['hub']['height'] if vnet_data.get("type") == "virtual_hub" else config.layout['subnet']['padding_y'] + (num_subnets * config.layout['subnet']['spacing_y'])
+        group_width = config.layout['hub']['width']
+        group_height = vnet_height + config.drawio['group']['extra_height']
+    else:
+        # HLD mode: fixed height for all VNets
         vnet_height = 50 if vnet_data.get("type") == "virtual_hub" else 50
-
-        # Calculate total group dimensions to encompass all elements including icons
         group_width = config.vnet_width
-        group_height = vnet_height + config.group_height_extra  # Extra space for icons below VNet
-        
-        # Create group container for this VNet and all its elements with metadata
-        # Use hierarchical ID format for group
-        group_id = generate_hierarchical_id(vnet_data, 'group')
-        
-        # Build attributes dictionary with metadata
-        group_attrs = {
-            "id": group_id,
-            "label": "",
-            "subscription_name": vnet_data.get('subscription_name', ''),
-            "subscription_id": vnet_data.get('subscription_id', ''),
-            "tenant_id": vnet_data.get('tenant_id', ''),
-            "resourcegroup_id": vnet_data.get('resourcegroup_id', ''),
-            "resourcegroup_name": vnet_data.get('resourcegroup_name', ''),
-            "resource_id": vnet_data.get('resource_id', ''),
-            "azure_console_url": vnet_data.get('azure_console_url', ''),
-            "link": vnet_data.get('azure_console_url', '')
-        }
-        
-        group_element = etree.SubElement(root, "object", attrib=group_attrs)
-        
-        # Add mxCell child for the group styling
-        group_cell = etree.SubElement(
-            group_element,
-            "mxCell",
-            style="group",
-            vertex="1",
-            connectable="0",
-            parent="1"
-        )
-        etree.SubElement(
-            group_cell,
-            "mxGeometry",
-            attrib={"x": str(x_offset), "y": str(y_offset), "width": str(group_width), "height": str(group_height), "as": "geometry"},
-        )
-        
-        # Default style for hub VNets
+        group_height = vnet_height + config.group_height_extra
+    
+    # Create group container for this VNet and all its elements with metadata
+    group_id = generate_hierarchical_id(vnet_data, 'group')
+    
+    # Build attributes dictionary with metadata
+    group_attrs = {
+        "id": group_id,
+        "label": "",
+        "subscription_name": vnet_data.get('subscription_name', ''),
+        "subscription_id": vnet_data.get('subscription_id', ''),
+        "tenant_id": vnet_data.get('tenant_id', ''),
+        "resourcegroup_id": vnet_data.get('resourcegroup_id', ''),
+        "resourcegroup_name": vnet_data.get('resourcegroup_name', ''),
+        "resource_id": vnet_data.get('resource_id', ''),
+        "azure_console_url": vnet_data.get('azure_console_url', ''),
+        "link": vnet_data.get('azure_console_url', '')
+    }
+    
+    group_element = etree.SubElement(root, "object", attrib=group_attrs)
+    
+    # Add mxCell child for the group styling
+    group_cell = etree.SubElement(
+        group_element,
+        "mxCell",
+        style="group",
+        vertex="1",
+        connectable="0" if not show_subnets else config.drawio['group']['connectable'],
+        parent="1"
+    )
+    etree.SubElement(
+        group_cell,
+        "mxGeometry",
+        attrib={"x": str(x_offset), "y": str(y_offset), "width": str(group_width), "height": str(group_height), "as": "geometry"},
+    )
+    
+    # Choose default style based on mode
+    if show_subnets:
+        default_style = config.get_vnet_style_string('hub')
+    else:
         default_style = "shape=rectangle;rounded=0;whiteSpace=wrap;html=1;strokeColor=#0078D4;fontColor=#004578;fillColor=#E6F1FB;align=left"
-        
-        # Add VNet box as child of group (using relative positioning)
-        # vnet_id is now expected to be hierarchical main ID
-        main_id = generate_hierarchical_id(vnet_data, 'main')
-        vnet_element = etree.SubElement(
-            root,
-            "mxCell",
-            id=main_id,
-            style=style_override or default_style,
-            vertex="1",
-            parent=group_id,
-        )
-        vnet_element.set("value", f"Subscription: {vnet_data.get('subscription_name', 'N/A')}\n{vnet_data.get('name', 'VNet')}\n{vnet_data.get('address_space', 'N/A')}")
-        etree.SubElement(
-            vnet_element,
-            "mxGeometry",
-            attrib={"x": "0", "y": "0", "width": "400", "height": str(vnet_height), "as": "geometry"},
-        )
+    
+    # Add VNet box as child of group
+    main_id = generate_hierarchical_id(vnet_data, 'main')
+    vnet_element = etree.SubElement(
+        root,
+        "mxCell",
+        id=main_id,
+        style=style_override or default_style,
+        vertex="1",
+        parent=group_id,
+    )
+    vnet_element.set("value", f"Subscription: {vnet_data.get('subscription_name', 'N/A')}\n{vnet_data.get('name', 'VNet')}\n{vnet_data.get('address_space', 'N/A')}")
+    
+    # Set VNet box geometry based on mode
+    vnet_box_width = group_width if show_subnets else 400
+    etree.SubElement(
+        vnet_element,
+        "mxGeometry",
+        attrib={"x": "0", "y": "0", "width": str(vnet_box_width), "height": str(vnet_height), "as": "geometry"},
+    )
 
-        # Add Virtual Hub icon if applicable
-        if vnet_data.get("type") == "virtual_hub":
+    # Add Virtual Hub icon if applicable
+    if vnet_data.get("type") == "virtual_hub":
+        if show_subnets:
+            hub_icon_width, hub_icon_height = config.get_icon_size('virtual_hub')
+            virtualhub_icon_id = generate_hierarchical_id(vnet_data, 'icon', 'virtualhub')
+            virtual_hub_icon = etree.SubElement(
+                root,
+                "mxCell",
+                id=virtualhub_icon_id,
+                style=f"shape=image;html=1;image={config.get_icon_path('virtual_hub')};",
+                vertex="1",
+                parent=group_id,
+            )
+            etree.SubElement(
+                virtual_hub_icon,
+                "mxGeometry",
+                attrib={
+                    "x": str(config.icon_positioning['virtual_hub_icon']['offset_x']),
+                    "y": str(vnet_height + config.icon_positioning['virtual_hub_icon']['offset_y']),
+                    "width": str(hub_icon_width),
+                    "height": str(hub_icon_height),
+                    "as": "geometry"
+                },
+            )
+        else:
             virtualhub_icon_id = generate_hierarchical_id(vnet_data, 'icon', 'virtualhub')
             virtual_hub_icon = etree.SubElement(
                 root,
@@ -1071,270 +1154,274 @@ def generate_hld_diagram(filename: str, topology_file: str, config: Any) -> None
                 "mxGeometry",
                 attrib={"x": "-10", "y": str(vnet_height - 15), "width": "20", "height": "20", "as": "geometry"},
             )
-        
-        # Dynamic VNet icon positioning (top-right aligned)
-        vnet_width = config.vnet_width  # VNet box width
-        y_offset = config.icon_positioning['vnet_icons']['y_offset']
-        right_margin = config.icon_positioning['vnet_icons']['right_margin']
-        icon_gap = config.icon_positioning['vnet_icons']['icon_gap']
-        
-        # Build list of VNet decorator icons to display (right to left order)
-        vnet_icons_to_render = []
-        
-        # VNet icon is always present (rightmost)
-        vnet_icon_width, vnet_icon_height = config.get_icon_size('vnet')
+    
+    # Dynamic VNet icon positioning (top-right aligned)
+    vnet_width = group_width if show_subnets else config.vnet_width
+    y_offset = config.icon_positioning['vnet_icons']['y_offset']
+    right_margin = config.icon_positioning['vnet_icons']['right_margin']
+    icon_gap = config.icon_positioning['vnet_icons']['icon_gap']
+    
+    # Build list of VNet decorator icons to display (right to left order)
+    vnet_icons_to_render = []
+    
+    # VNet icon is always present (rightmost)
+    vnet_icon_width, vnet_icon_height = config.get_icon_size('vnet')
+    vnet_icons_to_render.append({
+        'type': 'vnet',
+        'width': vnet_icon_width,
+        'height': vnet_icon_height
+    })
+    
+    # ExpressRoute icon (if present)
+    if vnet_data.get("expressroute", "").lower() == "yes":
+        express_width, express_height = config.get_icon_size('expressroute')
         vnet_icons_to_render.append({
-            'type': 'vnet',
-            'width': vnet_icon_width,
-            'height': vnet_icon_height
+            'type': 'expressroute',
+            'width': express_width,
+            'height': express_height
         })
+    
+    # Firewall icon (if present)
+    if vnet_data.get("firewall", "").lower() == "yes":
+        firewall_width, firewall_height = config.get_icon_size('firewall')
+        vnet_icons_to_render.append({
+            'type': 'firewall',
+            'width': firewall_width,
+            'height': firewall_height
+        })
+    
+    # VPN Gateway icon (if present, leftmost)
+    if vnet_data.get("vpn_gateway", "").lower() == "yes":
+        vpn_width, vpn_height = config.get_icon_size('vpn_gateway')
+        vnet_icons_to_render.append({
+            'type': 'vpn_gateway',
+            'width': vpn_width,
+            'height': vpn_height
+        })
+    
+    # Calculate positions from right to left
+    current_x = vnet_width - right_margin
+    for icon in vnet_icons_to_render:
+        current_x -= icon['width']
+        icon['x'] = current_x
         
-        # ExpressRoute icon (if present)
-        if vnet_data.get("expressroute", "").lower() == "yes":
-            express_width, express_height = config.get_icon_size('expressroute')
-            vnet_icons_to_render.append({
-                'type': 'expressroute',
-                'width': express_width,
-                'height': express_height
-            })
-        
-        # Firewall icon (if present)
-        if vnet_data.get("firewall", "").lower() == "yes":
-            firewall_width, firewall_height = config.get_icon_size('firewall')
-            vnet_icons_to_render.append({
-                'type': 'firewall',
-                'width': firewall_width,
-                'height': firewall_height
-            })
-        
-        # VPN Gateway icon (if present, leftmost)
-        if vnet_data.get("vpn_gateway", "").lower() == "yes":
-            vpn_width, vpn_height = config.get_icon_size('vpn_gateway')
-            vnet_icons_to_render.append({
-                'type': 'vpn_gateway',
-                'width': vpn_width,
-                'height': vpn_height
-            })
-        
-        # Calculate positions from right to left
-        current_x = vnet_width - right_margin
-        for icon in vnet_icons_to_render:
-            current_x -= icon['width']
-            icon['x'] = current_x
-            
-            # Create the icon element as child of VNet using hierarchical IDs
-            if icon['type'] == 'vnet':
-                icon_id = generate_hierarchical_id(vnet_data, 'icon', 'vnet')
-                icon_element = etree.SubElement(
-                    root,
-                    "mxCell",
-                    id=icon_id,
-                    style=f"shape=image;html=1;image={config.get_icon_path('vnet')};",
-                    vertex="1",
-                    parent=main_id,  # Parent to VNet main element
-                )
-            elif icon['type'] == 'expressroute':
-                icon_id = generate_hierarchical_id(vnet_data, 'icon', 'expressroute')
-                icon_element = etree.SubElement(
-                    root,
-                    "mxCell",
-                    id=icon_id,
-                    style=f"shape=image;html=1;image={config.get_icon_path('expressroute')};",
-                    vertex="1",
-                    parent=main_id,  # Parent to VNet main element
-                )
-            elif icon['type'] == 'firewall':
-                icon_id = generate_hierarchical_id(vnet_data, 'icon', 'firewall')
-                icon_element = etree.SubElement(
-                    root,
-                    "mxCell",
-                    id=icon_id,
-                    style=f"shape=image;html=1;image={config.get_icon_path('firewall')};",
-                    vertex="1",
-                    parent=main_id,  # Parent to VNet main element
-                )
-            elif icon['type'] == 'vpn_gateway':
-                icon_id = generate_hierarchical_id(vnet_data, 'icon', 'vpn')
-                icon_element = etree.SubElement(
-                    root,
-                    "mxCell",
-                    id=icon_id,
-                    style=f"shape=image;html=1;image={config.get_icon_path('vpn_gateway')};",
-                    vertex="1",
-                    parent=main_id,  # Parent to VNet main element
-                )
-            
-            etree.SubElement(
-                icon_element,
-                "mxGeometry",
-                attrib={
-                    "x": str(icon['x']),
-                    "y": str(y_offset),
-                    "width": str(icon['width']),
-                    "height": str(icon['height']),
-                    "as": "geometry"
-                },
+        # Create the icon element as child of VNet using hierarchical IDs
+        if icon['type'] == 'vnet':
+            icon_id = generate_hierarchical_id(vnet_data, 'icon', 'vnet')
+            icon_element = etree.SubElement(
+                root,
+                "mxCell",
+                id=icon_id,
+                style=f"shape=image;html=1;image={config.get_icon_path('vnet')};",
+                vertex="1",
+                parent=main_id,  # Parent to VNet main element
             )
-            
-            current_x -= icon_gap
+        elif icon['type'] == 'expressroute':
+            icon_id = generate_hierarchical_id(vnet_data, 'icon', 'expressroute')
+            icon_element = etree.SubElement(
+                root,
+                "mxCell",
+                id=icon_id,
+                style=f"shape=image;html=1;image={config.get_icon_path('expressroute')};",
+                vertex="1",
+                parent=main_id,  # Parent to VNet main element
+            )
+        elif icon['type'] == 'firewall':
+            icon_id = generate_hierarchical_id(vnet_data, 'icon', 'firewall')
+            icon_element = etree.SubElement(
+                root,
+                "mxCell",
+                id=icon_id,
+                style=f"shape=image;html=1;image={config.get_icon_path('firewall')};",
+                vertex="1",
+                parent=main_id,  # Parent to VNet main element
+            )
+        elif icon['type'] == 'vpn_gateway':
+            icon_id = generate_hierarchical_id(vnet_data, 'icon', 'vpn')
+            icon_element = etree.SubElement(
+                root,
+                "mxCell",
+                id=icon_id,
+                style=f"shape=image;html=1;image={config.get_icon_path('vpn_gateway')};",
+                vertex="1",
+                parent=main_id,  # Parent to VNet main element
+            )
         
-        return group_height
-    
-    def add_cross_zone_connectivity_edges(zones: List[Dict[str, Any]], hub_vnets: List[Dict[str, Any]],
-                                        vnet_mapping: Dict[str, str], root: Any, config: Any) -> None:
-        """Add cross-zone connectivity edges for spokes that connect to multiple hubs"""
-        edge_counter = 3000  # Start high to avoid conflicts
+        etree.SubElement(
+            icon_element,
+            "mxGeometry",
+            attrib={
+                "x": str(icon['x']),
+                "y": str(y_offset),
+                "width": str(icon['width']),
+                "height": str(icon['height']),
+                "as": "geometry"
+            },
+        )
         
-        logging.info("Adding cross-zone connectivity edges for multi-hub spokes...")
-        
-        for zone in zones:
-            zone_hub_index = zone['hub_index']
-            
-            for spoke in zone['spokes']:
-                spoke_name = spoke.get('name')
-                if not spoke_name:
-                    continue
-                    
-                # Find ALL hubs this spoke connects to
-                connected_hub_indices = get_hub_connections_for_spoke(spoke, hub_vnets)
-                
-                # Create edges to OTHER hubs (not the assigned zone hub)
-                for hub_index in connected_hub_indices:
-                    if hub_index != zone_hub_index:  # Skip the already-connected hub
-                        target_hub = hub_vnets[hub_index]
-                        target_hub_name = target_hub.get('name')
-                        
-                        spoke_id = vnet_mapping.get(spoke.get('resource_id'))
-                        target_hub_id = vnet_mapping.get(target_hub.get('resource_id'))
-                        
-                        if spoke_id and target_hub_id:
-                            # Create cross-zone edge with distinct styling
-                            edge = etree.SubElement(
-                                root,
-                                "mxCell",
-                                id=f"cross_zone_edge_{edge_counter}",
-                                edge="1",
-                                source=spoke_id,
-                                target=target_hub_id,
-                                style=config.get_cross_zone_edge_style(),
-                                parent="1",
-                            )
-                            
-                            # Add basic geometry (draw.io will auto-route)
-                            edge_geometry = etree.SubElement(edge, "mxGeometry", attrib={"relative": "1", "as": "geometry"})
-                            
-                            edge_counter += 1
-                            logging.info(f"Added cross-zone edge: {spoke_name} → {target_hub_name} (zone {zone_hub_index} → zone {hub_index})")
+        current_x -= icon_gap
 
-    def add_peering_edges(vnets, vnet_mapping, root, config):
-        """Add edges for all VNet peerings using reliable resource IDs with proper symmetry validation"""
-        edge_counter = 1000  # Start high to avoid conflicts with existing edge IDs
-        processed_peerings = set()  # Track processed peering relationships to avoid duplicates
-        
-        # Create resource ID to VNet name mapping for reliable peering resolution
-        resource_id_to_name = {vnet['resource_id']: vnet['name'] for vnet in vnets if 'resource_id' in vnet}
-        
-        # Create VNet name to resource ID mapping for symmetry validation
-        vnet_name_to_resource_id = {vnet['name']: vnet['resource_id'] for vnet in vnets if 'name' in vnet and 'resource_id' in vnet}
-        
-        for vnet in vnets:
-            if 'resource_id' not in vnet:
-                continue  # Skip VNets without resource IDs
-                
-            source_resource_id = vnet['resource_id']
-            source_vnet_name = vnet['name']
-            source_id = vnet_mapping.get(source_resource_id)
+    # Add subnets if in MLD mode and it's a regular VNet
+    if show_subnets and vnet_data.get("type") != "virtual_hub":
+        for subnet_index, subnet in enumerate(vnet_data.get("subnets", [])):
+            subnet_id = generate_hierarchical_id(vnet_data, 'subnet', str(subnet_index))
+            subnet_cell = etree.SubElement(
+                root,
+                "mxCell",
+                id=subnet_id,
+                style=config.get_subnet_style_string(),
+                vertex="1",
+                parent=main_id,
+            )
+            subnet_cell.set("value", f"{subnet['name']} {subnet['address']}")
+            y_offset_subnet = config.layout['subnet']['padding_y'] + subnet_index * config.layout['subnet']['spacing_y']
+            etree.SubElement(subnet_cell, "mxGeometry", attrib={
+                "x": str(config.layout['subnet']['padding_x']),
+                "y": str(y_offset_subnet),
+                "width": str(config.layout['subnet']['width']),
+                "height": str(config.layout['subnet']['height']),
+                "as": "geometry"
+            })
+
+            # Add subnet icons
+            subnet_right_edge = config.layout['subnet']['padding_x'] + config.layout['subnet']['width']
+            icon_gap = config.icon_positioning['subnet_icons']['icon_gap']
             
-            if not source_id:
-                continue  # Skip if source VNet not in diagram
+            # Build list of icons to display (right to left order)
+            icons_to_render = []
+            
+            # Subnet icon is always present (rightmost)
+            subnet_width, subnet_height = config.get_icon_size('subnet')
+            icons_to_render.append({
+                'type': 'subnet',
+                'width': subnet_width,
+                'height': subnet_height,
+                'y_offset': config.icon_positioning['subnet_icons']['subnet_icon_y_offset']
+            })
+            
+            # UDR icon (if present)
+            if subnet.get("udr", "").lower() == "yes":
+                udr_width, udr_height = config.get_icon_size('route_table')
+                icons_to_render.append({
+                    'type': 'udr',
+                    'width': udr_width,
+                    'height': udr_height,
+                    'y_offset': config.icon_positioning['subnet_icons']['icon_y_offset']
+                })
+            
+            # NSG icon (if present, leftmost)
+            if subnet.get("nsg", "").lower() == "yes":
+                nsg_width, nsg_height = config.get_icon_size('nsg')
+                icons_to_render.append({
+                    'type': 'nsg',
+                    'width': nsg_width,
+                    'height': nsg_height,
+                    'y_offset': config.icon_positioning['subnet_icons']['icon_y_offset']
+                })
+            
+            # Calculate positions from right to left
+            current_x = subnet_right_edge
+            for icon in icons_to_render:
+                current_x -= icon['width']
+                icon['x'] = current_x
                 
-            # Use reliable peering_resource_ids instead of parsing peering names
-            for peering_resource_id in vnet.get('peering_resource_ids', []):
-                target_vnet_name = resource_id_to_name.get(peering_resource_id)
+                # Create the icon element
+                icon_y = y_offset_subnet + icon['y_offset']
                 
-                if not target_vnet_name or target_vnet_name == source_vnet_name:
-                    continue  # Skip if target VNet not found or self-reference
-                    
-                target_id = vnet_mapping.get(peering_resource_id)
-                if not target_id:
-                    continue  # Skip if target VNet not in diagram
+                if icon['type'] == 'subnet':
+                    subnet_icon_id = generate_hierarchical_id(vnet_data, 'icon', f'subnet_{subnet_index}')
+                    icon_element = etree.SubElement(
+                        root,
+                        "mxCell",
+                        id=subnet_icon_id,
+                        style=f"shape=image;html=1;image={config.get_icon_path('subnet')};",
+                        vertex="1",
+                        parent=main_id,
+                    )
+                elif icon['type'] == 'udr':
+                    udr_icon_id = generate_hierarchical_id(vnet_data, 'icon', f'udr_{subnet_index}')
+                    icon_element = etree.SubElement(
+                        root,
+                        "mxCell",
+                        id=udr_icon_id,
+                        style=f"shape=image;html=1;image={config.get_icon_path('route_table')};",
+                        vertex="1",
+                        parent=main_id,
+                    )
+                elif icon['type'] == 'nsg':
+                    nsg_icon_id = generate_hierarchical_id(vnet_data, 'icon', f'nsg_{subnet_index}')
+                    icon_element = etree.SubElement(
+                        root,
+                        "mxCell",
+                        id=nsg_icon_id,
+                        style=f"shape=image;html=1;image={config.get_icon_path('nsg')};",
+                        vertex="1",
+                        parent=main_id,
+                    )
                 
-                # Skip hub-to-spoke connections (already drawn) - now using hierarchical IDs
-                # Check if this is a hub-to-spoke connection by checking if one is a main ID from a hub VNet
-                # and the other is a main ID from a spoke VNet that's already connected
-                source_vnet = next((v for v in vnets if v.get('name') == source_vnet_name), None)
-                target_vnet = next((v for v in vnets if v.get('name') == target_vnet_name), None)
-                
-                # Removed hub-to-spoke filtering to create fully connected graph
-                # All peering relationships will be drawn as edges
-                
-                # Create a deterministic peering key to avoid duplicates
-                peering_key = tuple(sorted([source_vnet_name, target_vnet_name]))
-                
-                if peering_key in processed_peerings:
-                    continue  # Skip if this peering relationship has already been processed
-                
-                # Check for bidirectional peering (informational only)
-                source_resource_id = vnet_name_to_resource_id.get(source_vnet_name)
-                target_vnet = next((v for v in vnets if v.get('name') == target_vnet_name), None)
-                
-                if target_vnet and source_resource_id:
-                    target_peering_resource_ids = target_vnet.get('peering_resource_ids', [])
-                    if source_resource_id not in target_peering_resource_ids:
-                        logging.debug(f"Asymmetric peering detected: {source_vnet_name} peers to {target_vnet_name}, but {target_vnet_name} does not peer back to {source_vnet_name}")
-                        # Continue to draw the edge anyway - asymmetric peering is normal in Azure
-                
-                # Mark this peering relationship as processed
-                processed_peerings.add(peering_key)
-                
-                # Create edge for spoke-to-spoke or hub-to-hub connections
-                edge = etree.SubElement(
-                    root,
-                    "mxCell",
-                    id=f"peering_edge_{edge_counter}",
-                    edge="1",
-                    source=source_id,
-                    target=target_id,
-                    style=config.get_edge_style_string(),
-                    parent="1",
+                etree.SubElement(
+                    icon_element,
+                    "mxGeometry",
+                    attrib={
+                        "x": str(icon['x']),
+                        "y": str(icon_y),
+                        "width": str(icon['width']),
+                        "height": str(icon['height']),
+                        "as": "geometry"
+                    },
                 )
                 
-                # Add basic geometry (draw.io will auto-route)
-                edge_geometry = etree.SubElement(edge, "mxGeometry", attrib={"relative": "1", "as": "geometry"})
-                
-                edge_counter += 1
-                logging.info(f"Added bidirectional peering edge: {source_vnet_name} ({source_id}) ↔ {target_vnet_name} ({target_id})")
+                current_x -= icon_gap
+    
+    return group_height
 
-    # Simplified Algorithm: Binary classification of ALL non-hub VNets
-    spoke_vnets_classified = []
-    unpeered_vnets = []
+def generate_diagram(filename: str, topology_file: str, config: Any, render_mode: str = 'hld') -> None:
+    """
+    Unified diagram generation function that handles both HLD and MLD modes
     
-    for vnet in vnets:
-        if vnet in hub_vnets:
-            continue  # Skip hubs
-        elif vnet.get("peerings"):
-            spoke_vnets_classified.append(vnet)
-        else:
-            unpeered_vnets.append(vnet)
+    Args:
+        filename: Output DrawIO filename
+        topology_file: Input topology JSON file
+        config: Configuration object
+        render_mode: 'hld' for high-level (VNets only) or 'mld' for mid-level (VNets + subnets)
+    """
+    from lxml import etree
     
-    # Simplified Algorithm: Direct zone assignment using simple arrays
-    zone_spokes = [[] for _ in hub_vnets]
-    for spoke in spoke_vnets_classified:
-        zone_index = find_first_hub_zone(spoke, hub_vnets)
-        zone_spokes[zone_index].append(spoke)
+    # Validate render_mode
+    if render_mode not in ['hld', 'mld']:
+        raise ValueError(f"Invalid render_mode '{render_mode}'. Must be 'hld' or 'mld'.")
     
-    # Simplified Algorithm: Direct drawing using simple arrays and linear logic
+    show_subnets = render_mode == 'mld'
+    
+    # Use common helper functions
+    vnets = _load_and_validate_topology(topology_file)
+    hub_vnets, spoke_vnets = _classify_and_sort_vnets(vnets, config)
+    mxfile, root = _setup_xml_structure(config)
+
+    # Use common helper functions for spoke classification and zone creation
+    spoke_vnets_classified, unpeered_vnets = _classify_spoke_vnets(vnets, hub_vnets)
+    zone_spokes = _create_layout_zones(hub_vnets, spoke_vnets_classified)
+    
+    # Calculate layout parameters based on mode
     canvas_padding = config.canvas_padding
     zone_width = 920 - canvas_padding + config.vnet_width
     zone_spacing = config.zone_spacing
-    spacing = 100
-    hub_height = 50
     
-    # Base positions
+    if show_subnets:
+        # MLD mode: dynamic spacing with padding for subnets
+        spacing = 20  # Original MLD padding
+    else:
+        # HLD mode: fixed spacing
+        spacing = 100
+        
+    # Calculate base positions
     base_left_x = canvas_padding
     base_hub_x = canvas_padding + config.vnet_spacing_x
     base_right_x = canvas_padding + config.vnet_spacing_x + config.vnet_width + 50
     hub_y = canvas_padding
+    
+    # Track zone bottoms for unpeered VNet placement
+    zone_bottoms = []
     
     # Draw each zone using direct arrays
     for zone_index, hub_vnet in enumerate(hub_vnets):
@@ -1343,7 +1430,7 @@ def generate_hld_diagram(filename: str, topology_file: str, config: Any) -> None
         # Draw hub
         hub_x = base_hub_x + zone_offset_x
         hub_main_id = generate_hierarchical_id(hub_vnet, 'main')
-        add_vnet_with_features(hub_vnet, hub_main_id, hub_x, hub_y)
+        hub_actual_height = _add_vnet_with_optional_subnets(hub_vnet, hub_x, hub_y, root, config, show_subnets=show_subnets)
         
         # Get spokes for this zone using simple array access
         spokes = zone_spokes[zone_index]
@@ -1358,14 +1445,28 @@ def generate_hld_diagram(filename: str, topology_file: str, config: Any) -> None
             left_spokes = []
             right_spokes = spokes
         
+        # Calculate hub VNet height for MLD mode
+        if show_subnets:
+            num_subnets = len(hub_vnet.get("subnets", []))
+            hub_vnet_height = config.layout['hub']['height'] if hub_vnet.get("type") == "virtual_hub" else config.layout['subnet']['padding_y'] + (num_subnets * config.layout['subnet']['spacing_y'])
+            current_y_right = hub_y + hub_vnet_height
+            current_y_left = hub_y + hub_vnet_height
+        else:
+            hub_height = 50
+            current_y_right = hub_y + hub_height
+            current_y_left = hub_y + hub_height
+        
         # Draw right spokes
         for index, spoke in enumerate(right_spokes):
-            y_position = hub_y + hub_height + index * spacing
+            if show_subnets:
+                y_position = current_y_right
+            else:
+                y_position = hub_y + hub_height + index * spacing
             x_position = base_right_x + zone_offset_x
             spoke_main_id = generate_hierarchical_id(spoke, 'main')
             
             spoke_style = config.get_vnet_style_string('spoke')
-            add_vnet_with_features(spoke, spoke_main_id, x_position, y_position, spoke_style)
+            vnet_height = _add_vnet_with_optional_subnets(spoke, x_position, y_position, root, config, show_subnets=show_subnets, style_override=spoke_style)
             
             # Connect to hub
             edge_id = f"edge_right_{zone_index}_{index}_{spoke['name']}"
@@ -1381,15 +1482,21 @@ def generate_hld_diagram(filename: str, topology_file: str, config: Any) -> None
             if y_position != hub_y:
                 hub_center_x = base_hub_x + 200 + zone_offset_x
                 etree.SubElement(edge_points, "mxPoint", attrib={"x": str(hub_center_x + 100), "y": str(y_position + 25)})
+            
+            if show_subnets:
+                current_y_right += vnet_height + spacing
         
         # Draw left spokes
         for index, spoke in enumerate(left_spokes):
-            y_position = hub_y + hub_height + index * spacing
+            if show_subnets:
+                y_position = current_y_left
+            else:
+                y_position = hub_y + hub_height + index * spacing
             x_position = base_left_x + zone_offset_x
             spoke_main_id = generate_hierarchical_id(spoke, 'main')
             
             spoke_style = config.get_vnet_style_string('spoke')
-            add_vnet_with_features(spoke, spoke_main_id, x_position, y_position, spoke_style)
+            vnet_height = _add_vnet_with_optional_subnets(spoke, x_position, y_position, root, config, show_subnets=show_subnets, style_override=spoke_style)
             
             # Connect to hub
             edge_id = f"edge_left_{zone_index}_{index}_{spoke['name']}"
@@ -1405,39 +1512,41 @@ def generate_hld_diagram(filename: str, topology_file: str, config: Any) -> None
             if y_position != hub_y:
                 hub_center_x = base_hub_x + 200 + zone_offset_x
                 etree.SubElement(edge_points, "mxPoint", attrib={"x": str(hub_center_x - 100), "y": str(y_position + 25)})
-    
-    # Simplified: Calculate overall bottom boundary for unpeered VNets
-    overall_bottom_y = hub_y + hub_height
-    for zone_index in range(len(hub_vnets)):
-        spokes = zone_spokes[zone_index]
-        use_dual_column = len(spokes) > 6
-        if use_dual_column:
-            half_spokes = (len(spokes) + 1) // 2
-            left_count = half_spokes
-            right_count = len(spokes) - half_spokes
+            
+            if show_subnets:
+                current_y_left += vnet_height + spacing
+        
+        # Track zone bottom for unpeered placement
+        if show_subnets:
+            zone_bottom = hub_y + hub_vnet_height
+            if left_spokes or right_spokes:
+                zone_bottom = max(current_y_left, current_y_right) + 60
+            else:
+                zone_bottom = hub_y + hub_vnet_height + 60
         else:
-            left_count = 0
-            right_count = len(spokes)
+            zone_bottom = hub_y + hub_height
+            if left_spokes or right_spokes:
+                left_count = len(left_spokes)
+                right_count = len(right_spokes)
+                if left_count > 0:
+                    zone_bottom = max(zone_bottom, hub_y + hub_height + left_count * spacing + 50)
+                if right_count > 0:
+                    zone_bottom = max(zone_bottom, hub_y + hub_height + right_count * spacing + 50)
+            else:
+                zone_bottom = hub_y + hub_height + 50
         
-        zone_bottom = hub_y + hub_height
-        if left_count > 0:
-            zone_bottom = max(zone_bottom, hub_y + hub_height + left_count * spacing + 50)
-        if right_count > 0:
-            zone_bottom = max(zone_bottom, hub_y + hub_height + right_count * spacing + 50)
-        if left_count == 0 and right_count == 0:
-            zone_bottom = hub_y + hub_height + 50
-        
-        overall_bottom_y = max(overall_bottom_y, zone_bottom)
+        zone_bottoms.append(zone_bottom)
     
     # Draw unpeered VNets in horizontal rows
     if unpeered_vnets:
-        unpeered_y = overall_bottom_y + 100
+        overall_bottom_y = max(zone_bottoms) if zone_bottoms else hub_y + (hub_vnet_height if show_subnets else hub_height)
+        unpeered_y = overall_bottom_y + (60 if show_subnets else 100)
         
         # Calculate total width for unpeered layout
         total_zones_width = len(hub_vnets) * zone_width + (len(hub_vnets) - 1) * zone_spacing
         unpeered_spacing = config.vnet_width + 50
         vnets_per_row = max(1, int(total_zones_width // unpeered_spacing))
-        row_height = 70
+        row_height = 120 if show_subnets else 70
         
         for index, spoke in enumerate(unpeered_vnets):
             row_number = index // vnets_per_row
@@ -1448,7 +1557,7 @@ def generate_hld_diagram(filename: str, topology_file: str, config: Any) -> None
             spoke_main_id = generate_hierarchical_id(spoke, 'main')
             
             nonpeered_style = config.get_vnet_style_string('non_peered')
-            add_vnet_with_features(spoke, spoke_main_id, x_position, y_position, nonpeered_style)
+            _add_vnet_with_optional_subnets(spoke, x_position, y_position, root, config, show_subnets=show_subnets, style_override=nonpeered_style)
 
     # Create simplified zones for backward compatibility with mapping function
     zones = []
@@ -1477,6 +1586,10 @@ def generate_hld_diagram(filename: str, topology_file: str, config: Any) -> None
     with open(filename, "wb") as f:
         tree.write(f, encoding="utf-8", xml_declaration=True, pretty_print=True)
     logging.info(f"Draw.io diagram generated and saved to {filename}")
+
+def generate_hld_diagram(filename: str, topology_file: str, config: Any) -> None:
+    """Generate high-level diagram (VNets only) from topology JSON"""
+    generate_diagram(filename, topology_file, config, render_mode='hld')
 
 def add_cross_zone_connectivity_edges(zones: List[Dict[str, Any]], hub_vnets: List[Dict[str, Any]],
                                     vnet_mapping: Dict[str, str], root: Any, config: Any) -> None:
@@ -1640,610 +1753,7 @@ def hld_command(args: argparse.Namespace) -> None:
 
 def generate_mld_diagram(filename: str, topology_file: str, config: Any) -> None:
     """Generate mid-level diagram (VNets + subnets) from topology JSON"""
-    from lxml import etree
-    
-    # Load the topology JSON data
-    with open(topology_file, 'r') as file:
-        topology = json.load(file)
-
-    logging.info("Loaded topology data from JSON")
-    vnets = topology.get("vnets", [])
-    
-    # Check for empty VNet list - this should be fatal
-    if not vnets:
-        logging.error("No VNets found in topology file. Cannot generate diagram.")
-        sys.exit(1)
-    
-    # Classify VNets for layout purposes (keep existing layout logic)
-    # Highly connected VNets (hubs) vs others, including explicitly specified hubs
-    hub_vnets = [vnet for vnet in vnets if vnet.get("peerings_count", 0) >= config.hub_threshold or vnet.get("is_explicit_hub", False)]
-    # Sort hubs deterministically by name to ensure consistent zone assignment
-    hub_vnets.sort(key=lambda x: x.get('name', ''))
-    spoke_vnets = [vnet for vnet in vnets if vnet.get("peerings_count", 0) < config.hub_threshold and not vnet.get("is_explicit_hub", False)]
-    
-    # If no highly connected VNets, treat the first one as primary for layout
-    if not hub_vnets and vnets:
-        hub_vnets = [vnets[0]]
-        spoke_vnets = vnets[1:]
-    
-    logging.info(f"Found {len(hub_vnets)} hub VNet(s) and {len(spoke_vnets)} spoke VNet(s)")
-
-    # Root XML structure
-    mxfile = etree.Element("mxfile", attrib={"host": "Electron", "version": "25.0.2"})
-    diagram = etree.SubElement(mxfile, "diagram", name="Hub and Spoke Topology")
-    mxGraphModel = etree.SubElement(
-        diagram,
-        "mxGraphModel",
-        attrib=config.get_canvas_attributes(),
-    )
-    root = etree.SubElement(mxGraphModel, "root")
-
-    etree.SubElement(root, "mxCell", id="0")  # Root cell
-    etree.SubElement(root, "mxCell", id="1", parent="0")  # Parent cell for all shapes
-
-    def add_vnet_with_subnets(vnet_data, vnet_id, x_offset, y_offset, style_override=None):
-        """Universal function to add any VNet with subnets and features as a grouped unit"""
-        num_subnets = len(vnet_data.get("subnets", []))
-        vnet_height = config.layout['hub']['height'] if vnet_data.get("type") == "virtual_hub" else config.layout['subnet']['padding_y'] + (num_subnets * config.layout['subnet']['spacing_y'])
-        
-        # Calculate total group dimensions to encompass all elements including icons
-        group_width = config.layout['hub']['width']
-        group_height = vnet_height + config.drawio['group']['extra_height']
-        
-        # Create group container for this VNet and all its elements with metadata
-        # Use hierarchical ID format for group
-        group_id = generate_hierarchical_id(vnet_data, 'group')
-        
-        # Build attributes dictionary with metadata
-        group_attrs = {
-            "id": group_id,
-            "label": "",
-            "subscription_name": vnet_data.get('subscription_name', ''),
-            "subscription_id": vnet_data.get('subscription_id', ''),
-            "tenant_id": vnet_data.get('tenant_id', ''),
-            "resourcegroup_id": vnet_data.get('resourcegroup_id', ''),
-            "resourcegroup_name": vnet_data.get('resourcegroup_name', ''),
-            "resource_id": vnet_data.get('resource_id', ''),
-            "azure_console_url": vnet_data.get('azure_console_url', ''),
-            "link": vnet_data.get('azure_console_url', '')
-        }
-        
-        group_element = etree.SubElement(root, "object", attrib=group_attrs)
-        
-        # Add mxCell child for the group styling
-        group_cell = etree.SubElement(
-            group_element,
-            "mxCell",
-            style="group",
-            vertex="1",
-            connectable=config.drawio['group']['connectable'],
-            parent="1"
-        )
-        etree.SubElement(
-            group_cell,
-            "mxGeometry",
-            attrib={"x": str(x_offset), "y": str(y_offset), "width": str(group_width), "height": str(group_height), "as": "geometry"},
-        )
-        
-        # Default style for hub VNets
-        default_style = config.get_vnet_style_string('hub')
-        
-        # Add VNet box as child of group (using relative positioning)
-        # vnet_id is now expected to be hierarchical main ID
-        main_id = generate_hierarchical_id(vnet_data, 'main')
-        vnet_element = etree.SubElement(
-            root,
-            "mxCell",
-            id=main_id,
-            style=style_override or default_style,
-            vertex="1",
-            parent=group_id,
-        )
-        vnet_element.set("value", f"Subscription: {vnet_data.get('subscription_name', 'N/A')}\n{vnet_data.get('name', 'VNet')}\n{vnet_data.get('address_space', 'N/A')}")
-        etree.SubElement(
-            vnet_element,
-            "mxGeometry",
-            attrib={"x": "0", "y": "0", "width": str(config.layout['hub']['width']), "height": str(vnet_height), "as": "geometry"},
-        )
-
-        # Add Virtual Hub icon if applicable
-        if vnet_data.get("type") == "virtual_hub":
-            hub_icon_width, hub_icon_height = config.get_icon_size('virtual_hub')
-            virtualhub_icon_id = generate_hierarchical_id(vnet_data, 'icon', 'virtualhub')
-            virtual_hub_icon = etree.SubElement(
-                root,
-                "mxCell",
-                id=virtualhub_icon_id,
-                style=f"shape=image;html=1;image={config.get_icon_path('virtual_hub')};",
-                vertex="1",
-                parent=group_id,
-            )
-            etree.SubElement(
-                virtual_hub_icon,
-                "mxGeometry",
-                attrib={
-                    "x": str(config.icon_positioning['virtual_hub_icon']['offset_x']),
-                    "y": str(vnet_height + config.icon_positioning['virtual_hub_icon']['offset_y']),
-                    "width": str(hub_icon_width),
-                    "height": str(hub_icon_height),
-                    "as": "geometry"
-                },
-            )
-        
-        # Dynamic VNet icon positioning (top-right aligned)
-        vnet_width = config.layout['hub']['width']  # VNet box width (400)
-        y_offset = config.icon_positioning['vnet_icons']['y_offset']
-        right_margin = config.icon_positioning['vnet_icons']['right_margin']
-        icon_gap = config.icon_positioning['vnet_icons']['icon_gap']
-        
-        # Build list of VNet decorator icons to display (right to left order)
-        vnet_icons_to_render = []
-        
-        # VNet icon is always present (rightmost)
-        vnet_icon_width, vnet_icon_height = config.get_icon_size('vnet')
-        vnet_icons_to_render.append({
-            'type': 'vnet',
-            'width': vnet_icon_width,
-            'height': vnet_icon_height
-        })
-        
-        # ExpressRoute icon (if present)
-        if vnet_data.get("expressroute", "").lower() == "yes":
-            express_width, express_height = config.get_icon_size('expressroute')
-            vnet_icons_to_render.append({
-                'type': 'expressroute',
-                'width': express_width,
-                'height': express_height
-            })
-        
-        # Firewall icon (if present)
-        if vnet_data.get("firewall", "").lower() == "yes":
-            firewall_width, firewall_height = config.get_icon_size('firewall')
-            vnet_icons_to_render.append({
-                'type': 'firewall',
-                'width': firewall_width,
-                'height': firewall_height
-            })
-        
-        # VPN Gateway icon (if present, leftmost)
-        if vnet_data.get("vpn_gateway", "").lower() == "yes":
-            vpn_width, vpn_height = config.get_icon_size('vpn_gateway')
-            vnet_icons_to_render.append({
-                'type': 'vpn_gateway',
-                'width': vpn_width,
-                'height': vpn_height
-            })
-        
-        # Calculate positions from right to left
-        current_x = vnet_width - right_margin
-        for icon in vnet_icons_to_render:
-            current_x -= icon['width']
-            icon['x'] = current_x
-            
-            # Create the icon element as child of VNet using hierarchical IDs
-            if icon['type'] == 'vnet':
-                icon_id = generate_hierarchical_id(vnet_data, 'icon', 'vnet')
-                icon_element = etree.SubElement(
-                    root,
-                    "mxCell",
-                    id=icon_id,
-                    style=f"shape=image;html=1;image={config.get_icon_path('vnet')};",
-                    vertex="1",
-                    parent=main_id,  # Parent to VNet main element
-                )
-            elif icon['type'] == 'expressroute':
-                icon_id = generate_hierarchical_id(vnet_data, 'icon', 'expressroute')
-                icon_element = etree.SubElement(
-                    root,
-                    "mxCell",
-                    id=icon_id,
-                    style=f"shape=image;html=1;image={config.get_icon_path('expressroute')};",
-                    vertex="1",
-                    parent=main_id,  # Parent to VNet main element
-                )
-            elif icon['type'] == 'firewall':
-                icon_id = generate_hierarchical_id(vnet_data, 'icon', 'firewall')
-                icon_element = etree.SubElement(
-                    root,
-                    "mxCell",
-                    id=icon_id,
-                    style=f"shape=image;html=1;image={config.get_icon_path('firewall')};",
-                    vertex="1",
-                    parent=main_id,  # Parent to VNet main element
-                )
-            elif icon['type'] == 'vpn_gateway':
-                icon_id = generate_hierarchical_id(vnet_data, 'icon', 'vpn')
-                icon_element = etree.SubElement(
-                    root,
-                    "mxCell",
-                    id=icon_id,
-                    style=f"shape=image;html=1;image={config.get_icon_path('vpn_gateway')};",
-                    vertex="1",
-                    parent=main_id,  # Parent to VNet main element
-                )
-            
-            etree.SubElement(
-                icon_element,
-                "mxGeometry",
-                attrib={
-                    "x": str(icon['x']),
-                    "y": str(y_offset),
-                    "width": str(icon['width']),
-                    "height": str(icon['height']),
-                    "as": "geometry"
-                },
-            )
-            
-            current_x -= icon_gap
-
-        # Add subnets if it's a regular VNet (as children of the VNet, not the group)
-        if vnet_data.get("type") != "virtual_hub":
-            for subnet_index, subnet in enumerate(vnet_data.get("subnets", [])):
-                subnet_id = generate_hierarchical_id(vnet_data, 'subnet', str(subnet_index))
-                subnet_cell = etree.SubElement(
-                    root,
-                    "mxCell",
-                    id=subnet_id,
-                    style=config.get_subnet_style_string(),
-                    vertex="1",
-                    parent=main_id,
-                )
-                subnet_cell.set("value", f"{subnet['name']} {subnet['address']}")
-                y_offset_subnet = config.layout['subnet']['padding_y'] + subnet_index * config.layout['subnet']['spacing_y']
-                etree.SubElement(subnet_cell, "mxGeometry", attrib={
-                    "x": str(config.layout['subnet']['padding_x']),
-                    "y": str(y_offset_subnet),
-                    "width": str(config.layout['subnet']['width']),
-                    "height": str(config.layout['subnet']['height']),
-                    "as": "geometry"
-                })
-
-                # Calculate icon positions dynamically based on which icons are present
-                # Subnet box: x=25, width=350, so right edge = 375
-                subnet_right_edge = config.layout['subnet']['padding_x'] + config.layout['subnet']['width']
-                icon_gap = config.icon_positioning['subnet_icons']['icon_gap']
-                
-                # Build list of icons to display (right to left order)
-                icons_to_render = []
-                
-                # Subnet icon is always present (rightmost)
-                subnet_width, subnet_height = config.get_icon_size('subnet')
-                icons_to_render.append({
-                    'type': 'subnet',
-                    'width': subnet_width,
-                    'height': subnet_height,
-                    'y_offset': config.icon_positioning['subnet_icons']['subnet_icon_y_offset']
-                })
-                
-                # UDR icon (if present)
-                if subnet.get("udr", "").lower() == "yes":
-                    udr_width, udr_height = config.get_icon_size('route_table')
-                    icons_to_render.append({
-                        'type': 'udr',
-                        'width': udr_width,
-                        'height': udr_height,
-                        'y_offset': config.icon_positioning['subnet_icons']['icon_y_offset']
-                    })
-                
-                # NSG icon (if present, leftmost)
-                if subnet.get("nsg", "").lower() == "yes":
-                    nsg_width, nsg_height = config.get_icon_size('nsg')
-                    icons_to_render.append({
-                        'type': 'nsg',
-                        'width': nsg_width,
-                        'height': nsg_height,
-                        'y_offset': config.icon_positioning['subnet_icons']['icon_y_offset']
-                    })
-                
-                # Calculate positions from right to left
-                current_x = subnet_right_edge
-                for icon in icons_to_render:
-                    current_x -= icon['width']
-                    icon['x'] = current_x
-                    
-                    # Create the icon element
-                    icon_y = y_offset_subnet + icon['y_offset']
-                    
-                    if icon['type'] == 'subnet':
-                        subnet_icon_id = generate_hierarchical_id(vnet_data, 'icon', f'subnet_{subnet_index}')
-                        icon_element = etree.SubElement(
-                            root,
-                            "mxCell",
-                            id=subnet_icon_id,
-                            style=f"shape=image;html=1;image={config.get_icon_path('subnet')};",
-                            vertex="1",
-                            parent=main_id,
-                        )
-                    elif icon['type'] == 'udr':
-                        udr_icon_id = generate_hierarchical_id(vnet_data, 'icon', f'udr_{subnet_index}')
-                        icon_element = etree.SubElement(
-                            root,
-                            "mxCell",
-                            id=udr_icon_id,
-                            style=f"shape=image;html=1;image={config.get_icon_path('route_table')};",
-                            vertex="1",
-                            parent=main_id,
-                        )
-                    elif icon['type'] == 'nsg':
-                        nsg_icon_id = generate_hierarchical_id(vnet_data, 'icon', f'nsg_{subnet_index}')
-                        icon_element = etree.SubElement(
-                            root,
-                            "mxCell",
-                            id=nsg_icon_id,
-                            style=f"shape=image;html=1;image={config.get_icon_path('nsg')};",
-                            vertex="1",
-                            parent=main_id,
-                        )
-                    
-                    etree.SubElement(
-                        icon_element,
-                        "mxGeometry",
-                        attrib={
-                            "x": str(icon['x']),
-                            "y": str(icon_y),
-                            "width": str(icon['width']),
-                            "height": str(icon['height']),
-                            "as": "geometry"
-                        },
-                    )
-                    
-                    current_x -= icon_gap
-        
-        return group_height
-
-    def add_peering_edges(vnets, vnet_mapping, root, config):
-        """Add edges for all VNet peerings using reliable resource IDs with proper symmetry validation"""
-        edge_counter = 1000  # Start high to avoid conflicts with existing edge IDs
-        processed_peerings = set()  # Track processed peering relationships to avoid duplicates
-        
-        # Create resource ID to VNet name mapping for reliable peering resolution
-        resource_id_to_name = {vnet['resource_id']: vnet['name'] for vnet in vnets if 'resource_id' in vnet}
-        
-        # Create VNet name to resource ID mapping for symmetry validation
-        vnet_name_to_resource_id = {vnet['name']: vnet['resource_id'] for vnet in vnets if 'name' in vnet and 'resource_id' in vnet}
-        
-        for vnet in vnets:
-            if 'resource_id' not in vnet:
-                continue  # Skip VNets without resource IDs
-                
-            source_resource_id = vnet['resource_id']
-            source_vnet_name = vnet['name']
-            source_id = vnet_mapping.get(source_resource_id)
-            
-            if not source_id:
-                continue  # Skip if source VNet not in diagram
-                
-            # Use reliable peering_resource_ids instead of parsing peering names
-            for peering_resource_id in vnet.get('peering_resource_ids', []):
-                target_vnet_name = resource_id_to_name.get(peering_resource_id)
-                
-                if not target_vnet_name or target_vnet_name == source_vnet_name:
-                    continue  # Skip if target VNet not found or self-reference
-                    
-                target_id = vnet_mapping.get(peering_resource_id)
-                if not target_id:
-                    continue  # Skip if target VNet not in diagram
-                
-                # Skip hub-to-spoke connections (already drawn) - now using hierarchical IDs
-                # Check if this is a hub-to-spoke connection by checking if one is a main ID from a hub VNet
-                # and the other is a main ID from a spoke VNet that's already connected
-                source_vnet = next((v for v in vnets if v.get('name') == source_vnet_name), None)
-                target_vnet = next((v for v in vnets if v.get('name') == target_vnet_name), None)
-                
-                # Removed hub-to-spoke filtering to create fully connected graph
-                # All peering relationships will be drawn as edges
-                
-                # Create a deterministic peering key to avoid duplicates
-                peering_key = tuple(sorted([source_vnet_name, target_vnet_name]))
-                
-                if peering_key in processed_peerings:
-                    continue  # Skip if this peering relationship has already been processed
-                
-                # Check for bidirectional peering (informational only)
-                source_resource_id = vnet_name_to_resource_id.get(source_vnet_name)
-                target_vnet = next((v for v in vnets if v.get('name') == target_vnet_name), None)
-                
-                if target_vnet and source_resource_id:
-                    target_peering_resource_ids = target_vnet.get('peering_resource_ids', [])
-                    if source_resource_id not in target_peering_resource_ids:
-                        logging.debug(f"Asymmetric peering detected: {source_vnet_name} peers to {target_vnet_name}, but {target_vnet_name} does not peer back to {source_vnet_name}")
-                        # Continue to draw the edge anyway - asymmetric peering is normal in Azure
-                
-                # Mark this peering relationship as processed
-                processed_peerings.add(peering_key)
-                
-                # Create edge for spoke-to-spoke or hub-to-hub connections
-                edge = etree.SubElement(
-                    root,
-                    "mxCell",
-                    id=f"peering_edge_{edge_counter}",
-                    edge="1",
-                    source=source_id,
-                    target=target_id,
-                    style=config.get_edge_style_string(),
-                    parent="1",
-                )
-                
-                # Add basic geometry (draw.io will auto-route)
-                edge_geometry = etree.SubElement(edge, "mxGeometry", attrib={"relative": "1", "as": "geometry"})
-                
-                edge_counter += 1
-                logging.info(f"Added bidirectional peering edge: {source_vnet_name} ({source_id}) ↔ {target_vnet_name} ({target_id})")
-
-    # Simplified Algorithm: Binary classification of ALL non-hub VNets
-    spoke_vnets_classified = []
-    unpeered_vnets = []
-    
-    for vnet in vnets:
-        if vnet in hub_vnets:
-            continue  # Skip hubs
-        elif vnet.get("peerings"):
-            spoke_vnets_classified.append(vnet)
-        else:
-            unpeered_vnets.append(vnet)
-    
-    # Simplified Algorithm: Direct zone assignment using simple arrays
-    zone_spokes = [[] for _ in hub_vnets]
-    for spoke in spoke_vnets_classified:
-        zone_index = find_first_hub_zone(spoke, hub_vnets)
-        zone_spokes[zone_index].append(spoke)
-    
-    # Calculate zone width for horizontal positioning with top-left alignment (MLD values)
-    canvas_padding = config.canvas_padding
-    zone_width = 920 - canvas_padding + config.vnet_width  # Adjusted zone width calculated from layout
-    zone_spacing = config.zone_spacing
-    
-    # Dynamic spacing for spokes - adjusted for hub above spokes
-    padding = 20   # Original MLD.py padding
-    
-    # Calculate base positions for top-left alignment (MLD values)
-    # Original positions: left=-400, hub=200, right=700
-    # Adjusted for 20px padding with proper spacing: left=20, hub=470, right=920
-    base_left_x = canvas_padding
-    base_hub_x = canvas_padding + config.vnet_spacing_x  # Hub positioned with 50px gap after left spokes (400px wide)
-    base_right_x = canvas_padding + config.vnet_spacing_x + config.vnet_width + 50  # Right spokes with 50px gap after hub
-    hub_y = canvas_padding  # Hub positioned at top, above spokes
-    
-    # Simplified Algorithm: Direct drawing using simple arrays
-    zone_bottoms = []
-    
-    for zone_index, hub_vnet in enumerate(hub_vnets):
-        zone_offset_x = zone_index * (zone_width + zone_spacing)
-        
-        # Draw hub
-        hub_x = base_hub_x + zone_offset_x
-        hub_main_id = generate_hierarchical_id(hub_vnet, 'main')
-        hub_actual_height = add_vnet_with_subnets(hub_vnet, hub_main_id, hub_x, hub_y)
-        
-        # Get spokes for this zone using simple array access
-        spokes = zone_spokes[zone_index]
-        
-        # Split spokes using existing layout logic
-        if len(spokes) <= 6:
-            right_spokes = spokes
-            left_spokes = []
-        else:
-            total_spokes = len(spokes)
-            half_spokes = (total_spokes + 1) // 2
-            left_spokes = spokes[:half_spokes]
-            right_spokes = spokes[half_spokes:]
-        
-        # Calculate hub VNet height
-        num_subnets = len(hub_vnet.get("subnets", []))
-        hub_vnet_height = config.layout['hub']['height'] if hub_vnet.get("type") == "virtual_hub" else config.layout['subnet']['padding_y'] + (num_subnets * config.layout['subnet']['spacing_y'])
-        
-        current_y_right = hub_y + hub_vnet_height
-        current_y_left = hub_y + hub_vnet_height
-        
-        # Draw right spokes
-        for idx, spoke in enumerate(right_spokes):
-            spoke_main_id = generate_hierarchical_id(spoke, 'main')
-            y_position = current_y_right
-            x_position = base_right_x + zone_offset_x
-            
-            spoke_style = config.get_vnet_style_string('spoke')
-            vnet_height = add_vnet_with_subnets(spoke, spoke_main_id, x_position, y_position, spoke_style)
-            
-            # Connect to hub
-            edge_id = f"edge_right_{zone_index}_{idx}_{spoke['name']}"
-            edge = etree.SubElement(
-                root, "mxCell", id=edge_id, edge="1",
-                source=hub_main_id, target=spoke_main_id,
-                style=config.get_hub_spoke_edge_style(),
-                parent="1"
-            )
-            edge_geometry = etree.SubElement(edge, "mxGeometry", attrib={"relative": "1", "as": "geometry"})
-            edge_points = etree.SubElement(edge_geometry, "Array", attrib={"as": "points"})
-            
-            if y_position != hub_y:
-                hub_center_x = base_hub_x + 200 + zone_offset_x
-                etree.SubElement(edge_points, "mxPoint", attrib={"x": str(hub_center_x + 100), "y": str(y_position + 25)})
-            
-            current_y_right += vnet_height + padding
-        
-        # Draw left spokes
-        for idx, spoke in enumerate(left_spokes):
-            spoke_main_id = generate_hierarchical_id(spoke, 'main')
-            y_position = current_y_left
-            x_position = base_left_x + zone_offset_x
-            
-            spoke_style = config.get_vnet_style_string('spoke')
-            vnet_height = add_vnet_with_subnets(spoke, spoke_main_id, x_position, y_position, spoke_style)
-            
-            # Connect to hub
-            edge_id = f"edge_left_{zone_index}_{idx}_{spoke['name']}"
-            edge = etree.SubElement(
-                root, "mxCell", id=edge_id, edge="1",
-                source=hub_main_id, target=spoke_main_id,
-                style=config.get_hub_spoke_edge_style(),
-                parent="1"
-            )
-            edge_geometry = etree.SubElement(edge, "mxGeometry", attrib={"relative": "1", "as": "geometry"})
-            edge_points = etree.SubElement(edge_geometry, "Array", attrib={"as": "points"})
-            
-            if y_position != hub_y:
-                hub_center_x = base_hub_x + 200 + zone_offset_x
-                etree.SubElement(edge_points, "mxPoint", attrib={"x": str(hub_center_x - 100), "y": str(y_position + 25)})
-            
-            current_y_left += vnet_height + padding
-        
-        # Track zone bottom
-        zone_bottom = hub_y + hub_vnet_height
-        if left_spokes or right_spokes:
-            zone_bottom = max(current_y_left, current_y_right) + 60
-        else:
-            zone_bottom = hub_y + hub_vnet_height + 60
-        zone_bottoms.append(zone_bottom)
-    
-    # Draw unpeered VNets in horizontal rows
-    if unpeered_vnets:
-        overall_bottom_y = max(zone_bottoms) if zone_bottoms else hub_y + hub_vnet_height
-        unpeered_y = overall_bottom_y + 60
-        
-        # Calculate total width for unpeered layout
-        total_zones_width = len(hub_vnets) * zone_width + (len(hub_vnets) - 1) * zone_spacing
-        unpeered_spacing = config.vnet_width + 50
-        vnets_per_row = max(1, int(total_zones_width // unpeered_spacing))
-        row_height = 120
-        
-        for index, spoke in enumerate(unpeered_vnets):
-            row_number = index // vnets_per_row
-            position_in_row = index % vnets_per_row
-            
-            x_position = base_left_x + (position_in_row * unpeered_spacing)
-            y_position = unpeered_y + (row_number * row_height)
-            spoke_main_id = generate_hierarchical_id(spoke, 'main')
-            
-            nonpeered_style = config.get_vnet_style_string('non_peered')
-            add_vnet_with_subnets(spoke, spoke_main_id, x_position, y_position, nonpeered_style)
-
-    # Create simplified zones for backward compatibility with mapping function
-    zones = []
-    for hub_index, hub_vnet in enumerate(hub_vnets):
-        zones.append({
-            'hub': hub_vnet,
-            'hub_index': hub_index,
-            'spokes': zone_spokes[hub_index],
-            'non_peered': unpeered_vnets if hub_index == 0 else []
-        })
-
-    # Create VNet ID mapping for peering connections
-    vnet_mapping = create_vnet_id_mapping(vnets, zones, unpeered_vnets)
-    
-    # Only draw edges for VNets that should have connectivity (exclude unpeered)
-    vnets_with_edges = hub_vnets + spoke_vnets_classified
-    add_peering_edges(vnets_with_edges, vnet_mapping, root, config)
-    
-    # Add cross-zone connectivity edges for multi-hub spokes
-    add_cross_zone_connectivity_edges(zones, hub_vnets, vnet_mapping, root, config)
-    
-    logging.info(f"Added full mesh peering connections for {len(vnets)} VNets")
-
-    # Write to file
-    tree = etree.ElementTree(mxfile)
-    with open(filename, "wb") as f:
-        tree.write(f, encoding="utf-8", xml_declaration=True, pretty_print=True)
-    logging.info(f"Draw.io diagram generated and saved to {filename}")
+    generate_diagram(filename, topology_file, config, render_mode='mld')
 
 def mld_command(args: argparse.Namespace) -> None:
     """Execute the MLD command to generate mid-level diagrams"""

@@ -247,8 +247,18 @@ class TestVnetFilteringCLI:
     
     def test_query_command_with_legacy_vnet_requires_subscriptions(self):
         """Test that --vnet with legacy rg/vnet format requires --subscriptions or --subscriptions-file"""
-        with patch('azure_query.get_credentials') as mock_creds:
+        with patch('azure_query.get_credentials') as mock_creds, \
+             patch('azure_query.resolve_subscription_names_to_ids') as mock_resolve, \
+             patch('azure_query.SubscriptionClient') as mock_sub_client:
+            
             mock_creds.return_value = MagicMock()
+            # Mock SubscriptionClient to simulate the actual Azure API behavior when resolving None
+            mock_sub_client_instance = MagicMock()
+            mock_sub_client.return_value = mock_sub_client_instance
+            mock_sub_client_instance.subscriptions.list.return_value = []
+            
+            # Mock resolve_subscription_names_to_ids to fail when trying to resolve None
+            mock_resolve.side_effect = SystemExit(1)
             
             # Create mock args with --vnet but no subscription specification
             args = MagicMock()
@@ -548,7 +558,7 @@ class TestVnetFilteringCLI:
         
         assert result.returncode == 0
         assert '--vnets' in result.stdout
-        assert 'resource_ids (starting with /) or paths (SUBSCRIPTION/RESOURCEGROUP/VNET)' in result.stdout
+        assert 'resource_ids (starting with /) or paths (subscription/resource_group/vnet_name)' in result.stdout
     
     def test_subprocess_cli_vnet_with_verbose(self):
         """Test CLI with --vnet and --verbose flags"""
