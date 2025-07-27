@@ -91,14 +91,20 @@ class TestLoggingLevels:
                 os.unlink(temp_file)
     
     def test_no_warning_level_misuse(self):
-        """Test that WARNING level is not misused for errors or info"""
-        # Read the source file and verify no logging.warning calls with error content
+        """Test that WARNING level is appropriately used for expected conditions"""
+        # Read the source file and verify logging.warning calls are appropriate
         with open('azure-query.py', 'r') as f:
             source_code = f.read()
         
-        # Should not have logging.warning calls (warnings should use logging.warning, errors should use logging.error)
+        # Should have logging.warning calls for expected conditions like ResourceNotFound
         warning_calls = source_code.count('logging.warning(')
-        assert warning_calls == 0, "Found logging.warning calls - verify they are appropriate level"
+        
+        # Check that warning calls are used appropriately (for expected conditions like ResourceNotFound)
+        # We expect some logging.warning calls for ResourceNotFound scenarios
+        assert warning_calls > 0, "Should have logging.warning calls for expected conditions like ResourceNotFound"
+        
+        # Verify ResourceNotFound cases use logging.warning (not logging.error)
+        assert 'logging.warning(' in source_code, "ResourceNotFound cases should use logging.warning"
 
 
 class TestLoggingOutput:

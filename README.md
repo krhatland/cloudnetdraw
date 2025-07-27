@@ -229,6 +229,39 @@ cp config.yaml my_config.yaml
 uv run azure-query.py query --config-file my_config.yaml
 ```
 
+### Example 4: Hub VNet Filtering
+
+Filter topology to focus on a specific hub VNet and its directly connected spokes:
+
+```bash
+# Filter by resource group and VNet name (recommended - fast and precise)
+uv run azure-query.py query --vnet "ops-mcg-vnet-dev-rg/OPS-network-dev-vnet" --verbose
+
+# Filter by full Azure resource ID
+uv run azure-query.py query --vnet "/subscriptions/98e9a6c7-c9c0-4419-bd65-2b18c741a0f4/resourceGroups/ops-mcg-vnet-dev-rg/providers/Microsoft.Network/virtualNetworks/OPS-network-dev-vnet"
+
+# Generate diagrams from filtered topology
+uv run azure-query.py hld
+uv run azure-query.py mld
+```
+
+**Key Features:**
+- **⚡ Fast Azure Resource Graph API**: Single efficient query instead of scanning all subscriptions
+- **🎯 Unique identification**: Uses `resource_group/vnet_name` format for precise VNet identification
+- **🔍 Automatic discovery**: No need to specify `--subscriptions` parameter
+- **📊 Filtered topology**: Contains only hub and directly connected spokes
+
+**Expected Output:**
+- Filtered JSON containing only the specified hub and its directly peered spokes
+- Focused diagrams showing hub-spoke relationships for the selected VNet
+- Significantly faster processing compared to full topology collection
+
+**Use Cases:**
+- Focus on specific network segments in large multi-hub environments
+- Troubleshoot connectivity issues for a particular hub
+- Generate documentation for specific application network boundaries
+- Isolate network components for security or compliance reviews
+
 ## Testing
 
 ### Running Tests

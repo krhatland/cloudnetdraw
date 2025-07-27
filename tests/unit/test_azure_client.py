@@ -10,7 +10,8 @@ from pathlib import Path
 from azure_query import (
     get_vnet_topology_for_selected_subscriptions,
     list_and_select_subscriptions,
-    get_subscriptions_non_interactive
+    get_subscriptions_non_interactive,
+    initialize_credentials
 )
 
 
@@ -46,7 +47,9 @@ class TestVNetTopologyCollection:
         with patch('azure_query.SubscriptionClient', return_value=mock_subscription_client), \
              patch('azure_query.NetworkManagementClient', return_value=mock_network_client):
             
-            result = get_vnet_topology_for_selected_subscriptions(['sub-1'], mock_azure_credentials)
+            # Initialize credentials for global usage
+            initialize_credentials()
+            result = get_vnet_topology_for_selected_subscriptions(['sub-1'])
             
             assert 'vnets' in result
             assert len(result['vnets']) == 1
@@ -99,7 +102,9 @@ class TestVNetTopologyCollection:
         with patch('azure_query.SubscriptionClient', return_value=mock_subscription_client), \
              patch('azure_query.NetworkManagementClient', return_value=mock_network_client):
             
-            result = get_vnet_topology_for_selected_subscriptions(['sub-1'], mock_azure_credentials)
+            # Initialize credentials for global usage
+            initialize_credentials()
+            result = get_vnet_topology_for_selected_subscriptions(['sub-1'])
             
             vnet = result['vnets'][0]
             assert vnet['name'] == 'hub-vnet'
@@ -125,6 +130,7 @@ class TestVNetTopologyCollection:
         mock_subscription_client = Mock()
         mock_subscription = Mock()
         mock_subscription.display_name = 'Test Subscription'
+        mock_subscription.tenant_id = 'tenant-123'
         mock_subscription_client.subscriptions.get.return_value = mock_subscription
 
         mock_network_client = Mock()
@@ -137,6 +143,7 @@ class TestVNetTopologyCollection:
         # Mock Virtual Hub
         mock_hub = Mock()
         mock_hub.name = 'test-hub'
+        mock_hub.id = '/subscriptions/sub-1/resourceGroups/rg-1/providers/Microsoft.Network/virtualHubs/test-hub'
         mock_hub.address_prefix = '10.0.0.0/16'
         mock_hub.express_route_gateway = Mock()  # Has ExpressRoute
         mock_hub.vpn_gateway = Mock()           # Has VPN
@@ -149,7 +156,9 @@ class TestVNetTopologyCollection:
         with patch('azure_query.SubscriptionClient', return_value=mock_subscription_client), \
              patch('azure_query.NetworkManagementClient', return_value=mock_network_client):
             
-            result = get_vnet_topology_for_selected_subscriptions(['sub-1'], mock_azure_credentials)
+            # Initialize credentials for global usage
+            initialize_credentials()
+            result = get_vnet_topology_for_selected_subscriptions(['sub-1'])
             
             assert len(result['vnets']) == 1
             hub = result['vnets'][0]
@@ -207,7 +216,9 @@ class TestVNetTopologyCollection:
         with patch('azure_query.SubscriptionClient', return_value=mock_subscription_client), \
              patch('azure_query.NetworkManagementClient', side_effect=mock_network_client):
             
-            result = get_vnet_topology_for_selected_subscriptions(['sub-1', 'sub-2'], mock_azure_credentials)
+            # Initialize credentials for global usage
+            initialize_credentials()
+            result = get_vnet_topology_for_selected_subscriptions(['sub-1', 'sub-2'])
             
             assert len(result['vnets']) == 2
             
@@ -234,8 +245,11 @@ class TestVNetTopologyCollection:
              patch('azure_query.NetworkManagementClient', return_value=mock_network_client):
             
             # Should exit with error code 1 when Azure API error occurs
+            # Initialize credentials for global usage
+            initialize_credentials()
+            
             with pytest.raises(SystemExit) as exc_info:
-                get_vnet_topology_for_selected_subscriptions(['sub-1'], mock_azure_credentials)
+                get_vnet_topology_for_selected_subscriptions(['sub-1'])
             assert exc_info.value.code == 1
 
     def test_get_vnet_topology_virtual_wan_error_handling(self, mock_azure_credentials):
@@ -253,8 +267,11 @@ class TestVNetTopologyCollection:
              patch('azure_query.NetworkManagementClient', return_value=mock_network_client):
             
             # Should exit with error code 1 when Azure API error occurs
+            # Initialize credentials for global usage
+            initialize_credentials()
+            
             with pytest.raises(SystemExit) as exc_info:
-                get_vnet_topology_for_selected_subscriptions(['sub-1'], mock_azure_credentials)
+                get_vnet_topology_for_selected_subscriptions(['sub-1'])
             assert exc_info.value.code == 1
 
 
@@ -269,7 +286,10 @@ class TestSubscriptionListing:
         with patch('azure_query.SubscriptionClient', return_value=mock_subscription_client), \
              patch('builtins.input', return_value='0,2'):
             
-            result = list_and_select_subscriptions(mock_azure_credentials)
+            # Initialize credentials for global usage
+            initialize_credentials()
+            
+            result = list_and_select_subscriptions()
             
             assert len(result) == 2
             assert result[0] == 'sub-1'
@@ -290,7 +310,10 @@ class TestSubscriptionListing:
         with patch('azure_query.SubscriptionClient', return_value=mock_subscription_client), \
              patch('builtins.input', return_value='0,1,2'):
             
-            result = list_and_select_subscriptions(mock_azure_credentials)
+            # Initialize credentials for global usage
+            initialize_credentials()
+            
+            result = list_and_select_subscriptions()
             
             # Should return IDs in order of sorted display names
             assert result == ['sub-1', 'sub-2', 'sub-3']
@@ -303,7 +326,10 @@ class TestSubscriptionListing:
         with patch('azure_query.SubscriptionClient', return_value=mock_subscription_client), \
              patch('builtins.input', return_value='1'):
             
-            result = list_and_select_subscriptions(mock_azure_credentials)
+            # Initialize credentials for global usage
+            initialize_credentials()
+            
+            result = list_and_select_subscriptions()
             
             assert len(result) == 1
             assert result[0] == 'sub-2'
@@ -319,7 +345,10 @@ class TestNonInteractiveSubscriptionHandling:
         mock_args.subscriptions_file = None
         
         with patch('azure_query.is_subscription_id', return_value=True):
-            result = get_subscriptions_non_interactive(mock_args, mock_azure_credentials)
+            # Initialize credentials for global usage
+            initialize_credentials()
+            
+            result = get_subscriptions_non_interactive(mock_args)
             assert result == ['sub-1', 'sub-2', 'sub-3']
 
     def test_get_subscriptions_non_interactive_from_file(self, mock_azure_credentials, temp_directory):
@@ -333,7 +362,10 @@ class TestNonInteractiveSubscriptionHandling:
         mock_args.subscriptions_file = str(subscriptions_file)
         
         with patch('azure_query.is_subscription_id', return_value=True):
-            result = get_subscriptions_non_interactive(mock_args, mock_azure_credentials)
+            # Initialize credentials for global usage
+            initialize_credentials()
+            
+            result = get_subscriptions_non_interactive(mock_args)
             assert result == ['sub-1', 'sub-2', 'sub-3']
 
     def test_get_subscriptions_non_interactive_both_specified_error(self, mock_azure_credentials):
@@ -343,7 +375,10 @@ class TestNonInteractiveSubscriptionHandling:
         mock_args.subscriptions_file = 'subscriptions.txt'
         
         with pytest.raises(SystemExit):
-            get_subscriptions_non_interactive(mock_args, mock_azure_credentials)
+            # Initialize credentials for global usage
+            initialize_credentials()
+            
+            get_subscriptions_non_interactive(mock_args)
 
     def test_get_subscriptions_non_interactive_name_resolution(self, mock_azure_credentials):
         """Test subscription name to ID resolution"""
@@ -354,9 +389,12 @@ class TestNonInteractiveSubscriptionHandling:
         with patch('azure_query.is_subscription_id', return_value=False), \
              patch('azure_query.resolve_subscription_names_to_ids', return_value=['sub-1', 'sub-2']) as mock_resolve:
             
-            result = get_subscriptions_non_interactive(mock_args, mock_azure_credentials)
+            # Initialize credentials for global usage
+            initialize_credentials()
             
-            mock_resolve.assert_called_once_with(['Test Subscription 1', 'Test Subscription 2'], mock_azure_credentials)
+            result = get_subscriptions_non_interactive(mock_args)
+            
+            mock_resolve.assert_called_once_with(['Test Subscription 1', 'Test Subscription 2'])
             assert result == ['sub-1', 'sub-2']
 
     def test_get_subscriptions_non_interactive_whitespace_handling(self, mock_azure_credentials):
@@ -366,5 +404,8 @@ class TestNonInteractiveSubscriptionHandling:
         mock_args.subscriptions_file = None
         
         with patch('azure_query.is_subscription_id', return_value=True):
-            result = get_subscriptions_non_interactive(mock_args, mock_azure_credentials)
+            # Initialize credentials for global usage
+            initialize_credentials()
+            
+            result = get_subscriptions_non_interactive(mock_args)
             assert result == ['sub-1', 'sub-2', 'sub-3']

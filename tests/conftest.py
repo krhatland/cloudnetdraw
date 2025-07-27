@@ -383,3 +383,218 @@ def spoke_layout_data(request):
 def subscription_id_data(request):
     """Parameterized data for subscription ID validation tests"""
     return request.param
+
+
+# VNet Filtering specific fixtures
+@pytest.fixture
+def mock_hub_vnet():
+    """Mock hub VNet for VNet filtering tests"""
+    return {
+        'name': 'hub-vnet-001',
+        'address_space': '10.0.0.0/16',
+        'subnets': [
+            {'name': 'default', 'address': '10.0.0.0/24', 'nsg': 'Yes', 'udr': 'No'},
+            {'name': 'GatewaySubnet', 'address': '10.0.1.0/24', 'nsg': 'No', 'udr': 'No'}
+        ],
+        'peerings': ['hub-vnet-001_to_spoke1', 'hub-vnet-001_to_spoke2'],
+        'peerings_count': 2,
+        'subscription_name': 'Test Subscription',
+        'subscription_id': 'sub-1',
+        'resource_group': 'rg-1',
+        'expressroute': 'Yes',
+        'vpn_gateway': 'Yes',
+        'firewall': 'No',
+        'is_explicit_hub': True
+    }
+
+
+@pytest.fixture
+def mock_spoke_vnets():
+    """Mock spoke VNets for VNet filtering tests"""
+    return [
+        {
+            'name': 'spoke1',
+            'address_space': '10.1.0.0/16',
+            'subnets': [
+                {'name': 'default', 'address': '10.1.0.0/24', 'nsg': 'Yes', 'udr': 'Yes'}
+            ],
+            'peerings': ['spoke1_to_hub-vnet-001'],
+            'peerings_count': 1,
+            'subscription_name': 'Test Subscription',
+            'subscription_id': 'sub-1',
+            'resource_group': 'rg-1',
+            'expressroute': 'No',
+            'vpn_gateway': 'No',
+            'firewall': 'No'
+        },
+        {
+            'name': 'spoke2',
+            'address_space': '10.2.0.0/16',
+            'subnets': [
+                {'name': 'default', 'address': '10.2.0.0/24', 'nsg': 'No', 'udr': 'Yes'},
+                {'name': 'web-tier', 'address': '10.2.1.0/24', 'nsg': 'Yes', 'udr': 'Yes'}
+            ],
+            'peerings': ['spoke2_to_hub-vnet-001'],
+            'peerings_count': 1,
+            'subscription_name': 'Test Subscription',
+            'subscription_id': 'sub-1',
+            'resource_group': 'rg-1',
+            'expressroute': 'No',
+            'vpn_gateway': 'No',
+            'firewall': 'Yes'
+        }
+    ]
+
+
+@pytest.fixture
+def mock_virtual_hub():
+    """Mock Virtual WAN hub for testing"""
+    return {
+        'name': 'virtual-hub-001',
+        'address_space': '10.100.0.0/24',
+        'type': 'virtual_hub',
+        'subnets': [],
+        'peerings': [],
+        'peerings_count': 0,
+        'subscription_name': 'Test Subscription',
+        'subscription_id': 'sub-1',
+        'resource_group': 'rg-wan',
+        'expressroute': 'Yes',
+        'vpn_gateway': 'Yes',
+        'firewall': 'No',
+        'is_explicit_hub': True
+    }
+
+
+@pytest.fixture
+def mock_filtered_topology(mock_hub_vnet, mock_spoke_vnets):
+    """Complete filtered topology for testing"""
+    return {
+        'vnets': [mock_hub_vnet] + mock_spoke_vnets
+    }
+
+
+@pytest.fixture
+def mock_azure_vnet_objects():
+    """Mock Azure VNet objects for API responses"""
+    # Mock hub VNet
+    mock_hub = Mock()
+    mock_hub.name = 'hub-vnet-001'
+    mock_hub.id = '/subscriptions/sub-1/resourceGroups/rg-1/providers/Microsoft.Network/virtualNetworks/hub-vnet-001'
+    mock_hub.address_space.address_prefixes = ['10.0.0.0/16']
+    
+    # Mock hub subnets
+    mock_default_subnet = Mock()
+    mock_default_subnet.name = 'default'
+    mock_default_subnet.address_prefix = '10.0.0.0/24'
+    mock_default_subnet.address_prefixes = ['10.0.0.0/24']
+    mock_default_subnet.network_security_group = Mock()  # Has NSG
+    mock_default_subnet.route_table = None  # No UDR
+    
+    mock_gateway_subnet = Mock()
+    mock_gateway_subnet.name = 'GatewaySubnet'
+    mock_gateway_subnet.address_prefix = '10.0.1.0/24'
+    mock_gateway_subnet.address_prefixes = ['10.0.1.0/24']
+    mock_gateway_subnet.network_security_group = None  # No NSG
+    mock_gateway_subnet.route_table = None  # No UDR
+    
+    mock_hub.subnets = [mock_default_subnet, mock_gateway_subnet]
+    
+    # Mock spoke VNets
+    mock_spoke1 = Mock()
+    mock_spoke1.name = 'spoke1'
+    mock_spoke1.id = '/subscriptions/sub-1/resourceGroups/rg-1/providers/Microsoft.Network/virtualNetworks/spoke1'
+    mock_spoke1.address_space.address_prefixes = ['10.1.0.0/16']
+    
+    mock_spoke1_subnet = Mock()
+    mock_spoke1_subnet.name = 'default'
+    mock_spoke1_subnet.address_prefix = '10.1.0.0/24'
+    mock_spoke1_subnet.address_prefixes = ['10.1.0.0/24']
+    mock_spoke1_subnet.network_security_group = Mock()  # Has NSG
+    mock_spoke1_subnet.route_table = Mock()  # Has UDR
+    mock_spoke1.subnets = [mock_spoke1_subnet]
+    
+    mock_spoke2 = Mock()
+    mock_spoke2.name = 'spoke2'
+    mock_spoke2.id = '/subscriptions/sub-1/resourceGroups/rg-1/providers/Microsoft.Network/virtualNetworks/spoke2'
+    mock_spoke2.address_space.address_prefixes = ['10.2.0.0/16']
+    
+    mock_spoke2_default = Mock()
+    mock_spoke2_default.name = 'default'
+    mock_spoke2_default.address_prefix = '10.2.0.0/24'
+    mock_spoke2_default.address_prefixes = ['10.2.0.0/24']
+    mock_spoke2_default.network_security_group = None  # No NSG
+    mock_spoke2_default.route_table = Mock()  # Has UDR
+    
+    mock_spoke2_web = Mock()
+    mock_spoke2_web.name = 'web-tier'
+    mock_spoke2_web.address_prefix = '10.2.1.0/24'
+    mock_spoke2_web.address_prefixes = ['10.2.1.0/24']
+    mock_spoke2_web.network_security_group = Mock()  # Has NSG
+    mock_spoke2_web.route_table = Mock()  # Has UDR
+    
+    mock_spoke2.subnets = [mock_spoke2_default, mock_spoke2_web]
+    
+    return {
+        'hub': mock_hub,
+        'spokes': [mock_spoke1, mock_spoke2]
+    }
+
+
+@pytest.fixture
+def mock_azure_peering_objects():
+    """Mock Azure peering objects for API responses"""
+    # Hub peerings
+    mock_hub_peering1 = Mock()
+    mock_hub_peering1.name = 'hub-vnet-001_to_spoke1'
+    
+    mock_hub_peering2 = Mock()
+    mock_hub_peering2.name = 'hub-vnet-001_to_spoke2'
+    
+    # Spoke peerings
+    mock_spoke1_peering = Mock()
+    mock_spoke1_peering.name = 'spoke1_to_hub-vnet-001'
+    
+    mock_spoke2_peering = Mock()
+    mock_spoke2_peering.name = 'spoke2_to_hub-vnet-001'
+    
+    return {
+        'hub-vnet-001': [mock_hub_peering1, mock_hub_peering2],
+        'spoke1': [mock_spoke1_peering],
+        'spoke2': [mock_spoke2_peering]
+    }
+
+
+@pytest.fixture(params=[
+    ("hub-vnet-001", None, None, "hub-vnet-001"),
+    ("/subscriptions/sub-1/resourceGroups/rg-1/providers/Microsoft.Network/virtualNetworks/hub-vnet-001",
+     "sub-1", "rg-1", "hub-vnet-001"),
+    ("", None, None, ""),
+    ("my_vnet_with_underscores", None, None, "my_vnet_with_underscores"),
+])
+def vnet_identifier_test_data(request):
+    """Parameterized data for VNet identifier parsing tests"""
+    identifier, expected_sub, expected_rg, expected_name = request.param
+    return {
+        'identifier': identifier,
+        'expected_subscription_id': expected_sub,
+        'expected_resource_group': expected_rg,
+        'expected_vnet_name': expected_name
+    }
+
+
+@pytest.fixture(params=[
+    ("hub-vnet_to_spoke1", "hub-vnet", "spoke1"),
+    ("hub-vnet-to-spoke1", "hub-vnet", "spoke1"),
+    ("spoke1", None, "spoke1"),
+    ("", None, ""),
+    ("complex-hub-name_to_complex-spoke-name", "complex-hub-name", "complex-spoke-name"),
+])
+def peering_name_test_data(request):
+    """Parameterized data for peering name parsing tests"""
+    peering_name, expected_vnet1, expected_vnet2 = request.param
+    return {
+        'peering_name': peering_name,
+        'expected_vnet1': expected_vnet1,
+        'expected_vnet2': expected_vnet2
+    }

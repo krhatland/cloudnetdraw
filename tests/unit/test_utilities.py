@@ -16,7 +16,7 @@ from azure_query import (
     read_subscriptions_from_file,
     resolve_subscription_names_to_ids,
     save_to_json,
-    parse_peering_name,
+    extract_vnet_name_from_resource_id,
     get_sp_credentials,
     get_credentials
 )
@@ -140,6 +140,11 @@ class TestSubscriptionNameResolution:
 
     def test_resolve_subscription_names_to_ids_success(self, mock_azure_credentials):
         """Test successful subscription name resolution"""
+        from azure_query import initialize_credentials, resolve_subscription_names_to_ids
+        
+        # Initialize credentials
+        initialize_credentials()
+        
         mock_subscription_client = Mock()
         mock_subscriptions = [
             Mock(display_name="Test Subscription 1", subscription_id="sub-1"),
@@ -150,13 +155,17 @@ class TestSubscriptionNameResolution:
         
         with patch('azure_query.SubscriptionClient', return_value=mock_subscription_client):
             result = resolve_subscription_names_to_ids(
-                ["Test Subscription 1", "Test Subscription 3"],
-                mock_azure_credentials
+                ["Test Subscription 1", "Test Subscription 3"]
             )
             assert result == ["sub-1", "sub-3"]
 
     def test_resolve_subscription_names_to_ids_not_found(self, mock_azure_credentials):
         """Test handling of subscription name not found"""
+        from azure_query import initialize_credentials, resolve_subscription_names_to_ids
+        
+        # Initialize credentials
+        initialize_credentials()
+        
         mock_subscription_client = Mock()
         mock_subscriptions = [
             Mock(display_name="Test Subscription 1", subscription_id="sub-1"),
@@ -167,17 +176,21 @@ class TestSubscriptionNameResolution:
         with patch('azure_query.SubscriptionClient', return_value=mock_subscription_client):
             with pytest.raises(SystemExit):
                 resolve_subscription_names_to_ids(
-                    ["Test Subscription 1", "Nonexistent Subscription"],
-                    mock_azure_credentials
+                    ["Test Subscription 1", "Nonexistent Subscription"]
                 )
 
     def test_resolve_subscription_names_to_ids_empty_list(self, mock_azure_credentials):
         """Test resolution with empty subscription list"""
+        from azure_query import initialize_credentials, resolve_subscription_names_to_ids
+        
+        # Initialize credentials
+        initialize_credentials()
+        
         mock_subscription_client = Mock()
         mock_subscription_client.subscriptions.list.return_value = []
         
         with patch('azure_query.SubscriptionClient', return_value=mock_subscription_client):
-            result = resolve_subscription_names_to_ids([], mock_azure_credentials)
+            result = resolve_subscription_names_to_ids([])
             assert result == []
 
 
@@ -223,52 +236,49 @@ class TestJsonSaving:
         assert '\n' in content    # Should have newlines
 
 
-class TestPeeringNameParsing:
-    """Test peering name parsing functionality"""
+class TestVnetNameExtractionFromResourceId:
+    """Test VNet name extraction from resource ID functionality"""
 
-    def test_parse_peering_name_underscore_format(self):
-        """Test parsing peering name with underscore format"""
-        result = parse_peering_name("vnet1_to_vnet2")
-        assert result == ("vnet1", "vnet2")
+    def test_extract_vnet_name_from_resource_id_valid(self):
+        """Test extracting VNet name from valid resource ID"""
+        resource_id = "/subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/rg-1/providers/Microsoft.Network/virtualNetworks/hub-vnet-001"
+        result = extract_vnet_name_from_resource_id(resource_id)
+        assert result == "hub-vnet-001"
 
-    def test_parse_peering_name_dash_format(self):
-        """Test parsing peering name with dash format"""
-        result = parse_peering_name("vnet1-to-vnet2")
-        assert result == ("vnet1", "vnet2")
+    def test_extract_vnet_name_complex_names(self):
+        """Test extracting complex VNet names"""
+        resource_id = "/subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/my-rg/providers/Microsoft.Network/virtualNetworks/hub-vnet-prod-central"
+        result = extract_vnet_name_from_resource_id(resource_id)
+        assert result == "hub-vnet-prod-central"
 
-    def test_parse_peering_name_direct_reference(self):
-        """Test parsing peering name with direct reference"""
-        result = parse_peering_name("target-vnet")
-        assert result == (None, "target-vnet")
+    def test_extract_vnet_name_with_numbers(self):
+        """Test extracting VNet names with numbers"""
+        resource_id = "/subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/rg-1/providers/Microsoft.Network/virtualNetworks/vnet1-prod-001"
+        result = extract_vnet_name_from_resource_id(resource_id)
+        assert result == "vnet1-prod-001"
 
-    def test_parse_peering_name_complex_names(self):
-        """Test parsing peering names with complex VNet names"""
-        result = parse_peering_name("hub-vnet-prod_to_spoke-vnet-dev")
-        assert result == ("hub-vnet-prod", "spoke-vnet-dev")
+    def test_extract_vnet_name_with_underscores(self):
+        """Test extracting VNet names with underscores"""
+        resource_id = "/subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/rg-1/providers/Microsoft.Network/virtualNetworks/my_vnet_name"
+        result = extract_vnet_name_from_resource_id(resource_id)
+        assert result == "my_vnet_name"
 
-    def test_parse_peering_name_with_numbers(self):
-        """Test parsing peering names with numbers"""
-        result = parse_peering_name("vnet1-prod_to_vnet2-dev")
-        assert result == ("vnet1-prod", "vnet2-dev")
+    def test_extract_vnet_name_invalid_format(self):
+        """Test handling of invalid resource ID format"""
+        with pytest.raises(ValueError, match="Invalid VNet resource ID"):
+            extract_vnet_name_from_resource_id("/invalid/resource/id")
 
-    def test_parse_peering_name_edge_cases(self):
-        """Test parsing peering names with edge cases"""
-        # Multiple "to" occurrences - should only split on first
-        result = parse_peering_name("vnet_to_hub_to_spoke")
-        assert result == (None, "vnet_to_hub_to_spoke")
+    def test_extract_vnet_name_wrong_provider(self):
+        """Test handling of wrong provider in resource ID"""
+        resource_id = "/subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/rg-1/providers/Microsoft.Compute/virtualMachines/vm-001"
+        with pytest.raises(ValueError, match="Invalid VNet resource ID"):
+            extract_vnet_name_from_resource_id(resource_id)
 
-    def test_parse_peering_name_empty_parts(self):
-        """Test parsing peering names with empty parts"""
-        result = parse_peering_name("_to_vnet2")
-        assert result == ("", "vnet2")
-        
-        result = parse_peering_name("vnet1_to_")
-        assert result == ("vnet1", "")
-
-    def test_parse_peering_name_no_separator(self):
-        """Test parsing peering names without separator"""
-        result = parse_peering_name("simple-vnet-name")
-        assert result == (None, "simple-vnet-name")
+    def test_extract_vnet_name_incomplete_resource_id(self):
+        """Test handling of incomplete resource ID"""
+        resource_id = "/subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/rg-1"
+        with pytest.raises(ValueError, match="Invalid VNet resource ID"):
+            extract_vnet_name_from_resource_id(resource_id)
 
 
 class TestCredentialHandling:
@@ -319,35 +329,52 @@ class TestCredentialHandling:
             with pytest.raises(SystemExit):
                 get_sp_credentials()
 
-    def test_get_credentials_service_principal(self, mock_azure_env):
-        """Test credential acquisition using service principal"""
+    def test_initialize_credentials_service_principal(self, mock_azure_env):
+        """Test global credential initialization using service principal"""
+        from azure_query import initialize_credentials, get_credentials
         with patch('azure_query.get_sp_credentials') as mock_sp_creds:
             mock_instance = Mock()
             mock_sp_creds.return_value = mock_instance
             
-            result = get_credentials(use_service_principal=True)
+            initialize_credentials(use_service_principal=True)
+            result = get_credentials()
             
             mock_sp_creds.assert_called_once()
             assert result == mock_instance
 
-    def test_get_credentials_azure_cli(self):
-        """Test credential acquisition using Azure CLI"""
+    def test_initialize_credentials_azure_cli(self):
+        """Test global credential initialization using Azure CLI"""
+        from azure_query import initialize_credentials, get_credentials
         with patch('azure_query.AzureCliCredential') as mock_cli_creds:
             mock_instance = Mock()
             mock_cli_creds.return_value = mock_instance
             
-            result = get_credentials(use_service_principal=False)
-            
-            mock_cli_creds.assert_called_once()
-            assert result == mock_instance
-
-    def test_get_credentials_default_to_cli(self):
-        """Test credential acquisition defaults to Azure CLI"""
-        with patch('azure_query.AzureCliCredential') as mock_cli_creds:
-            mock_instance = Mock()
-            mock_cli_creds.return_value = mock_instance
-            
+            initialize_credentials(use_service_principal=False)
             result = get_credentials()
             
             mock_cli_creds.assert_called_once()
             assert result == mock_instance
+
+    def test_initialize_credentials_default_to_cli(self):
+        """Test global credential initialization defaults to Azure CLI"""
+        from azure_query import initialize_credentials, get_credentials
+        with patch('azure_query.AzureCliCredential') as mock_cli_creds:
+            mock_instance = Mock()
+            mock_cli_creds.return_value = mock_instance
+            
+            initialize_credentials()
+            result = get_credentials()
+            
+            mock_cli_creds.assert_called_once()
+            assert result == mock_instance
+
+    def test_get_credentials_not_initialized(self):
+        """Test getting credentials when not initialized"""
+        from azure_query import _credentials
+        import azure_query
+        
+        # Clear global credentials
+        azure_query._credentials = None
+        
+        with pytest.raises(RuntimeError, match="Credentials not initialized"):
+            get_credentials()

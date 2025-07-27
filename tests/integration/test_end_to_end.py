@@ -97,13 +97,13 @@ class TestQueryToHLDWorkflow:
             topology_file = Path(temp_dir) / 'topology.json'
             hld_file = Path(temp_dir) / 'diagram.drawio'
             
-            with patch('azure_query.get_credentials') as mock_creds, \
+            with patch('azure_query.initialize_credentials') as mock_init, \
                  patch('azure_query.get_subscriptions_non_interactive') as mock_subs, \
                  patch('azure_query.get_vnet_topology_for_selected_subscriptions') as mock_topology, \
                  patch('azure_query.generate_hld_diagram') as mock_hld, \
                  patch('subprocess.run', side_effect=mock_subprocess_run) as mock_subprocess:
                 
-                mock_creds.return_value = MagicMock()
+                mock_init.return_value = None
                 mock_subs.return_value = ["12345678-1234-1234-1234-123456789012"]
                 mock_topology.return_value = VNET_LIST_RESPONSE
                 mock_hld.return_value = None
@@ -139,13 +139,13 @@ class TestQueryToHLDWorkflow:
             topology_file = Path(temp_dir) / 'topology.json'
             hld_file = Path(temp_dir) / 'diagram.drawio'
             
-            with patch('azure_query.get_credentials') as mock_creds, \
+            with patch('azure_query.initialize_credentials') as mock_init, \
                  patch('azure_query.get_subscriptions_non_interactive') as mock_subs, \
                  patch('azure_query.get_vnet_topology_for_selected_subscriptions') as mock_topology, \
                  patch('azure_query.generate_hld_diagram') as mock_hld, \
                  patch('subprocess.run', side_effect=mock_subprocess_run) as mock_subprocess:
                 
-                mock_creds.return_value = MagicMock()
+                mock_init.return_value = None
                 mock_subs.return_value = ["12345678-1234-1234-1234-123456789012"]
                 mock_topology.return_value = VNET_LIST_RESPONSE
                 mock_hld.return_value = None
@@ -181,13 +181,13 @@ class TestQueryToHLDWorkflow:
             topology_file = Path(temp_dir) / 'topology.json'
             hld_file = Path(temp_dir) / 'diagram.drawio'
             
-            with patch('azure_query.get_credentials') as mock_creds, \
+            with patch('azure_query.initialize_credentials') as mock_init, \
                  patch('azure_query.get_subscriptions_non_interactive') as mock_subs, \
                  patch('azure_query.get_vnet_topology_for_selected_subscriptions') as mock_topology, \
                  patch('azure_query.generate_hld_diagram') as mock_hld, \
                  patch('subprocess.run', side_effect=mock_subprocess_run) as mock_subprocess:
                 
-                mock_creds.return_value = MagicMock()
+                mock_init.return_value = None
                 mock_subs.return_value = ["12345678-1234-1234-1234-123456789012"]
                 mock_topology.return_value = VNET_LIST_RESPONSE
                 mock_hld.return_value = None
@@ -229,13 +229,13 @@ class TestQueryToMLDWorkflow:
             topology_file = Path(temp_dir) / 'topology.json'
             mld_file = Path(temp_dir) / 'detailed_diagram.drawio'
             
-            with patch('azure_query.get_credentials') as mock_creds, \
+            with patch('azure_query.initialize_credentials') as mock_init, \
                  patch('azure_query.get_subscriptions_non_interactive') as mock_subs, \
                  patch('azure_query.get_vnet_topology_for_selected_subscriptions') as mock_topology, \
                  patch('azure_query.generate_mld_diagram') as mock_mld, \
                  patch('subprocess.run', side_effect=mock_subprocess_run) as mock_subprocess:
                 
-                mock_creds.return_value = MagicMock()
+                mock_init.return_value = None
                 mock_subs.return_value = ["12345678-1234-1234-1234-123456789012"]
                 mock_topology.return_value = VNET_LIST_RESPONSE
                 mock_mld.return_value = None
@@ -271,13 +271,13 @@ class TestQueryToMLDWorkflow:
             topology_file = Path(temp_dir) / 'topology.json'
             mld_file = Path(temp_dir) / 'detailed_diagram.drawio'
             
-            with patch('azure_query.get_credentials') as mock_creds, \
+            with patch('azure_query.initialize_credentials') as mock_init, \
                  patch('azure_query.get_subscriptions_non_interactive') as mock_subs, \
                  patch('azure_query.get_vnet_topology_for_selected_subscriptions') as mock_topology, \
                  patch('azure_query.generate_mld_diagram') as mock_mld, \
                  patch('subprocess.run', side_effect=mock_subprocess_run) as mock_subprocess:
                 
-                mock_creds.return_value = MagicMock()
+                mock_init.return_value = None
                 mock_subs.return_value = ["12345678-1234-1234-1234-123456789012"]
                 mock_topology.return_value = VNET_LIST_RESPONSE
                 mock_mld.return_value = None
@@ -563,12 +563,12 @@ class TestMultipleSubscriptionScenarios:
         with tempfile.TemporaryDirectory() as temp_dir:
             topology_file = Path(temp_dir) / 'multi_sub_topology.json'
             
-            with patch('azure_query.get_credentials') as mock_creds, \
+            with patch('azure_query.initialize_credentials') as mock_init, \
                  patch('azure_query.get_subscriptions_non_interactive') as mock_subs, \
                  patch('azure_query.get_vnet_topology_for_selected_subscriptions') as mock_topology, \
                  patch('subprocess.run', side_effect=mock_subprocess_run) as mock_subprocess:
                 
-                mock_creds.return_value = MagicMock()
+                mock_init.return_value = None
                 mock_subs.return_value = [
                     "12345678-1234-1234-1234-123456789012",
                     "87654321-4321-4321-4321-210987654321"
@@ -598,12 +598,12 @@ class TestMultipleSubscriptionScenarios:
         with tempfile.TemporaryDirectory() as temp_dir:
             topology_file = Path(temp_dir) / 'named_sub_topology.json'
             
-            with patch('azure_query.get_credentials') as mock_creds, \
+            with patch('azure_query.initialize_credentials') as mock_init, \
                  patch('azure_query.get_subscriptions_non_interactive') as mock_subs, \
                  patch('azure_query.get_vnet_topology_for_selected_subscriptions') as mock_topology, \
                  patch('subprocess.run', side_effect=mock_subprocess_run) as mock_subprocess:
                 
-                mock_creds.return_value = MagicMock()
+                mock_init.return_value = None
                 mock_subs.return_value = ["12345678-1234-1234-1234-123456789012"]
                 mock_topology.return_value = VNET_LIST_RESPONSE
                 
@@ -629,16 +629,12 @@ class TestAuthenticationMethods:
         with tempfile.TemporaryDirectory() as temp_dir:
             topology_file = Path(temp_dir) / 'cli_auth_topology.json'
             
-            with patch('azure_query.get_credentials') as mock_creds, \
+            with patch('azure_query.initialize_credentials') as mock_init, \
                  patch('azure_query.get_subscriptions_non_interactive') as mock_subs, \
                  patch('azure_query.get_vnet_topology_for_selected_subscriptions') as mock_topology, \
                  patch('subprocess.run', side_effect=mock_subprocess_run) as mock_subprocess:
                 
-                # Mock Azure CLI credentials
-                mock_cli_creds = MagicMock()
-                mock_cli_creds.__class__.__name__ = 'AzureCliCredential'
-                mock_creds.return_value = mock_cli_creds
-                
+                mock_init.return_value = None
                 mock_subs.return_value = ["12345678-1234-1234-1234-123456789012"]
                 mock_topology.return_value = VNET_LIST_RESPONSE
                 
@@ -667,16 +663,12 @@ class TestAuthenticationMethods:
             }
             
             with patch.dict(os.environ, env_vars), \
-                 patch('azure_query.get_credentials') as mock_creds, \
+                 patch('azure_query.initialize_credentials') as mock_init, \
                  patch('azure_query.get_subscriptions_non_interactive') as mock_subs, \
                  patch('azure_query.get_vnet_topology_for_selected_subscriptions') as mock_topology, \
                  patch('subprocess.run', side_effect=mock_subprocess_run) as mock_subprocess:
                 
-                # Mock Service Principal credentials
-                mock_sp_creds = MagicMock()
-                mock_sp_creds.__class__.__name__ = 'ClientSecretCredential'
-                mock_creds.return_value = mock_sp_creds
-                
+                mock_init.return_value = None
                 mock_subs.return_value = ["12345678-1234-1234-1234-123456789012"]
                 mock_topology.return_value = VNET_LIST_RESPONSE
                 
@@ -701,12 +693,12 @@ class TestWorkflowErrorHandling:
         with tempfile.TemporaryDirectory() as temp_dir:
             topology_file = Path(temp_dir) / 'failed_topology.json'
             
-            with patch('azure_query.get_credentials') as mock_creds, \
+            with patch('azure_query.initialize_credentials') as mock_init, \
                  patch('azure_query.get_subscriptions_non_interactive') as mock_subs, \
                  patch('azure_query.get_vnet_topology_for_selected_subscriptions') as mock_topology, \
                  patch('subprocess.run', side_effect=mock_subprocess_run_with_error) as mock_subprocess:
                 
-                mock_creds.return_value = MagicMock()
+                mock_init.return_value = None
                 mock_subs.return_value = ["12345678-1234-1234-1234-123456789012"]
                 # Mock Azure API failure
                 mock_topology.side_effect = Exception("Azure API error")
@@ -756,11 +748,11 @@ class TestWorkflowErrorHandling:
             topology_file = Path(temp_dir) / 'topology.json'
             hld_file = Path(temp_dir) / 'diagram.drawio'
             
-            with patch('azure_query.get_credentials') as mock_creds, \
+            with patch('azure_query.initialize_credentials') as mock_init, \
                  patch('azure_query.get_subscriptions_non_interactive') as mock_subs, \
                  patch('azure_query.get_vnet_topology_for_selected_subscriptions') as mock_topology:
                 
-                mock_creds.return_value = MagicMock()
+                mock_init.return_value = None
                 mock_subs.return_value = ["12345678-1234-1234-1234-123456789012"]
                 mock_topology.return_value = {"vnets": []}
                 

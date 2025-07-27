@@ -3,7 +3,7 @@
 
 # VNet classification thresholds
 thresholds:
-  hub_peering_count: 3  # VNets with >= this many peerings are classified as hubs
+  hub_peering_count: 10  # VNets with >= this many peerings are classified as hubs
 
 # VNet styling by type
 styles:

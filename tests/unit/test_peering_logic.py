@@ -7,7 +7,7 @@ from unittest.mock import Mock, patch
 # Import functions under test
 from azure_query import (
     determine_hub_for_spoke,
-    parse_peering_name,
+    extract_vnet_name_from_resource_id,
     create_vnet_id_mapping
 )
 
@@ -127,58 +127,55 @@ class TestHubDetermination:
         assert result == 'hub_0'
 
 
-class TestPeeringNameParsing:
-    """Test peering name parsing functionality"""
+class TestVnetNameExtractionFromResourceId:
+    """Test VNet name extraction from resource ID functionality"""
 
-    def test_parse_peering_name_underscore_format(self):
-        """Test parsing peering name with underscore format"""
-        result = parse_peering_name("vnet1_to_vnet2")
-        assert result == ("vnet1", "vnet2")
+    def test_extract_vnet_name_from_resource_id_valid(self):
+        """Test extracting VNet name from valid resource ID"""
+        resource_id = "/subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/rg-1/providers/Microsoft.Network/virtualNetworks/hub-vnet-001"
+        result = extract_vnet_name_from_resource_id(resource_id)
+        assert result == "hub-vnet-001"
 
-    def test_parse_peering_name_dash_format(self):
-        """Test parsing peering name with dash format"""
-        result = parse_peering_name("vnet1-to-vnet2")
-        assert result == ("vnet1", "vnet2")
+    def test_extract_vnet_name_complex_names(self):
+        """Test extracting complex VNet names"""
+        resource_id = "/subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/my-rg/providers/Microsoft.Network/virtualNetworks/hub-vnet-prod-central"
+        result = extract_vnet_name_from_resource_id(resource_id)
+        assert result == "hub-vnet-prod-central"
 
-    def test_parse_peering_name_direct_reference(self):
-        """Test parsing peering name with direct reference"""
-        result = parse_peering_name("target-vnet")
-        assert result == (None, "target-vnet")
+    def test_extract_vnet_name_with_numbers(self):
+        """Test extracting VNet names with numbers"""
+        resource_id = "/subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/rg-1/providers/Microsoft.Network/virtualNetworks/vnet1-prod-001"
+        result = extract_vnet_name_from_resource_id(resource_id)
+        assert result == "vnet1-prod-001"
 
-    def test_parse_peering_name_complex_names(self):
-        """Test parsing peering names with complex VNet names"""
-        result = parse_peering_name("hub-vnet-prod_to_spoke-vnet-dev")
-        assert result == ("hub-vnet-prod", "spoke-vnet-dev")
+    def test_extract_vnet_name_with_underscores(self):
+        """Test extracting VNet names with underscores"""
+        resource_id = "/subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/rg-1/providers/Microsoft.Network/virtualNetworks/my_vnet_name"
+        result = extract_vnet_name_from_resource_id(resource_id)
+        assert result == "my_vnet_name"
 
-    def test_parse_peering_name_with_numbers(self):
-        """Test parsing peering names with numbers"""
-        result = parse_peering_name("vnet1-prod_to_vnet2-dev")
-        assert result == ("vnet1-prod", "vnet2-dev")
+    def test_extract_vnet_name_invalid_format(self):
+        """Test handling of invalid resource ID format"""
+        with pytest.raises(ValueError, match="Invalid VNet resource ID"):
+            extract_vnet_name_from_resource_id("/invalid/resource/id")
 
-    def test_parse_peering_name_multiple_separators(self):
-        """Test parsing peering names with multiple separators"""
-        # Should only split on first occurrence
-        result = parse_peering_name("vnet_to_hub_to_spoke")
-        assert result == (None, "vnet_to_hub_to_spoke")
+    def test_extract_vnet_name_wrong_provider(self):
+        """Test handling of wrong provider in resource ID"""
+        resource_id = "/subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/rg-1/providers/Microsoft.Compute/virtualMachines/vm-001"
+        with pytest.raises(ValueError, match="Invalid VNet resource ID"):
+            extract_vnet_name_from_resource_id(resource_id)
 
-    def test_parse_peering_name_empty_parts(self):
-        """Test parsing peering names with empty parts"""
-        result = parse_peering_name("_to_vnet2")
-        assert result == ("", "vnet2")
-        
-        result = parse_peering_name("vnet1_to_")
-        assert result == ("vnet1", "")
+    def test_extract_vnet_name_incomplete_resource_id(self):
+        """Test handling of incomplete resource ID"""
+        resource_id = "/subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/rg-1"
+        with pytest.raises(ValueError, match="Invalid VNet resource ID"):
+            extract_vnet_name_from_resource_id(resource_id)
 
-    def test_parse_peering_name_no_separator(self):
-        """Test parsing peering names without separator"""
-        result = parse_peering_name("simple-vnet-name")
-        assert result == (None, "simple-vnet-name")
-
-    def test_parse_peering_name_mixed_separators(self):
-        """Test parsing peering names with mixed separators"""
-        # Should prefer underscore format
-        result = parse_peering_name("vnet1_to_vnet2-to-vnet3")
-        assert result == ("vnet1", "vnet2-to-vnet3")
+    def test_extract_vnet_name_empty_name(self):
+        """Test handling of empty VNet name in resource ID"""
+        resource_id = "/subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/rg-1/providers/Microsoft.Network/virtualNetworks/"
+        result = extract_vnet_name_from_resource_id(resource_id)
+        assert result == ""
 
 
 class TestVNetIdMapping:

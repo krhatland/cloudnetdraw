@@ -1,6 +1,8 @@
 from azure.identity import AzureCliCredential, ClientSecretCredential
 from azure.mgmt.network import NetworkManagementClient
 from azure.mgmt.resource import SubscriptionClient
+from azure.mgmt.resourcegraph import ResourceGraphClient
+from azure.mgmt.resourcegraph.models import QueryRequest
 from azure.core.exceptions import ResourceNotFoundError
 from typing import Dict, List, Any, Optional, Union, Tuple
 import json
@@ -9,6 +11,9 @@ import logging
 import sys
 import os
 import re
+
+# Global credentials
+_credentials: Optional[Union[ClientSecretCredential, AzureCliCredential]] = None
 
 def get_sp_credentials() -> ClientSecretCredential:
     """Get Service Principal credentials from environment variables"""
@@ -22,12 +27,20 @@ def get_sp_credentials() -> ClientSecretCredential:
 
     return ClientSecretCredential(tenant_id, client_id, client_secret)
 
-def get_credentials(use_service_principal: bool = False) -> Union[ClientSecretCredential, AzureCliCredential]:
-    """Get appropriate credentials based on authentication method"""
+def initialize_credentials(use_service_principal: bool = False) -> None:
+    """Initialize global credentials based on authentication method"""
+    global _credentials
     if use_service_principal:
-        return get_sp_credentials()
+        _credentials = get_sp_credentials()
     else:
-        return AzureCliCredential()
+        _credentials = AzureCliCredential()
+
+def get_credentials() -> Union[ClientSecretCredential, AzureCliCredential]:
+    """Get the global credentials instance"""
+    global _credentials
+    if _credentials is None:
+        raise RuntimeError("Credentials not initialized. Call initialize_credentials() first.")
+    return _credentials
 
 def is_subscription_id(subscription_string: str) -> bool:
     """Check if a subscription string is in UUID format (ID) or name format"""
@@ -48,9 +61,9 @@ def read_subscriptions_from_file(file_path: str) -> List[str]:
         logging.error(f"Error reading subscriptions file {file_path}: {e}")
         sys.exit(1)
 
-def resolve_subscription_names_to_ids(subscription_names: List[str], credentials: Union[ClientSecretCredential, AzureCliCredential]) -> List[str]:
+def resolve_subscription_names_to_ids(subscription_names: List[str]) -> List[str]:
     """Resolve subscription names to IDs using the Azure API"""
-    subscription_client = SubscriptionClient(credentials)
+    subscription_client = SubscriptionClient(get_credentials())
     all_subscriptions = list(subscription_client.subscriptions.list())
     
     # Create name-to-ID mapping
@@ -71,21 +84,341 @@ def resolve_subscription_names_to_ids(subscription_names: List[str], credentials
 def extract_resource_group(resource_id: str) -> str:
     return resource_id.split("/")[4]  # Resource group is at index 4 (5th element)
 
+def parse_vnet_identifier(vnet_identifier: str) -> Tuple[Optional[str], Optional[str], str]:
+    """Parse VNet identifier (rg/vnet or resource ID) and return (subscription_id, resource_group, vnet_name)"""
+    if vnet_identifier.startswith('/'):
+        # Resource ID format: /subscriptions/{sub}/resourceGroups/{rg}/providers/Microsoft.Network/virtualNetworks/{vnet}
+        parts = vnet_identifier.split('/')
+        if len(parts) >= 9 and parts[1] == 'subscriptions' and parts[3] == 'resourceGroups' and parts[5] == 'providers' and parts[6] == 'Microsoft.Network' and parts[7] == 'virtualNetworks':
+            subscription_id = parts[2]
+            resource_group = parts[4]
+            vnet_name = parts[8]
+            return subscription_id, resource_group, vnet_name
+        else:
+            raise ValueError(f"Invalid VNet resource ID format: {vnet_identifier}")
+    elif '/' in vnet_identifier:
+        parts = vnet_identifier.split('/')
+        if len(parts) == 3:
+            # New format: subscription/resource_group/vnet_name
+            subscription_id = parts[0]
+            resource_group = parts[1]
+            vnet_name = parts[2]
+            return subscription_id, resource_group, vnet_name
+        elif len(parts) == 2:
+            # Legacy format: resource_group/vnet_name
+            resource_group = parts[0]
+            vnet_name = parts[1]
+            return None, resource_group, vnet_name
+        else:
+            raise ValueError(f"Invalid VNet identifier format. Expected 'subscription/resource_group/vnet_name', 'resource_group/vnet_name', or full resource ID, got: {vnet_identifier}")
+    else:
+        # Simple VNet name (deprecated)
+        return None, None, vnet_identifier
+
+def find_hub_vnet_using_resource_graph(vnet_identifier: str) -> Dict[str, Any]:
+    """Find the specified hub VNet using Azure Resource Graph API for efficient search"""
+    target_subscription_id, target_resource_group, target_vnet_name = parse_vnet_identifier(vnet_identifier)
+    
+    # Must have resource group - either from rg/vnet format or from resource ID
+    if not target_resource_group:
+        logging.error(f"VNet identifier must be in 'subscription/resource_group/vnet_name', 'resource_group/vnet_name' format or full resource ID, got: {vnet_identifier}")
+        sys.exit(1)
+    
+    # Create Resource Graph client
+    resource_graph_client = ResourceGraphClient(get_credentials())
+    
+    # Query by resource group and VNet name
+    # If we have subscription ID from resource ID or path format, we can add it as additional filter
+    if target_subscription_id:
+        query = f"""
+        Resources
+        | where type =~ 'microsoft.network/virtualnetworks'
+        | where name =~ '{target_vnet_name}'
+        | where resourceGroup =~ '{target_resource_group}'
+        | where subscriptionId =~ '{target_subscription_id}'
+        | project name, type, location, resourceGroup, subscriptionId, id, properties
+        """
+    else:
+        query = f"""
+        Resources
+        | where type =~ 'microsoft.network/virtualnetworks'
+        | where name =~ '{target_vnet_name}'
+        | where resourceGroup =~ '{target_resource_group}'
+        | project name, type, location, resourceGroup, subscriptionId, id, properties
+        """
+    
+    try:
+        # Execute the query
+        logging.info(f"Resource Graph query: {query}")
+        logging.info(f"Target values: name='{target_vnet_name}', resourceGroup='{target_resource_group}', subscriptionId='{target_subscription_id}'")
+        
+        query_request = QueryRequest(query=query)
+        # Try to add subscription scopes for better access
+        if not target_subscription_id:
+            subscription_client = SubscriptionClient(get_credentials())
+            all_subscriptions = list(subscription_client.subscriptions.list())
+            subscription_ids = [sub.subscription_id for sub in all_subscriptions]
+            logging.info(f"Available subscriptions for Resource Graph: {len(subscription_ids)}")
+            query_request = QueryRequest(query=query, subscriptions=subscription_ids)
+        
+        response = resource_graph_client.resources(query_request)
+        
+        # Debug: Let's also try a simpler query to see if we can find ANY VNets
+        debug_query = f"Resources | where type =~ 'microsoft.network/virtualnetworks' | where subscriptionId =~ '{target_subscription_id or 'a4007e29-3c9e-47b5-bdce-0c2a2e57c1c1'}' | project name, resourceGroup, subscriptionId"
+        logging.info(f"Debug query: {debug_query}")
+        debug_request = QueryRequest(query=debug_query)
+        debug_response = resource_graph_client.resources(debug_request)
+        logging.info(f"Debug response: {len(debug_response.data) if debug_response.data else 0} VNets found")
+        if debug_response.data:
+            for vnet in debug_response.data:
+                logging.info(f"Debug VNet found: name='{vnet.get('name')}', resourceGroup='{vnet.get('resourceGroup')}', subscriptionId='{vnet.get('subscriptionId')}'")
+        
+        if not response.data:
+            logging.error(f"No VNets found matching '{vnet_identifier}'. Please verify the VNet identifier format (resource_group/vnet_name) and ensure the VNet exists.")
+            if debug_response.data:
+                logging.error("Available VNets in the target subscription/resource group:")
+                for vnet in debug_response.data:
+                    if vnet.get('resourceGroup') == target_resource_group or not target_resource_group:
+                        logging.error(f"  - {vnet.get('name')} (resource group: {vnet.get('resourceGroup')})")
+            sys.exit(1)
+        
+        if len(response.data) > 1:
+            vnet_list = [f"{vnet['resourceGroup']}/{vnet['name']} (subscription: {vnet['subscriptionId']})" for vnet in response.data]
+            logging.error(f"Multiple VNets found matching '{vnet_identifier}': {vnet_list}. Please use a more specific identifier to uniquely identify the VNet.")
+            sys.exit(1)
+        
+        # Exactly one result found
+        vnet_result = response.data[0]
+        subscription_id = vnet_result['subscriptionId']
+        resource_group = vnet_result['resourceGroup']
+        vnet_name = vnet_result['name']
+        
+        logging.info(f"Found VNet '{vnet_name}' in resource group '{resource_group}' in subscription '{subscription_id}'")
+        
+        # Now get detailed information using the Network Management Client
+        network_client = NetworkManagementClient(get_credentials(), subscription_id)
+        subscription_client = SubscriptionClient(get_credentials())
+        
+        # Get subscription name and tenant info
+        subscription = subscription_client.subscriptions.get(subscription_id)
+        subscription_name = subscription.display_name
+        tenant_id = subscription.tenant_id
+        
+        # Get VNet details
+        vnet = network_client.virtual_networks.get(resource_group, vnet_name)
+        subnet_names = [subnet.name for subnet in vnet.subnets]
+        
+        # Construct resourcegroup_id from resource_id
+        resourcegroup_id = f"/subscriptions/{subscription_id}/resourceGroups/{resource_group}"
+        
+        # Construct Azure console hyperlink
+        azure_console_url = f"https://portal.azure.com/#@{tenant_id}/resource{vnet.id}"
+        
+        vnet_info = {
+            "name": vnet.name,
+            "address_space": vnet.address_space.address_prefixes[0],
+            "subnets": [
+                {
+                    "name": subnet.name,
+                    "address": (
+                        subnet.address_prefixes[0]
+                        if hasattr(subnet, "address_prefixes") and subnet.address_prefixes
+                        else subnet.address_prefix or "N/A"
+                    ),
+                    "nsg": 'Yes' if subnet.network_security_group else 'No',
+                    "udr": 'Yes' if subnet.route_table else 'No'
+                }
+                for subnet in vnet.subnets
+            ],
+            "peerings": [],
+            "resource_id": vnet.id,
+            "tenant_id": tenant_id,
+            "subscription_id": subscription_id,
+            "subscription_name": subscription_name,
+            "resourcegroup_id": resourcegroup_id,
+            "resourcegroup_name": resource_group,
+            "azure_console_url": azure_console_url,
+            "expressroute": "Yes" if "GatewaySubnet" in subnet_names else "No",
+            "vpn_gateway": "Yes" if "GatewaySubnet" in subnet_names else "No",
+            "firewall": "Yes" if "AzureFirewallSubnet" in subnet_names else "No",
+            "is_explicit_hub": True
+        }
+        
+        # Get peerings for this VNet - store resource IDs instead of names
+        peerings = network_client.virtual_network_peerings.list(resource_group, vnet.name)
+        peering_resource_ids = []
+        for peering in peerings:
+            vnet_info["peerings"].append(peering.name)  # Keep for backward compatibility
+            if peering.remote_virtual_network and peering.remote_virtual_network.id:
+                peering_resource_ids.append(peering.remote_virtual_network.id)
+        
+        vnet_info["peering_resource_ids"] = peering_resource_ids
+        
+        vnet_info["peerings_count"] = len(vnet_info["peerings"])
+        return vnet_info
+        
+    except Exception as e:
+        logging.error(f"Error searching for VNet using Resource Graph: {e}")
+        return None
+
+def find_peered_vnets(peering_resource_ids: List[str]) -> Tuple[List[Dict[str, Any]], List[str]]:
+    """Find peered VNets using direct API calls with resource IDs from peering objects
+    
+    Returns:
+        Tuple of (peered_vnets_list, accessible_resource_ids_list)
+    """
+    if not peering_resource_ids:
+        return [], []
+    
+    subscription_client = SubscriptionClient(get_credentials())
+    peered_vnets = []
+    processed_vnets = set()  # Track processed VNets to avoid duplicates
+    accessible_resource_ids = []  # Track successfully resolved resource IDs
+    
+    for resource_id in peering_resource_ids:
+        try:
+            # Parse resource ID: /subscriptions/{sub}/resourceGroups/{rg}/providers/Microsoft.Network/virtualNetworks/{vnet}
+            parts = resource_id.split('/')
+            if len(parts) < 9 or parts[5] != 'providers' or parts[6] != 'Microsoft.Network' or parts[7] != 'virtualNetworks':
+                logging.error(f"Invalid VNet resource ID format: {resource_id}")
+                continue
+                
+            subscription_id = parts[2]
+            resource_group = parts[4]
+            vnet_name = parts[8]
+            
+            # Create unique key to avoid duplicates
+            vnet_key = f"{subscription_id}/{resource_group}/{vnet_name}"
+            if vnet_key in processed_vnets:
+                continue
+            processed_vnets.add(vnet_key)
+            
+            # Get detailed information using the Network Management Client
+            network_client = NetworkManagementClient(get_credentials(), subscription_id)
+            
+            # Get subscription name and tenant info
+            subscription = subscription_client.subscriptions.get(subscription_id)
+            subscription_name = subscription.display_name
+            tenant_id = subscription.tenant_id
+            
+            # Get VNet details
+            vnet = network_client.virtual_networks.get(resource_group, vnet_name)
+            subnet_names = [subnet.name for subnet in vnet.subnets]
+            
+            # Construct resourcegroup_id from resource_id
+            resourcegroup_id = f"/subscriptions/{subscription_id}/resourceGroups/{resource_group}"
+            
+            # Construct Azure console hyperlink
+            azure_console_url = f"https://portal.azure.com/#@{tenant_id}/resource{vnet.id}"
+            
+            vnet_info = {
+                "name": vnet.name,
+                "address_space": vnet.address_space.address_prefixes[0],
+                "subnets": [
+                    {
+                        "name": subnet.name,
+                        "address": (
+                            subnet.address_prefixes[0]
+                            if hasattr(subnet, "address_prefixes") and subnet.address_prefixes
+                            else subnet.address_prefix or "N/A"
+                        ),
+                        "nsg": 'Yes' if subnet.network_security_group else 'No',
+                        "udr": 'Yes' if subnet.route_table else 'No'
+                    }
+                    for subnet in vnet.subnets
+                ],
+                "peerings": [],
+                "resource_id": vnet.id,
+                "tenant_id": tenant_id,
+                "subscription_id": subscription_id,
+                "subscription_name": subscription_name,
+                "resourcegroup_id": resourcegroup_id,
+                "resourcegroup_name": resource_group,
+                "azure_console_url": azure_console_url,
+                "expressroute": "Yes" if "GatewaySubnet" in subnet_names else "No",
+                "vpn_gateway": "Yes" if "GatewaySubnet" in subnet_names else "No",
+                "firewall": "Yes" if "AzureFirewallSubnet" in subnet_names else "No"
+            }
+            
+            # Get peerings for this VNet - store resource IDs instead of names
+            peerings = network_client.virtual_network_peerings.list(resource_group, vnet.name)
+            peering_resource_ids = []
+            for peering in peerings:
+                vnet_info["peerings"].append(peering.name)  # Keep for backward compatibility
+                if peering.remote_virtual_network and peering.remote_virtual_network.id:
+                    peering_resource_ids.append(peering.remote_virtual_network.id)
+            
+            vnet_info["peering_resource_ids"] = peering_resource_ids
+            vnet_info["peerings_count"] = len(vnet_info["peerings"])
+            peered_vnets.append(vnet_info)
+            accessible_resource_ids.append(resource_id)  # Track this successful resolution
+            
+            logging.info(f"Found peered VNet '{vnet_name}' in resource group '{resource_group}' in subscription '{subscription_name}'")
+        
+        except Exception as e:
+            # Check if this is a ResourceNotFound error (common when VNet was deleted but peering still exists)
+            if "ResourceNotFound" in str(e):
+                logging.warning(f"Skipping deleted VNet: {vnet_name} in resource group '{resource_group}' (resource ID: {resource_id})")
+                logging.warning("This is normal when a VNet has been deleted but peering relationships still reference it")
+            else:
+                # Clean up exception message - only show the main error without Azure SDK details
+                error_lines = str(e).split('\n')
+                main_error = error_lines[0] if error_lines else str(e)
+                # Remove Code: and Message: parts that Azure SDK adds
+                if 'Code:' in main_error:
+                    main_error = main_error.split('Code:')[0].strip()
+                logging.warning(f"Error getting VNet details for resource ID {resource_id}: {main_error}")
+            continue
+    
+    return peered_vnets, accessible_resource_ids
+
+def get_filtered_vnet_topology(hub_vnet_identifier: str, subscription_ids: List[str]) -> Dict[str, Any]:
+    """Collect filtered topology containing only the specified hub and its directly peered spokes"""
+    
+    # Find the hub VNet
+    hub_vnet = find_hub_vnet_using_resource_graph(hub_vnet_identifier)
+    if not hub_vnet:
+        logging.error(f"Hub VNet '{hub_vnet_identifier}' not found in any of the specified subscriptions")
+        sys.exit(1)
+    
+    logging.info(f"Found hub VNet: {hub_vnet['name']} in subscription {hub_vnet['subscription_name']}")
+    
+    # Get peering resource IDs from the hub VNet
+    hub_peering_resource_ids = hub_vnet.get('peering_resource_ids', [])
+    
+    logging.info(f"Looking for {len(hub_peering_resource_ids)} directly peered VNets using resource IDs")
+    
+    # Use direct API calls to get peered VNets efficiently using exact resource IDs
+    directly_peered_vnets, accessible_peering_resource_ids = find_peered_vnets(hub_peering_resource_ids)
+    
+    # Update hub VNet to only include accessible peering resource IDs
+    hub_vnet["peering_resource_ids"] = accessible_peering_resource_ids
+    hub_vnet["peerings_count"] = len(accessible_peering_resource_ids)
+    
+    # Return filtered topology
+    filtered_vnets = [hub_vnet] + directly_peered_vnets
+    logging.info(f"Filtered topology contains {len(filtered_vnets)} VNets: {[v['name'] for v in filtered_vnets]}")
+    logging.info(f"Hub VNet has {len(accessible_peering_resource_ids)} accessible peerings out of {len(hub_peering_resource_ids)} total peering relationships")
+    
+    return {"vnets": filtered_vnets}
+
 # Collect all VNets and their details across selected subscriptions
-def get_vnet_topology_for_selected_subscriptions(subscription_ids: List[str], credentials: Union[ClientSecretCredential, AzureCliCredential]) -> Dict[str, Any]:
+def get_vnet_topology_for_selected_subscriptions(subscription_ids: List[str]) -> Dict[str, Any]:
     network_data = {"vnets": []}
     vnet_candidates = []
     
-    subscription_client = SubscriptionClient(credentials)
+    subscription_client = SubscriptionClient(get_credentials())
 
     for subscription_id in subscription_ids:
         logging.info(f"Processing Subscription: {subscription_id}")
-        network_client = NetworkManagementClient(credentials, subscription_id)
+        network_client = NetworkManagementClient(get_credentials(), subscription_id)
 
-        # Get subscription name
+        # Get subscription name and tenant info
         try:
             subscription = subscription_client.subscriptions.get(subscription_id)
             subscription_name = subscription.display_name
+            tenant_id = subscription.tenant_id
+            
         except Exception as e:
             error_msg = f"Could not access subscription {subscription_id}: {e}"
             logging.error(error_msg)
@@ -103,16 +436,32 @@ def get_vnet_topology_for_selected_subscriptions(subscription_ids: List[str], cr
                         has_vpn_gateway = hasattr(hub, "vpn_gateway") and hub.vpn_gateway is not None
                         has_firewall = hasattr(hub, "azure_firewall") and hub.azure_firewall is not None
 
+                        # Extract resource group from hub resource ID
+                        hub_resource_group = extract_resource_group(hub.id)
+                        
+                        # Construct resourcegroup_id from resource_id
+                        resourcegroup_id = f"/subscriptions/{subscription_id}/resourceGroups/{hub_resource_group}"
+                        
+                        # Construct Azure console hyperlink
+                        azure_console_url = f"https://portal.azure.com/#@{tenant_id}/resource{hub.id}"
+                        
                         virtual_hub_info = {
                             "name": hub.name,
                             "address_space": hub.address_prefix,
                             "type": "virtual_hub",
                             "subnets": [],  # Virtual hubs don't have traditional subnets
                             "peerings": [],  # Will be populated if needed
+                            "resource_id": hub.id,
+                            "tenant_id": tenant_id,
+                            "subscription_id": subscription_id,
                             "subscription_name": subscription_name,
+                            "resourcegroup_id": resourcegroup_id,
+                            "resourcegroup_name": hub_resource_group,
+                            "azure_console_url": azure_console_url,
                             "expressroute": "Yes" if has_expressroute else "No",
                             "vpn_gateway": "Yes" if has_vpn_gateway else "No",
                             "firewall": "Yes" if has_firewall else "No",
+                            "peering_resource_ids": [],  # Virtual hubs use different connectivity model
                             "peerings_count": 0  # Virtual hubs use different connectivity model
                         }
                         vnet_candidates.append(virtual_hub_info)
@@ -132,6 +481,12 @@ def get_vnet_topology_for_selected_subscriptions(subscription_ids: List[str], cr
                     resource_group_name = extract_resource_group(vnet.id)
                     subnet_names = [subnet.name for subnet in vnet.subnets]
 
+                    # Construct resourcegroup_id from resource_id
+                    resourcegroup_id = f"/subscriptions/{subscription_id}/resourceGroups/{resource_group_name}"
+                    
+                    # Construct Azure console hyperlink
+                    azure_console_url = f"https://portal.azure.com/#@{tenant_id}/resource{vnet.id}"
+                    
                     vnet_info = {
                         "name": vnet.name,
                         "address_space": vnet.address_space.address_prefixes[0],
@@ -149,17 +504,27 @@ def get_vnet_topology_for_selected_subscriptions(subscription_ids: List[str], cr
                             for subnet in vnet.subnets
                         ],
                         "peerings": [],
+                        "resource_id": vnet.id,
+                        "tenant_id": tenant_id,
+                        "subscription_id": subscription_id,
                         "subscription_name": subscription_name,
+                        "resourcegroup_id": resourcegroup_id,
+                        "resourcegroup_name": resource_group_name,
+                        "azure_console_url": azure_console_url,
                         "expressroute": "Yes" if "GatewaySubnet" in subnet_names else "No",
                         "vpn_gateway": "Yes" if "GatewaySubnet" in subnet_names else "No",
                         "firewall": "Yes" if "AzureFirewallSubnet" in subnet_names else "No"
                     }
 
-                    # Get peerings for this VNet
+                    # Get peerings for this VNet - store resource IDs instead of names
                     peerings = network_client.virtual_network_peerings.list(resource_group_name, vnet.name)
+                    peering_resource_ids = []
                     for peering in peerings:
-                        vnet_info["peerings"].append(peering.name)
-
+                        vnet_info["peerings"].append(peering.name)  # Keep for backward compatibility
+                        if peering.remote_virtual_network and peering.remote_virtual_network.id:
+                            peering_resource_ids.append(peering.remote_virtual_network.id)
+                    
+                    vnet_info["peering_resource_ids"] = peering_resource_ids
                     vnet_info["peerings_count"] = len(vnet_info["peerings"])
                     vnet_candidates.append(vnet_info)
                     
@@ -185,8 +550,8 @@ def get_vnet_topology_for_selected_subscriptions(subscription_ids: List[str], cr
     return network_data
 
 # List all subscriptions and allow user to select
-def list_and_select_subscriptions(credentials: Union[ClientSecretCredential, AzureCliCredential]) -> List[str]:
-    subscription_client = SubscriptionClient(credentials)
+def list_and_select_subscriptions() -> List[str]:
+    subscription_client = SubscriptionClient(get_credentials())
     subscriptions = list(subscription_client.subscriptions.list())
     # Sort subscriptions alphabetically by display_name to ensure consistent ordinals
     subscriptions.sort(key=lambda sub: sub.display_name)
@@ -206,24 +571,74 @@ def save_to_json(data: Dict[str, Any], filename: str = "network_topology.json") 
 
 def query_command(args: argparse.Namespace) -> None:
     """Execute the query command to collect VNet topology from Azure"""
-    # Get credentials based on service principal flag
-    credentials = get_credentials(args.service_principal)
+    # Initialize credentials based on service principal flag
+    initialize_credentials(args.service_principal)
+    
+    # Validate mutually exclusive arguments
+    exclusive_args = [
+        ('--subscriptions', args.subscriptions),
+        ('--subscriptions-file', args.subscriptions_file),
+        ('--vnet', args.vnet)
+    ]
+    
+    provided_args = [arg_name for arg_name, arg_value in exclusive_args if arg_value is not None]
+    
+    if len(provided_args) > 1:
+        logging.error(f"The following arguments are mutually exclusive: {', '.join(provided_args)}")
+        logging.error("Please specify only one of: --subscriptions, --subscriptions-file, or --vnet")
+        logging.error("Use --help for more information about these options")
+        sys.exit(1)
     
     # Determine subscription selection mode
-    if args.subscriptions or args.subscriptions_file:
-        # Non-interactive mode
-        selected_subscriptions = get_subscriptions_non_interactive(args, credentials)
+    if args.vnet:
+        # VNet filtering mode - check if subscription is specified in vnet identifier
+        try:
+            subscription_id, resource_group, vnet_name = parse_vnet_identifier(args.vnet)
+            
+            if subscription_id:
+                # Subscription specified in vnet identifier (resource ID or path format)
+                # Check if it's a subscription name or ID and resolve if needed
+                if is_subscription_id(subscription_id):
+                    selected_subscriptions = [subscription_id]
+                    logging.info(f"Using subscription ID from VNet identifier: {subscription_id}")
+                else:
+                    # It's a subscription name, resolve to ID
+                    logging.info(f"Resolving subscription name from VNet identifier: {subscription_id}")
+                    selected_subscriptions = resolve_subscription_names_to_ids([subscription_id])
+                    logging.info(f"Resolved to subscription ID: {selected_subscriptions[0]}")
+            else:
+                # Legacy format - require explicit subscription specification
+                if not (args.subscriptions or args.subscriptions_file):
+                    logging.error("When using --vnet with 'resource_group/vnet_name' format, you must specify subscriptions using either --subscriptions or --subscriptions-file")
+                    logging.error("This prevents ambiguous results when multiple VNets with the same name exist in different subscriptions")
+                    logging.error("Example: --vnet 'rg-1/hub-vnet' --subscriptions 'prod-subscription,dev-subscription'")
+                    logging.error("Or use the new format: --vnet 'subscription/resource_group/vnet_name' or --vnet '/subscriptions/sub-id/resourceGroups/rg/providers/Microsoft.Network/virtualNetworks/vnet'")
+                    sys.exit(1)
+                
+                selected_subscriptions = get_subscriptions_non_interactive(args)
+        except ValueError as e:
+            logging.error(f"Invalid VNet identifier format: {e}")
+            sys.exit(1)
+        
+        logging.info(f"Filtering topology for hub VNet: {args.vnet}")
+        topology = get_filtered_vnet_topology(args.vnet, selected_subscriptions)
     else:
-        # Interactive mode (existing behavior)
-        logging.info("Listing available subscriptions...")
-        selected_subscriptions = list_and_select_subscriptions(credentials)
+        # Original behavior for non-VNet filtering
+        if args.subscriptions or args.subscriptions_file:
+            # Non-interactive mode
+            selected_subscriptions = get_subscriptions_non_interactive(args)
+        else:
+            # Interactive mode (existing behavior)
+            logging.info("Listing available subscriptions...")
+            selected_subscriptions = list_and_select_subscriptions()
+        
+        logging.info("Collecting VNets and topology...")
+        topology = get_vnet_topology_for_selected_subscriptions(selected_subscriptions)
     
-    logging.info("Collecting VNets and topology...")
-    topology = get_vnet_topology_for_selected_subscriptions(selected_subscriptions, credentials)
     output_file = args.output if args.output else "network_topology.json"
     save_to_json(topology, output_file)
 
-def get_subscriptions_non_interactive(args: argparse.Namespace, credentials: Union[ClientSecretCredential, AzureCliCredential]) -> List[str]:
+def get_subscriptions_non_interactive(args: argparse.Namespace) -> List[str]:
     """Get subscriptions from command line arguments or file in non-interactive mode"""
     if args.subscriptions and args.subscriptions_file:
         logging.error("Cannot specify both --subscriptions and --subscriptions-file")
@@ -244,7 +659,7 @@ def get_subscriptions_non_interactive(args: argparse.Namespace, credentials: Uni
     else:
         # All subscriptions are assumed to be names, resolve to IDs
         logging.info(f"Resolving subscription names to IDs: {subscriptions}")
-        return resolve_subscription_names_to_ids(subscriptions, credentials)
+        return resolve_subscription_names_to_ids(subscriptions)
 
 def determine_hub_for_spoke(spoke_vnet: Dict[str, Any], hub_vnets: List[Dict[str, Any]]) -> Optional[str]:
     """Determine which hub this spoke is connected to based on peering relationships"""
@@ -261,59 +676,151 @@ def determine_hub_for_spoke(spoke_vnet: Dict[str, Any], hub_vnets: List[Dict[str
     # Fallback to first hub if no specific connection found
     return "hub_0" if hub_vnets else None
 
-def parse_peering_name(peering_name: str) -> Tuple[Optional[str], str]:
-    """Extract VNet names from peering strings"""
-    # Pattern 1: "vnet1_to_vnet2" or "vnet1-to-vnet2"
-    if '_to_' in peering_name:
-        parts = peering_name.split('_to_')
-        if len(parts) == 2:
-            return parts[0], parts[1]
-    elif '-to-' in peering_name:
-        parts = peering_name.split('-to-')
-        if len(parts) == 2:
-            return parts[0], parts[1]
+def extract_vnet_name_from_resource_id(resource_id: str) -> str:
+    """Extract VNet name from Azure resource ID"""
+    parts = resource_id.split('/')
+    if len(parts) >= 9 and parts[7] == 'virtualNetworks':
+        return parts[8]
+    raise ValueError(f"Invalid VNet resource ID: {resource_id}")
+
+def generate_hierarchical_id(vnet_data: Dict[str, Any], element_type: str, suffix: Optional[str] = None) -> str:
+    """Generate consistent hierarchical IDs for DrawIO elements using Azure resource path format
     
-    # Pattern 2: Direct VNet name reference
-    return None, peering_name
+    Args:
+        vnet_data: VNet data dictionary containing Azure resource information
+        element_type: Type of element ('group', 'main', 'subnet', 'icon')
+        suffix: Optional suffix for element_type (e.g., '0' for subnet index, 'vpn' for icon type)
+    
+    Returns:
+        Hierarchical ID in format: subscription.resourcegroup.vnet[.element_type[.suffix]]
+        Falls back to simple vnet-based ID if Azure metadata is missing (for tests)
+    """
+    # Extract and sanitize Azure resource components
+    subscription_name = vnet_data.get('subscription_name', '').replace('.', '_')
+    resourcegroup_name = vnet_data.get('resourcegroup_name', '').replace('.', '_')
+    vnet_name = vnet_data.get('name', '').replace('.', '_')
+    
+    # Check if we have sufficient metadata for hierarchical IDs
+    if not subscription_name or not resourcegroup_name:
+        # Fallback to simple ID for test scenarios or missing metadata
+        if element_type == 'group':
+            return vnet_name
+        elif element_type == 'main':
+            return f"{vnet_name}_main"
+        elif element_type == 'subnet':
+            if suffix is not None:
+                return f"{vnet_name}_subnet_{suffix}"
+            else:
+                return f"{vnet_name}_subnet"
+        elif element_type == 'icon':
+            if suffix is not None:
+                return f"{vnet_name}_icon_{suffix}"
+            else:
+                return f"{vnet_name}_icon"
+        else:
+            # Fallback for unknown element types
+            if suffix is not None:
+                return f"{vnet_name}_{element_type}_{suffix}"
+            else:
+                return f"{vnet_name}_{element_type}"
+    
+    # Build hierarchical base ID with full Azure metadata
+    base_id = f"{subscription_name}.{resourcegroup_name}.{vnet_name}"
+    
+    # Add element type if specified
+    if element_type == 'group':
+        return base_id
+    elif element_type == 'main':
+        return f"{base_id}.main"
+    elif element_type == 'subnet':
+        if suffix is not None:
+            return f"{base_id}.subnet.{suffix}"
+        else:
+            return f"{base_id}.subnet"
+    elif element_type == 'icon':
+        if suffix is not None:
+            return f"{base_id}.icon.{suffix}"
+        else:
+            return f"{base_id}.icon"
+    else:
+        # Fallback for unknown element types
+        if suffix is not None:
+            return f"{base_id}.{element_type}.{suffix}"
+        else:
+            return f"{base_id}.{element_type}"
 
 def create_vnet_id_mapping(vnets: List[Dict[str, Any]], zones: List[Dict[str, Any]], all_non_peered: List[Dict[str, Any]]) -> Dict[str, str]:
-    """Create bidirectional mapping between VNet names and diagram IDs for multi-zone layout"""
+    """Create bidirectional mapping between VNet names and diagram IDs for multi-zone layout
+    
+    Uses hierarchical Azure-based IDs when Azure metadata is available,
+    falls back to synthetic IDs for backward compatibility (tests)
+    """
     mapping = {}
     
-    # Map hub VNets
-    for zone in zones:
-        if 'name' in zone['hub']:
-            mapping[zone['hub']['name']] = f"hub_{zone['hub_index']}"
+    # Check if we have Azure metadata available in the data
+    has_azure_metadata = False
+    if zones and zones[0].get('hub'):
+        hub_data = zones[0]['hub']
+        has_azure_metadata = bool(hub_data.get('subscription_name') and hub_data.get('resourcegroup_name'))
     
-    # Map spoke VNets with zone-aware IDs
-    for zone_index, zone in enumerate(zones):
-        peered_spokes = zone['spokes']
+    if has_azure_metadata:
+        # Production mode: Use hierarchical Azure-based IDs
+        # Map hub VNets to hierarchical main IDs
+        for zone in zones:
+            if 'name' in zone['hub']:
+                main_id = generate_hierarchical_id(zone['hub'], 'main')
+                mapping[zone['hub']['name']] = main_id
         
-        # Determine layout for this zone
-        use_dual_column = len(peered_spokes) > 6
-        if use_dual_column:
-            total_spokes = len(peered_spokes)
-            half_spokes = (total_spokes + 1) // 2
-            left_spokes = peered_spokes[:half_spokes]
-            right_spokes = peered_spokes[half_spokes:]
-        else:
-            left_spokes = []
-            right_spokes = peered_spokes
+        # Map spoke VNets to hierarchical main IDs
+        for zone_index, zone in enumerate(zones):
+            peered_spokes = zone['spokes']
+            
+            for spoke in peered_spokes:
+                if 'name' in spoke:
+                    main_id = generate_hierarchical_id(spoke, 'main')
+                    mapping[spoke['name']] = main_id
         
-        # Map right spokes
-        for i, spoke in enumerate(right_spokes):
-            if 'name' in spoke:
-                mapping[spoke['name']] = f"right_spoke{zone_index}_{i}"
+        # Map non-peered VNets to hierarchical main IDs
+        for nonpeered in all_non_peered:
+            if 'name' in nonpeered:
+                main_id = generate_hierarchical_id(nonpeered, 'main')
+                mapping[nonpeered['name']] = main_id
+    else:
+        # Test/backward compatibility mode: Use original synthetic IDs
+        # Map hub VNets
+        for zone in zones:
+            if 'name' in zone['hub']:
+                mapping[zone['hub']['name']] = f"hub_{zone['hub_index']}"
         
-        # Map left spokes
-        for i, spoke in enumerate(left_spokes):
-            if 'name' in spoke:
-                mapping[spoke['name']] = f"left_spoke{zone_index}_{i}"
-    
-    # Map non-peered VNets
-    for i, nonpeered in enumerate(all_non_peered):
-        if 'name' in nonpeered:
-            mapping[nonpeered['name']] = f"nonpeered_spoke{i}"
+        # Map spoke VNets with zone-aware IDs
+        for zone_index, zone in enumerate(zones):
+            peered_spokes = zone['spokes']
+            
+            # Determine layout for this zone
+            use_dual_column = len(peered_spokes) > 6
+            if use_dual_column:
+                total_spokes = len(peered_spokes)
+                half_spokes = (total_spokes + 1) // 2
+                left_spokes = peered_spokes[:half_spokes]
+                right_spokes = peered_spokes[half_spokes:]
+            else:
+                left_spokes = []
+                right_spokes = peered_spokes
+            
+            # Map right spokes
+            for i, spoke in enumerate(right_spokes):
+                if 'name' in spoke:
+                    mapping[spoke['name']] = f"right_spoke{zone_index}_{i}"
+            
+            # Map left spokes
+            for i, spoke in enumerate(left_spokes):
+                if 'name' in spoke:
+                    mapping[spoke['name']] = f"left_spoke{zone_index}_{i}"
+        
+        # Map non-peered VNets
+        for i, nonpeered in enumerate(all_non_peered):
+            if 'name' in nonpeered:
+                mapping[nonpeered['name']] = f"nonpeered_spoke{i}"
     
     return mapping
 
@@ -334,9 +841,9 @@ def generate_hld_diagram(filename: str, topology_file: str, config: Any) -> None
         sys.exit(1)
     
     # Classify VNets for layout purposes (keep existing layout logic)
-    # Highly connected VNets (hubs) vs others
-    hub_vnets = [vnet for vnet in vnets if vnet.get("peerings_count", 0) >= config.hub_threshold]
-    spoke_vnets = [vnet for vnet in vnets if vnet.get("peerings_count", 0) < config.hub_threshold]
+    # Highly connected VNets (hubs) vs others, including explicitly specified hubs
+    hub_vnets = [vnet for vnet in vnets if vnet.get("peerings_count", 0) >= config.hub_threshold or vnet.get("is_explicit_hub", False)]
+    spoke_vnets = [vnet for vnet in vnets if vnet.get("peerings_count", 0) < config.hub_threshold and not vnet.get("is_explicit_hub", False)]
     
     # If no highly connected VNets, treat the first one as primary for layout
     if not hub_vnets and vnets:
@@ -366,20 +873,37 @@ def generate_hld_diagram(filename: str, topology_file: str, config: Any) -> None
         group_width = config.vnet_width
         group_height = vnet_height + config.group_height_extra  # Extra space for icons below VNet
         
-        # Create group container for this VNet and all its elements
-        group_id = f"{vnet_id}_group"
-        group_element = etree.SubElement(
-            root,
+        # Create group container for this VNet and all its elements with metadata
+        # Use hierarchical ID format for group
+        group_id = generate_hierarchical_id(vnet_data, 'group')
+        
+        # Build attributes dictionary with metadata
+        group_attrs = {
+            "id": group_id,
+            "label": "",
+            "subscription_name": vnet_data.get('subscription_name', ''),
+            "subscription_id": vnet_data.get('subscription_id', ''),
+            "tenant_id": vnet_data.get('tenant_id', ''),
+            "resourcegroup_id": vnet_data.get('resourcegroup_id', ''),
+            "resourcegroup_name": vnet_data.get('resourcegroup_name', ''),
+            "resource_id": vnet_data.get('resource_id', ''),
+            "azure_console_url": vnet_data.get('azure_console_url', ''),
+            "link": vnet_data.get('azure_console_url', '')
+        }
+        
+        group_element = etree.SubElement(root, "object", attrib=group_attrs)
+        
+        # Add mxCell child for the group styling
+        group_cell = etree.SubElement(
+            group_element,
             "mxCell",
-            id=group_id,
-            value="",
             style="group",
             vertex="1",
             connectable="0",
-            parent="1",
+            parent="1"
         )
         etree.SubElement(
-            group_element,
+            group_cell,
             "mxGeometry",
             attrib={"x": str(x_offset), "y": str(y_offset), "width": str(group_width), "height": str(group_height), "as": "geometry"},
         )
@@ -388,10 +912,12 @@ def generate_hld_diagram(filename: str, topology_file: str, config: Any) -> None
         default_style = "shape=rectangle;rounded=0;whiteSpace=wrap;html=1;strokeColor=#0078D4;fontColor=#004578;fillColor=#E6F1FB;align=left"
         
         # Add VNet box as child of group (using relative positioning)
+        # vnet_id is now expected to be hierarchical main ID
+        main_id = generate_hierarchical_id(vnet_data, 'main')
         vnet_element = etree.SubElement(
             root,
             "mxCell",
-            id=vnet_id,
+            id=main_id,
             style=style_override or default_style,
             vertex="1",
             parent=group_id,
@@ -405,10 +931,11 @@ def generate_hld_diagram(filename: str, topology_file: str, config: Any) -> None
 
         # Add Virtual Hub icon if applicable
         if vnet_data.get("type") == "virtual_hub":
+            virtualhub_icon_id = generate_hierarchical_id(vnet_data, 'icon', 'virtualhub')
             virtual_hub_icon = etree.SubElement(
                 root,
                 "mxCell",
-                id=f"{vnet_id}_virtualhub_image",
+                id=virtualhub_icon_id,
                 style="shape=image;html=1;image=img/lib/azure2/networking/Virtual_WANs.svg;",
                 vertex="1",
                 parent=group_id,
@@ -469,42 +996,46 @@ def generate_hld_diagram(filename: str, topology_file: str, config: Any) -> None
             current_x -= icon['width']
             icon['x'] = current_x
             
-            # Create the icon element as child of VNet
+            # Create the icon element as child of VNet using hierarchical IDs
             if icon['type'] == 'vnet':
+                icon_id = generate_hierarchical_id(vnet_data, 'icon', 'vnet')
                 icon_element = etree.SubElement(
                     root,
                     "mxCell",
-                    id=f"{vnet_id}_image",
+                    id=icon_id,
                     style=f"shape=image;html=1;image={config.get_icon_path('vnet')};",
                     vertex="1",
-                    parent=vnet_id,  # Parent to VNet, not group
+                    parent=main_id,  # Parent to VNet main element
                 )
             elif icon['type'] == 'expressroute':
+                icon_id = generate_hierarchical_id(vnet_data, 'icon', 'expressroute')
                 icon_element = etree.SubElement(
                     root,
                     "mxCell",
-                    id=f"{vnet_id}_expressroute_image",
+                    id=icon_id,
                     style=f"shape=image;html=1;image={config.get_icon_path('expressroute')};",
                     vertex="1",
-                    parent=vnet_id,  # Parent to VNet, not group
+                    parent=main_id,  # Parent to VNet main element
                 )
             elif icon['type'] == 'firewall':
+                icon_id = generate_hierarchical_id(vnet_data, 'icon', 'firewall')
                 icon_element = etree.SubElement(
                     root,
                     "mxCell",
-                    id=f"{vnet_id}_firewall_image",
+                    id=icon_id,
                     style=f"shape=image;html=1;image={config.get_icon_path('firewall')};",
                     vertex="1",
-                    parent=vnet_id,  # Parent to VNet, not group
+                    parent=main_id,  # Parent to VNet main element
                 )
             elif icon['type'] == 'vpn_gateway':
+                icon_id = generate_hierarchical_id(vnet_data, 'icon', 'vpn')
                 icon_element = etree.SubElement(
                     root,
                     "mxCell",
-                    id=f"{vnet_id}_vpn_image",
+                    id=icon_id,
                     style=f"shape=image;html=1;image={config.get_icon_path('vpn_gateway')};",
                     vertex="1",
-                    parent=vnet_id,  # Parent to VNet, not group
+                    parent=main_id,  # Parent to VNet main element
                 )
             
             etree.SubElement(
@@ -524,8 +1055,15 @@ def generate_hld_diagram(filename: str, topology_file: str, config: Any) -> None
         return group_height
 
     def add_peering_edges(vnets, vnet_mapping, root, config):
-        """Add edges for all VNet peerings to create full mesh connectivity"""
+        """Add edges for all VNet peerings using reliable resource IDs with proper symmetry validation"""
         edge_counter = 1000  # Start high to avoid conflicts with existing edge IDs
+        processed_peerings = set()  # Track processed peering relationships to avoid duplicates
+        
+        # Create resource ID to VNet name mapping for reliable peering resolution
+        resource_id_to_name = {vnet['resource_id']: vnet['name'] for vnet in vnets if 'resource_id' in vnet}
+        
+        # Create VNet name to resource ID mapping for symmetry validation
+        vnet_name_to_resource_id = {vnet['name']: vnet['resource_id'] for vnet in vnets if 'name' in vnet and 'resource_id' in vnet}
         
         for vnet in vnets:
             if 'name' not in vnet:
@@ -537,31 +1075,52 @@ def generate_hld_diagram(filename: str, topology_file: str, config: Any) -> None
             if not source_id:
                 continue  # Skip if source VNet not in diagram
                 
-            for peering in vnet.get('peerings', []):
-                # Parse the peering name to get target VNet
-                vnet1, vnet2 = parse_peering_name(peering)
+            # Use reliable peering_resource_ids instead of parsing peering names
+            for peering_resource_id in vnet.get('peering_resource_ids', []):
+                target_vnet_name = resource_id_to_name.get(peering_resource_id)
                 
-                # Determine which is the target VNet (not the source)
-                target_vnet_name = None
-                if vnet1 and vnet1 != source_vnet_name:
-                    target_vnet_name = vnet1
-                elif vnet2 and vnet2 != source_vnet_name:
-                    target_vnet_name = vnet2
-                elif vnet2:  # Direct reference case
-                    target_vnet_name = vnet2
-                
-                if not target_vnet_name:
-                    continue
+                if not target_vnet_name or target_vnet_name == source_vnet_name:
+                    continue  # Skip if target VNet not found or self-reference
                     
                 target_id = vnet_mapping.get(target_vnet_name)
                 if not target_id:
                     continue  # Skip if target VNet not in diagram
                 
-                # Skip if this is a hub-to-spoke connection (already drawn)
-                if source_id.startswith('hub_') and (target_id.startswith('spoke_') or target_id.startswith('nonpeered_')):
-                    continue
-                if target_id.startswith('hub_') and (source_id.startswith('spoke_') or source_id.startswith('nonpeered_')):
-                    continue
+                # Skip hub-to-spoke connections (already drawn) - now using hierarchical IDs
+                # Check if this is a hub-to-spoke connection by checking if one is a main ID from a hub VNet
+                # and the other is a main ID from a spoke VNet that's already connected
+                source_vnet = next((v for v in vnets if v.get('name') == source_vnet_name), None)
+                target_vnet = next((v for v in vnets if v.get('name') == target_vnet_name), None)
+                
+                if source_vnet and target_vnet:
+                    # Check if one is a hub and the other is a spoke that's already connected
+                    source_is_hub = source_vnet.get("peerings_count", 0) >= config.hub_threshold or source_vnet.get("is_explicit_hub", False)
+                    target_is_hub = target_vnet.get("peerings_count", 0) >= config.hub_threshold or target_vnet.get("is_explicit_hub", False)
+                    
+                    # Skip if this is a hub-to-spoke connection that's already drawn as a direct connection
+                    if source_is_hub and not target_is_hub:
+                        continue
+                    if target_is_hub and not source_is_hub:
+                        continue
+                
+                # Create a deterministic peering key to avoid duplicates
+                peering_key = tuple(sorted([source_vnet_name, target_vnet_name]))
+                
+                if peering_key in processed_peerings:
+                    continue  # Skip if this peering relationship has already been processed
+                
+                # Validate bidirectional peering (symmetry check)
+                source_resource_id = vnet_name_to_resource_id.get(source_vnet_name)
+                target_vnet = next((v for v in vnets if v.get('name') == target_vnet_name), None)
+                
+                if target_vnet and source_resource_id:
+                    target_peering_resource_ids = target_vnet.get('peering_resource_ids', [])
+                    if source_resource_id not in target_peering_resource_ids:
+                        logging.warning(f"Asymmetric peering detected: {source_vnet_name} peers to {target_vnet_name}, but {target_vnet_name} does not peer back to {source_vnet_name}")
+                        continue  # Skip asymmetric peering
+                
+                # Mark this peering relationship as processed
+                processed_peerings.add(peering_key)
                 
                 # Create edge for spoke-to-spoke or hub-to-hub connections
                 edge = etree.SubElement(
@@ -579,7 +1138,7 @@ def generate_hld_diagram(filename: str, topology_file: str, config: Any) -> None
                 edge_geometry = etree.SubElement(edge, "mxGeometry", attrib={"relative": "1", "as": "geometry"})
                 
                 edge_counter += 1
-                logging.info(f"Added peering edge: {source_vnet_name} ({source_id}) → {target_vnet_name} ({target_id})")
+                logging.info(f"Added bidirectional peering edge: {source_vnet_name} ({source_id}) ↔ {target_vnet_name} ({target_id})")
 
     # Group spokes by their hub for multi-zone layout
     zones = []
@@ -625,11 +1184,11 @@ def generate_hld_diagram(filename: str, topology_file: str, config: Any) -> None
         # Calculate zone offset
         zone_offset_x = zone_index * (zone_width + zone_spacing)
         
-        # Position hub
+        # Position hub using hierarchical main ID
         hub_x = base_hub_x + zone_offset_x
         hub_y = hub_y
-        hub_id = f"hub_{zone['hub_index']}"
-        add_vnet_with_features(zone['hub'], hub_id, hub_x, hub_y)
+        hub_main_id = generate_hierarchical_id(zone['hub'], 'main')
+        add_vnet_with_features(zone['hub'], hub_main_id, hub_x, hub_y)
         
         # Separate peered spokes into left and right
         peered_spokes = zone['spokes']
@@ -647,23 +1206,24 @@ def generate_hld_diagram(filename: str, topology_file: str, config: Any) -> None
             left_spokes = []
             right_spokes = peered_spokes
         
-        # Add right spokes
+        # Add right spokes using hierarchical main IDs
         for index, spoke in enumerate(right_spokes):
             y_position = hub_y + hub_height + index * spacing
             x_position = base_right_x + zone_offset_x
-            spoke_id = f"right_spoke{zone_index}_{index}"
+            spoke_main_id = generate_hierarchical_id(spoke, 'main')
             
             spoke_style = config.get_vnet_style_string('spoke')
-            add_vnet_with_features(spoke, spoke_id, x_position, y_position, spoke_style)
+            add_vnet_with_features(spoke, spoke_main_id, x_position, y_position, spoke_style)
             
-            # Add connection to zone's hub
+            # Add connection to zone's hub using hierarchical IDs
+            edge_id = f"edge_right_{zone_index}_{index}_{spoke['name']}"
             edge = etree.SubElement(
                 root,
                 "mxCell",
-                id=f"edge_right_{zone_index}_{index}",
+                id=edge_id,
                 edge="1",
-                source=hub_id,
-                target=spoke_id,
+                source=hub_main_id,
+                target=spoke_main_id,
                 style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#0078D4;strokeWidth=2;endArrow=block;startArrow=block;",
                 parent="1",
             )
@@ -675,23 +1235,24 @@ def generate_hld_diagram(filename: str, topology_file: str, config: Any) -> None
                 hub_center_x = base_hub_x + 200 + zone_offset_x  # Hub center
                 etree.SubElement(edge_points, "mxPoint", attrib={"x": str(hub_center_x + 100), "y": str(y_position + 25)})
         
-        # Add left spokes
+        # Add left spokes using hierarchical main IDs
         for index, spoke in enumerate(left_spokes):
             y_position = hub_y + hub_height + index * spacing
             x_position = base_left_x + zone_offset_x
-            spoke_id = f"left_spoke{zone_index}_{index}"
+            spoke_main_id = generate_hierarchical_id(spoke, 'main')
             
             spoke_style = config.get_vnet_style_string('spoke')
-            add_vnet_with_features(spoke, spoke_id, x_position, y_position, spoke_style)
+            add_vnet_with_features(spoke, spoke_main_id, x_position, y_position, spoke_style)
             
-            # Add connection to zone's hub
+            # Add connection to zone's hub using hierarchical IDs
+            edge_id = f"edge_left_{zone_index}_{index}_{spoke['name']}"
             edge = etree.SubElement(
                 root,
                 "mxCell",
-                id=f"edge_left_{zone_index}_{index}",
+                id=edge_id,
                 edge="1",
-                source=hub_id,
-                target=spoke_id,
+                source=hub_main_id,
+                target=spoke_main_id,
                 style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#0078D4;strokeWidth=2;endArrow=block;startArrow=block;",
                 parent="1",
             )
@@ -751,10 +1312,10 @@ def generate_hld_diagram(filename: str, topology_file: str, config: Any) -> None
             
             x_position = base_left_x + (position_in_row * unpeered_spacing)
             y_position = unpeered_y + (row_number * row_height)
-            spoke_id = f"nonpeered_spoke{index}"
+            spoke_main_id = generate_hierarchical_id(spoke, 'main')
             
             nonpeered_style = config.get_vnet_style_string('non_peered')
-            add_vnet_with_features(spoke, spoke_id, x_position, y_position, nonpeered_style)
+            add_vnet_with_features(spoke, spoke_main_id, x_position, y_position, nonpeered_style)
 
     # Create VNet ID mapping for peering connections
     vnet_mapping = create_vnet_id_mapping(vnets, zones, all_non_peered)
@@ -803,9 +1364,9 @@ def generate_mld_diagram(filename: str, topology_file: str, config: Any) -> None
         sys.exit(1)
     
     # Classify VNets for layout purposes (keep existing layout logic)
-    # Highly connected VNets (hubs) vs others
-    hub_vnets = [vnet for vnet in vnets if vnet.get("peerings_count", 0) >= config.hub_threshold]
-    spoke_vnets = [vnet for vnet in vnets if vnet.get("peerings_count", 0) < config.hub_threshold]
+    # Highly connected VNets (hubs) vs others, including explicitly specified hubs
+    hub_vnets = [vnet for vnet in vnets if vnet.get("peerings_count", 0) >= config.hub_threshold or vnet.get("is_explicit_hub", False)]
+    spoke_vnets = [vnet for vnet in vnets if vnet.get("peerings_count", 0) < config.hub_threshold and not vnet.get("is_explicit_hub", False)]
     
     # If no highly connected VNets, treat the first one as primary for layout
     if not hub_vnets and vnets:
@@ -836,20 +1397,37 @@ def generate_mld_diagram(filename: str, topology_file: str, config: Any) -> None
         group_width = config.layout['hub']['width']
         group_height = vnet_height + config.drawio['group']['extra_height']
         
-        # Create group container for this VNet and all its elements
-        group_id = f"{vnet_id}_group"
-        group_element = etree.SubElement(
-            root,
+        # Create group container for this VNet and all its elements with metadata
+        # Use hierarchical ID format for group
+        group_id = generate_hierarchical_id(vnet_data, 'group')
+        
+        # Build attributes dictionary with metadata
+        group_attrs = {
+            "id": group_id,
+            "label": "",
+            "subscription_name": vnet_data.get('subscription_name', ''),
+            "subscription_id": vnet_data.get('subscription_id', ''),
+            "tenant_id": vnet_data.get('tenant_id', ''),
+            "resourcegroup_id": vnet_data.get('resourcegroup_id', ''),
+            "resourcegroup_name": vnet_data.get('resourcegroup_name', ''),
+            "resource_id": vnet_data.get('resource_id', ''),
+            "azure_console_url": vnet_data.get('azure_console_url', ''),
+            "link": vnet_data.get('azure_console_url', '')
+        }
+        
+        group_element = etree.SubElement(root, "object", attrib=group_attrs)
+        
+        # Add mxCell child for the group styling
+        group_cell = etree.SubElement(
+            group_element,
             "mxCell",
-            id=group_id,
-            value="",
             style="group",
             vertex="1",
             connectable=config.drawio['group']['connectable'],
-            parent="1",
+            parent="1"
         )
         etree.SubElement(
-            group_element,
+            group_cell,
             "mxGeometry",
             attrib={"x": str(x_offset), "y": str(y_offset), "width": str(group_width), "height": str(group_height), "as": "geometry"},
         )
@@ -858,10 +1436,12 @@ def generate_mld_diagram(filename: str, topology_file: str, config: Any) -> None
         default_style = config.get_vnet_style_string('hub')
         
         # Add VNet box as child of group (using relative positioning)
+        # vnet_id is now expected to be hierarchical main ID
+        main_id = generate_hierarchical_id(vnet_data, 'main')
         vnet_element = etree.SubElement(
             root,
             "mxCell",
-            id=vnet_id,
+            id=main_id,
             style=style_override or default_style,
             vertex="1",
             parent=group_id,
@@ -876,10 +1456,11 @@ def generate_mld_diagram(filename: str, topology_file: str, config: Any) -> None
         # Add Virtual Hub icon if applicable
         if vnet_data.get("type") == "virtual_hub":
             hub_icon_width, hub_icon_height = config.get_icon_size('virtual_hub')
+            virtualhub_icon_id = generate_hierarchical_id(vnet_data, 'icon', 'virtualhub')
             virtual_hub_icon = etree.SubElement(
                 root,
                 "mxCell",
-                id=f"{vnet_id}_virtualhub_image",
+                id=virtualhub_icon_id,
                 style=f"shape=image;html=1;image={config.get_icon_path('virtual_hub')};",
                 vertex="1",
                 parent=group_id,
@@ -946,42 +1527,46 @@ def generate_mld_diagram(filename: str, topology_file: str, config: Any) -> None
             current_x -= icon['width']
             icon['x'] = current_x
             
-            # Create the icon element as child of VNet
+            # Create the icon element as child of VNet using hierarchical IDs
             if icon['type'] == 'vnet':
+                icon_id = generate_hierarchical_id(vnet_data, 'icon', 'vnet')
                 icon_element = etree.SubElement(
                     root,
                     "mxCell",
-                    id=f"{vnet_id}_image",
+                    id=icon_id,
                     style=f"shape=image;html=1;image={config.get_icon_path('vnet')};",
                     vertex="1",
-                    parent=vnet_id,  # Parent to VNet, not group
+                    parent=main_id,  # Parent to VNet main element
                 )
             elif icon['type'] == 'expressroute':
+                icon_id = generate_hierarchical_id(vnet_data, 'icon', 'expressroute')
                 icon_element = etree.SubElement(
                     root,
                     "mxCell",
-                    id=f"{vnet_id}_expressroute_image",
+                    id=icon_id,
                     style=f"shape=image;html=1;image={config.get_icon_path('expressroute')};",
                     vertex="1",
-                    parent=vnet_id,  # Parent to VNet, not group
+                    parent=main_id,  # Parent to VNet main element
                 )
             elif icon['type'] == 'firewall':
+                icon_id = generate_hierarchical_id(vnet_data, 'icon', 'firewall')
                 icon_element = etree.SubElement(
                     root,
                     "mxCell",
-                    id=f"{vnet_id}_firewall_image",
+                    id=icon_id,
                     style=f"shape=image;html=1;image={config.get_icon_path('firewall')};",
                     vertex="1",
-                    parent=vnet_id,  # Parent to VNet, not group
+                    parent=main_id,  # Parent to VNet main element
                 )
             elif icon['type'] == 'vpn_gateway':
+                icon_id = generate_hierarchical_id(vnet_data, 'icon', 'vpn')
                 icon_element = etree.SubElement(
                     root,
                     "mxCell",
-                    id=f"{vnet_id}_vpn_image",
+                    id=icon_id,
                     style=f"shape=image;html=1;image={config.get_icon_path('vpn_gateway')};",
                     vertex="1",
-                    parent=vnet_id,  # Parent to VNet, not group
+                    parent=main_id,  # Parent to VNet main element
                 )
             
             etree.SubElement(
@@ -1001,13 +1586,14 @@ def generate_mld_diagram(filename: str, topology_file: str, config: Any) -> None
         # Add subnets if it's a regular VNet (as children of the VNet, not the group)
         if vnet_data.get("type") != "virtual_hub":
             for subnet_index, subnet in enumerate(vnet_data.get("subnets", [])):
+                subnet_id = generate_hierarchical_id(vnet_data, 'subnet', str(subnet_index))
                 subnet_cell = etree.SubElement(
                     root,
                     "mxCell",
-                    id=f"{vnet_id}_subnet_{subnet_index}",
+                    id=subnet_id,
                     style=config.get_subnet_style_string(),
                     vertex="1",
-                    parent=vnet_id,
+                    parent=main_id,
                 )
                 subnet_cell.set("value", f"{subnet['name']} {subnet['address']}")
                 y_offset_subnet = config.layout['subnet']['padding_y'] + subnet_index * config.layout['subnet']['spacing_y']
@@ -1066,31 +1652,34 @@ def generate_mld_diagram(filename: str, topology_file: str, config: Any) -> None
                     icon_y = y_offset_subnet + icon['y_offset']
                     
                     if icon['type'] == 'subnet':
+                        subnet_icon_id = generate_hierarchical_id(vnet_data, 'icon', f'subnet_{subnet_index}')
                         icon_element = etree.SubElement(
                             root,
                             "mxCell",
-                            id=f"{vnet_id}_subnet_{subnet_index}_icon",
+                            id=subnet_icon_id,
                             style=f"shape=image;html=1;image={config.get_icon_path('subnet')};",
                             vertex="1",
-                            parent=vnet_id,
+                            parent=main_id,
                         )
                     elif icon['type'] == 'udr':
+                        udr_icon_id = generate_hierarchical_id(vnet_data, 'icon', f'udr_{subnet_index}')
                         icon_element = etree.SubElement(
                             root,
                             "mxCell",
-                            id=f"{vnet_id}_subnet_{subnet_index}_udr",
+                            id=udr_icon_id,
                             style=f"shape=image;html=1;image={config.get_icon_path('route_table')};",
                             vertex="1",
-                            parent=vnet_id,
+                            parent=main_id,
                         )
                     elif icon['type'] == 'nsg':
+                        nsg_icon_id = generate_hierarchical_id(vnet_data, 'icon', f'nsg_{subnet_index}')
                         icon_element = etree.SubElement(
                             root,
                             "mxCell",
-                            id=f"{vnet_id}_subnet_{subnet_index}_nsg",
+                            id=nsg_icon_id,
                             style=f"shape=image;html=1;image={config.get_icon_path('nsg')};",
                             vertex="1",
-                            parent=vnet_id,
+                            parent=main_id,
                         )
                     
                     etree.SubElement(
@@ -1110,8 +1699,15 @@ def generate_mld_diagram(filename: str, topology_file: str, config: Any) -> None
         return group_height
 
     def add_peering_edges(vnets, vnet_mapping, root, config):
-        """Add edges for all VNet peerings to create full mesh connectivity"""
+        """Add edges for all VNet peerings using reliable resource IDs with proper symmetry validation"""
         edge_counter = 1000  # Start high to avoid conflicts with existing edge IDs
+        processed_peerings = set()  # Track processed peering relationships to avoid duplicates
+        
+        # Create resource ID to VNet name mapping for reliable peering resolution
+        resource_id_to_name = {vnet['resource_id']: vnet['name'] for vnet in vnets if 'resource_id' in vnet}
+        
+        # Create VNet name to resource ID mapping for symmetry validation
+        vnet_name_to_resource_id = {vnet['name']: vnet['resource_id'] for vnet in vnets if 'name' in vnet and 'resource_id' in vnet}
         
         for vnet in vnets:
             if 'name' not in vnet:
@@ -1123,31 +1719,52 @@ def generate_mld_diagram(filename: str, topology_file: str, config: Any) -> None
             if not source_id:
                 continue  # Skip if source VNet not in diagram
                 
-            for peering in vnet.get('peerings', []):
-                # Parse the peering name to get target VNet
-                vnet1, vnet2 = parse_peering_name(peering)
+            # Use reliable peering_resource_ids instead of parsing peering names
+            for peering_resource_id in vnet.get('peering_resource_ids', []):
+                target_vnet_name = resource_id_to_name.get(peering_resource_id)
                 
-                # Determine which is the target VNet (not the source)
-                target_vnet_name = None
-                if vnet1 and vnet1 != source_vnet_name:
-                    target_vnet_name = vnet1
-                elif vnet2 and vnet2 != source_vnet_name:
-                    target_vnet_name = vnet2
-                elif vnet2:  # Direct reference case
-                    target_vnet_name = vnet2
-                
-                if not target_vnet_name:
-                    continue
+                if not target_vnet_name or target_vnet_name == source_vnet_name:
+                    continue  # Skip if target VNet not found or self-reference
                     
                 target_id = vnet_mapping.get(target_vnet_name)
                 if not target_id:
                     continue  # Skip if target VNet not in diagram
                 
-                # Skip if this is a hub-to-spoke connection (already drawn)
-                if source_id.startswith('hub_') and (target_id.startswith('spoke') or target_id.startswith('nonpeered_')):
-                    continue
-                if target_id.startswith('hub_') and (source_id.startswith('spoke') or source_id.startswith('nonpeered_')):
-                    continue
+                # Skip hub-to-spoke connections (already drawn) - now using hierarchical IDs
+                # Check if this is a hub-to-spoke connection by checking if one is a main ID from a hub VNet
+                # and the other is a main ID from a spoke VNet that's already connected
+                source_vnet = next((v for v in vnets if v.get('name') == source_vnet_name), None)
+                target_vnet = next((v for v in vnets if v.get('name') == target_vnet_name), None)
+                
+                if source_vnet and target_vnet:
+                    # Check if one is a hub and the other is a spoke that's already connected
+                    source_is_hub = source_vnet.get("peerings_count", 0) >= config.hub_threshold or source_vnet.get("is_explicit_hub", False)
+                    target_is_hub = target_vnet.get("peerings_count", 0) >= config.hub_threshold or target_vnet.get("is_explicit_hub", False)
+                    
+                    # Skip if this is a hub-to-spoke connection that's already drawn as a direct connection
+                    if source_is_hub and not target_is_hub:
+                        continue
+                    if target_is_hub and not source_is_hub:
+                        continue
+                
+                # Create a deterministic peering key to avoid duplicates
+                peering_key = tuple(sorted([source_vnet_name, target_vnet_name]))
+                
+                if peering_key in processed_peerings:
+                    continue  # Skip if this peering relationship has already been processed
+                
+                # Validate bidirectional peering (symmetry check)
+                source_resource_id = vnet_name_to_resource_id.get(source_vnet_name)
+                target_vnet = next((v for v in vnets if v.get('name') == target_vnet_name), None)
+                
+                if target_vnet and source_resource_id:
+                    target_peering_resource_ids = target_vnet.get('peering_resource_ids', [])
+                    if source_resource_id not in target_peering_resource_ids:
+                        logging.warning(f"Asymmetric peering detected: {source_vnet_name} peers to {target_vnet_name}, but {target_vnet_name} does not peer back to {source_vnet_name}")
+                        continue  # Skip asymmetric peering
+                
+                # Mark this peering relationship as processed
+                processed_peerings.add(peering_key)
                 
                 # Create edge for spoke-to-spoke or hub-to-hub connections
                 edge = etree.SubElement(
@@ -1165,7 +1782,7 @@ def generate_mld_diagram(filename: str, topology_file: str, config: Any) -> None
                 edge_geometry = etree.SubElement(edge, "mxGeometry", attrib={"relative": "1", "as": "geometry"})
                 
                 edge_counter += 1
-                logging.info(f"Added peering edge: {source_vnet_name} ({source_id}) → {target_vnet_name} ({target_id})")
+                logging.info(f"Added bidirectional peering edge: {source_vnet_name} ({source_id}) ↔ {target_vnet_name} ({target_id})")
 
     # Group spokes by their hub for multi-zone layout
     zones = []
@@ -1212,11 +1829,11 @@ def generate_mld_diagram(filename: str, topology_file: str, config: Any) -> None
         # Calculate zone offset
         zone_offset_x = zone_index * (zone_width + zone_spacing)
         
-        # Position hub
+        # Position hub using hierarchical main ID
         hub_x = base_hub_x + zone_offset_x
         hub_y = hub_y
-        hub_id = f"hub_{zone['hub_index']}"
-        hub_actual_height = add_vnet_with_subnets(zone['hub'], hub_id, hub_x, hub_y)
+        hub_main_id = generate_hierarchical_id(zone['hub'], 'main')
+        hub_actual_height = add_vnet_with_subnets(zone['hub'], hub_main_id, hub_x, hub_y)
         
         # Separate peered spokes into left and right
         peered_spokes = zone['spokes']
@@ -1241,23 +1858,24 @@ def generate_mld_diagram(filename: str, topology_file: str, config: Any) -> None
         current_y_right = hub_y + hub_vnet_height  # Start spokes after hub VNet
         current_y_left = hub_y + hub_vnet_height   # Start spokes after hub VNet
         
-        # Draw right spokes
+        # Draw right spokes using hierarchical main IDs
         for idx, spoke in enumerate(right_spokes):
-            spoke_id = f"right_spoke{zone_index}_{idx}"
+            spoke_main_id = generate_hierarchical_id(spoke, 'main')
             y_position = current_y_right
             x_position = base_right_x + zone_offset_x
             
             spoke_style = config.get_vnet_style_string('spoke')
-            vnet_height = add_vnet_with_subnets(spoke, spoke_id, x_position, y_position, spoke_style)
+            vnet_height = add_vnet_with_subnets(spoke, spoke_main_id, x_position, y_position, spoke_style)
             
-            # Add connection to zone's hub
+            # Add connection to zone's hub using hierarchical IDs
+            edge_id = f"edge_right_{zone_index}_{idx}_{spoke['name']}"
             edge = etree.SubElement(
                 root,
                 "mxCell",
-                id=f"edge_right_{zone_index}_{idx}_{spoke['name']}",
+                id=edge_id,
                 edge="1",
-                source=hub_id,
-                target=spoke_id,
+                source=hub_main_id,
+                target=spoke_main_id,
                 style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#0078D4;strokeWidth=2;endArrow=block;startArrow=block;",
                 parent="1",
             )
@@ -1271,23 +1889,24 @@ def generate_mld_diagram(filename: str, topology_file: str, config: Any) -> None
             
             current_y_right += vnet_height + padding
         
-        # Draw left spokes
+        # Draw left spokes using hierarchical main IDs
         for idx, spoke in enumerate(left_spokes):
-            spoke_id = f"left_spoke{zone_index}_{idx}"
+            spoke_main_id = generate_hierarchical_id(spoke, 'main')
             y_position = current_y_left
             x_position = base_left_x + zone_offset_x
             
             spoke_style = config.get_vnet_style_string('spoke')
-            vnet_height = add_vnet_with_subnets(spoke, spoke_id, x_position, y_position, spoke_style)
+            vnet_height = add_vnet_with_subnets(spoke, spoke_main_id, x_position, y_position, spoke_style)
             
-            # Add connection to zone's hub
+            # Add connection to zone's hub using hierarchical IDs
+            edge_id = f"edge_left_{zone_index}_{idx}_{spoke['name']}"
             edge = etree.SubElement(
                 root,
                 "mxCell",
-                id=f"edge_left_{zone_index}_{idx}_{spoke['name']}",
+                id=edge_id,
                 edge="1",
-                source=hub_id,
-                target=spoke_id,
+                source=hub_main_id,
+                target=spoke_main_id,
                 style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#0078D4;strokeWidth=2;endArrow=block;startArrow=block;",
                 parent="1",
             )
@@ -1332,10 +1951,10 @@ def generate_mld_diagram(filename: str, topology_file: str, config: Any) -> None
             
             x_position = base_left_x + (position_in_row * unpeered_spacing)
             y_position = unpeered_y + (row_number * row_height)
-            spoke_id = f"nonpeered_spoke{index}"
+            spoke_main_id = generate_hierarchical_id(spoke, 'main')
             
             nonpeered_style = config.get_vnet_style_string('non_peered')
-            add_vnet_with_subnets(spoke, spoke_id, x_position, y_position, nonpeered_style)
+            add_vnet_with_subnets(spoke, spoke_main_id, x_position, y_position, nonpeered_style)
 
     # Create VNet ID mapping for peering connections
     vnet_mapping = create_vnet_id_mapping(vnets, zones, all_non_peered)
@@ -1395,6 +2014,8 @@ def main() -> None:
                              help='File containing subscriptions (one per line)')
     query_parser.add_argument('-c', '--config-file', default='config.yaml',
                              help='Configuration file (default: config.yaml)')
+    query_parser.add_argument('-n', '--vnet',
+                             help='Specify hub VNet as resource_id (starting with /) or path (SUBSCRIPTION/RESOURCEGROUP/VNET) to filter topology')
     query_parser.add_argument('-v', '--verbose', action='store_true',
                              help='Enable verbose logging')
     query_parser.set_defaults(func=query_command)
