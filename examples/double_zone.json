@@ -33,22 +33,34 @@
         }
       ],
       "peerings": [
-        "hub-to-spoke1", "hub-to-spoke2", "hub-to-spoke3", "hub-to-spoke4", "hub-to-spoke5",
-        "hub-to-spoke6", "hub-to-spoke7", "hub-to-spoke8", "hub-to-spoke9", "hub-to-spoke10",
-        "hub-to-spoke11", "hub-to-spoke12", "hub-to-spoke13", "hub-to-spoke14", "hub-to-spoke15",
-        "hub-to-spoke16", "hub-to-spoke17", "hub-to-spoke18", "hub-to-spoke19", "hub-to-spoke20"
+        "spoke1-vnet", "spoke2-vnet", "spoke3-vnet", "spoke4-vnet", "spoke5-vnet",
+        "spoke6-vnet", "spoke7-vnet", "spoke8-vnet", "spoke9-vnet", "spoke10-vnet",
+        "hub2-vnet", "spoke22-vnet"
       ],
-      "peering_resource_ids": [],
+      "peering_resource_ids": [
+        "/subscriptions/11111111-1111-1111-1111-111111111111/resourceGroups/spoke1-rg/providers/Microsoft.Network/virtualNetworks/spoke1-vnet",
+        "/subscriptions/22222222-2222-2222-2222-222222222222/resourceGroups/spoke2-rg/providers/Microsoft.Network/virtualNetworks/spoke2-vnet",
+        "/subscriptions/33333333-3333-3333-3333-333333333333/resourceGroups/spoke3-rg/providers/Microsoft.Network/virtualNetworks/spoke3-vnet",
+        "/subscriptions/44444444-4444-4444-4444-444444444444/resourceGroups/spoke4-rg/providers/Microsoft.Network/virtualNetworks/spoke4-vnet",
+        "/subscriptions/55555555-5555-5555-5555-555555555555/resourceGroups/spoke5-rg/providers/Microsoft.Network/virtualNetworks/spoke5-vnet",
+        "/subscriptions/66666666-6666-6666-6666-666666666666/resourceGroups/spoke6-rg/providers/Microsoft.Network/virtualNetworks/spoke6-vnet",
+        "/subscriptions/77777777-7777-7777-7777-777777777777/resourceGroups/spoke7-rg/providers/Microsoft.Network/virtualNetworks/spoke7-vnet",
+        "/subscriptions/88888888-8888-8888-8888-888888888888/resourceGroups/spoke8-rg/providers/Microsoft.Network/virtualNetworks/spoke8-vnet",
+        "/subscriptions/99999999-9999-9999-9999-999999999999/resourceGroups/spoke9-rg/providers/Microsoft.Network/virtualNetworks/spoke9-vnet",
+        "/subscriptions/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa/resourceGroups/spoke10-rg/providers/Microsoft.Network/virtualNetworks/spoke10-vnet",
+        "/subscriptions/h2h2h2h2-h2h2-h2h2-h2h2-h2h2h2h2h2h2/resourceGroups/hub2-rg/providers/Microsoft.Network/virtualNetworks/hub2-vnet",
+        "/subscriptions/s22s22s2-2s22-s22s-22s2-2s22s22s22s2/resourceGroups/spoke22-rg/providers/Microsoft.Network/virtualNetworks/spoke22-vnet"
+      ],
       "subscription_name": "Hub-Subscription",
       "expressroute": "Yes",
       "vpn_gateway": "Yes",
       "firewall": "Yes",
-      "peerings_count": 20
+      "peerings_count": 12
     },
     {
       "name": "hub2-vnet",
-      "resource_id": "/subscriptions/22222222-3333-4444-5555-666666666666/resourceGroups/hub2-rg/providers/Microsoft.Network/virtualNetworks/hub2-vnet",
-      "subscription_id": "22222222-3333-4444-5555-666666666666",
+      "resource_id": "/subscriptions/h2h2h2h2-h2h2-h2h2-h2h2-h2h2h2h2h2h2/resourceGroups/hub2-rg/providers/Microsoft.Network/virtualNetworks/hub2-vnet",
+      "subscription_id": "h2h2h2h2-h2h2-h2h2-h2h2-h2h2h2h2h2h2",
       "resource_group": "hub2-rg",
       "address_space": "10.100.0.0/16",
       "subnets": [
@@ -78,21 +90,34 @@
         }
       ],
       "peerings": [
-        "hub2-to-spoke21", "hub2-to-spoke22", "hub2-to-spoke23", "hub2-to-spoke24", "hub2-to-spoke25",
-        "hub2-to-spoke26", "hub2-to-spoke27", "hub2-to-spoke28", "hub2-to-spoke29", "hub2-to-spoke30",
-        "hub2-to-spoke31"
+        "spoke21-vnet", "spoke22-vnet", "spoke23-vnet", "spoke24-vnet", "spoke25-vnet",
+        "spoke26-vnet", "spoke27-vnet", "spoke28-vnet", "spoke29-vnet", "spoke30-vnet",
+        "hub-vnet", "spoke2-vnet"
       ],
-      "peering_resource_ids": [],
+      "peering_resource_ids": [
+        "/subscriptions/s21s21s2-1s21-s21s-21s2-1s21s21s21s2/resourceGroups/spoke21-rg/providers/Microsoft.Network/virtualNetworks/spoke21-vnet",
+        "/subscriptions/s22s22s2-2s22-s22s-22s2-2s22s22s22s2/resourceGroups/spoke22-rg/providers/Microsoft.Network/virtualNetworks/spoke22-vnet",
+        "/subscriptions/s23s23s2-3s23-s23s-23s2-3s23s23s23s2/resourceGroups/spoke23-rg/providers/Microsoft.Network/virtualNetworks/spoke23-vnet",
+        "/subscriptions/s24s24s2-4s24-s24s-24s2-4s24s24s24s2/resourceGroups/spoke24-rg/providers/Microsoft.Network/virtualNetworks/spoke24-vnet",
+        "/subscriptions/s25s25s2-5s25-s25s-25s2-5s25s25s25s2/resourceGroups/spoke25-rg/providers/Microsoft.Network/virtualNetworks/spoke25-vnet",
+        "/subscriptions/s26s26s2-6s26-s26s-26s2-6s26s26s26s2/resourceGroups/spoke26-rg/providers/Microsoft.Network/virtualNetworks/spoke26-vnet",
+        "/subscriptions/s27s27s2-7s27-s27s-27s2-7s27s27s27s2/resourceGroups/spoke27-rg/providers/Microsoft.Network/virtualNetworks/spoke27-vnet",
+        "/subscriptions/s28s28s2-8s28-s28s-28s2-8s28s28s28s2/resourceGroups/spoke28-rg/providers/Microsoft.Network/virtualNetworks/spoke28-vnet",
+        "/subscriptions/s29s29s2-9s29-s29s-29s2-9s29s29s29s2/resourceGroups/spoke29-rg/providers/Microsoft.Network/virtualNetworks/spoke29-vnet",
+        "/subscriptions/s30s30s3-0s30-s30s-30s3-0s30s30s30s3/resourceGroups/spoke30-rg/providers/Microsoft.Network/virtualNetworks/spoke30-vnet",
+        "/subscriptions/12345678-1234-5678-9abc-123456789abc/resourceGroups/hub-rg/providers/Microsoft.Network/virtualNetworks/hub-vnet",
+        "/subscriptions/22222222-2222-2222-2222-222222222222/resourceGroups/spoke2-rg/providers/Microsoft.Network/virtualNetworks/spoke2-vnet"
+      ],
       "subscription_name": "Hub2-Subscription",
-      "expressroute": "Yes",
+      "expressroute": "No",
       "vpn_gateway": "Yes",
-      "firewall": "Yes",
-      "peerings_count": 11
+      "firewall": "No",
+      "peerings_count": 12
     },
     {
       "name": "spoke1-vnet",
-      "resource_id": "/subscriptions/87654321-4321-8765-cba9-987654321cba/resourceGroups/spoke1-rg/providers/Microsoft.Network/virtualNetworks/spoke1-vnet",
-      "subscription_id": "87654321-4321-8765-cba9-987654321cba",
+      "resource_id": "/subscriptions/11111111-1111-1111-1111-111111111111/resourceGroups/spoke1-rg/providers/Microsoft.Network/virtualNetworks/spoke1-vnet",
+      "subscription_id": "11111111-1111-1111-1111-111111111111",
       "resource_group": "spoke1-rg",
       "address_space": "10.1.0.0/16",
       "subnets": [
@@ -109,20 +134,21 @@
           "udr": "No"
         }
       ],
-      "peerings": ["hub-to-spoke1", "spoke1-vnet-to-spoke13-vnet"],
+      "peerings": ["hub-vnet", "spoke21-vnet"],
       "peering_resource_ids": [
-        "/subscriptions/d4d4d4d4-e5e5-f6f6-a7a7-b8b8b8b8b8b8/resourceGroups/spoke13-rg/providers/Microsoft.Network/virtualNetworks/spoke13-vnet"
+        "/subscriptions/12345678-1234-5678-9abc-123456789abc/resourceGroups/hub-rg/providers/Microsoft.Network/virtualNetworks/hub-vnet",
+        "/subscriptions/s21s21s2-1s21-s21s-21s2-1s21s21s21s2/resourceGroups/spoke21-rg/providers/Microsoft.Network/virtualNetworks/spoke21-vnet"
       ],
       "subscription_name": "Spoke1-Subscription",
-      "expressroute": "No",
+      "expressroute": "Yes",
       "vpn_gateway": "No",
       "firewall": "No",
-      "peerings_count": 1
+      "peerings_count": 2
     },
     {
       "name": "spoke2-vnet",
-      "resource_id": "/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/spoke2-rg/providers/Microsoft.Network/virtualNetworks/spoke2-vnet",
-      "subscription_id": "11111111-2222-3333-4444-555555555555",
+      "resource_id": "/subscriptions/22222222-2222-2222-2222-222222222222/resourceGroups/spoke2-rg/providers/Microsoft.Network/virtualNetworks/spoke2-vnet",
+      "subscription_id": "22222222-2222-2222-2222-222222222222",
       "resource_group": "spoke2-rg",
       "address_space": "10.2.0.0/16",
       "subnets": [
@@ -133,18 +159,21 @@
           "udr": "Yes"
         }
       ],
-      "peerings": ["hub-to-spoke2"],
-      "peering_resource_ids": [],
+      "peerings": ["hub-vnet", "hub2-vnet"],
+      "peering_resource_ids": [
+        "/subscriptions/12345678-1234-5678-9abc-123456789abc/resourceGroups/hub-rg/providers/Microsoft.Network/virtualNetworks/hub-vnet",
+        "/subscriptions/h2h2h2h2-h2h2-h2h2-h2h2-h2h2h2h2h2h2/resourceGroups/hub2-rg/providers/Microsoft.Network/virtualNetworks/hub2-vnet"
+      ],
       "subscription_name": "Spoke2-Subscription",
       "expressroute": "No",
-      "vpn_gateway": "No",
+      "vpn_gateway": "Yes",
       "firewall": "No",
-      "peerings_count": 1
+      "peerings_count": 2
     },
     {
       "name": "spoke3-vnet",
-      "resource_id": "/subscriptions/66666666-7777-8888-9999-aaaaaaaaaaaa/resourceGroups/spoke3-rg/providers/Microsoft.Network/virtualNetworks/spoke3-vnet",
-      "subscription_id": "66666666-7777-8888-9999-aaaaaaaaaaaa",
+      "resource_id": "/subscriptions/33333333-3333-3333-3333-333333333333/resourceGroups/spoke3-rg/providers/Microsoft.Network/virtualNetworks/spoke3-vnet",
+      "subscription_id": "33333333-3333-3333-3333-333333333333",
       "resource_group": "spoke3-rg",
       "address_space": "10.3.0.0/16",
       "subnets": [
@@ -161,18 +190,22 @@
           "udr": "Yes"
         }
       ],
-      "peerings": ["hub-to-spoke3"],
-      "peering_resource_ids": [],
+      "peerings": ["hub-vnet", "spoke4-vnet", "spoke5-vnet"],
+      "peering_resource_ids": [
+        "/subscriptions/12345678-1234-5678-9abc-123456789abc/resourceGroups/hub-rg/providers/Microsoft.Network/virtualNetworks/hub-vnet",
+        "/subscriptions/44444444-4444-4444-4444-444444444444/resourceGroups/spoke4-rg/providers/Microsoft.Network/virtualNetworks/spoke4-vnet",
+        "/subscriptions/55555555-5555-5555-5555-555555555555/resourceGroups/spoke5-rg/providers/Microsoft.Network/virtualNetworks/spoke5-vnet"
+      ],
       "subscription_name": "Spoke3-Subscription",
       "expressroute": "No",
       "vpn_gateway": "No",
-      "firewall": "No",
-      "peerings_count": 1
+      "firewall": "Yes",
+      "peerings_count": 3
     },
     {
       "name": "spoke4-vnet",
-      "resource_id": "/subscriptions/bbbbbbbb-cccc-dddd-eeee-ffffffffffff/resourceGroups/spoke4-rg/providers/Microsoft.Network/virtualNetworks/spoke4-vnet",
-      "subscription_id": "bbbbbbbb-cccc-dddd-eeee-ffffffffffff",
+      "resource_id": "/subscriptions/44444444-4444-4444-4444-444444444444/resourceGroups/spoke4-rg/providers/Microsoft.Network/virtualNetworks/spoke4-vnet",
+      "subscription_id": "44444444-4444-4444-4444-444444444444",
       "resource_group": "spoke4-rg",
       "address_space": "10.4.0.0/16",
       "subnets": [
@@ -183,18 +216,21 @@
           "udr": "Yes"
         }
       ],
-      "peerings": ["hub-to-spoke4"],
-      "peering_resource_ids": [],
+      "peerings": ["hub-vnet", "spoke3-vnet"],
+      "peering_resource_ids": [
+        "/subscriptions/12345678-1234-5678-9abc-123456789abc/resourceGroups/hub-rg/providers/Microsoft.Network/virtualNetworks/hub-vnet",
+        "/subscriptions/33333333-3333-3333-3333-333333333333/resourceGroups/spoke3-rg/providers/Microsoft.Network/virtualNetworks/spoke3-vnet"
+      ],
       "subscription_name": "Spoke4-Subscription",
-      "expressroute": "No",
-      "vpn_gateway": "No",
+      "expressroute": "Yes",
+      "vpn_gateway": "Yes",
       "firewall": "No",
-      "peerings_count": 1
+      "peerings_count": 2
     },
     {
       "name": "spoke5-vnet",
-      "resource_id": "/subscriptions/aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee/resourceGroups/spoke5-rg/providers/Microsoft.Network/virtualNetworks/spoke5-vnet",
-      "subscription_id": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+      "resource_id": "/subscriptions/55555555-5555-5555-5555-555555555555/resourceGroups/spoke5-rg/providers/Microsoft.Network/virtualNetworks/spoke5-vnet",
+      "subscription_id": "55555555-5555-5555-5555-555555555555",
       "resource_group": "spoke5-rg",
       "address_space": "10.5.0.0/16",
       "subnets": [
@@ -211,18 +247,21 @@
           "udr": "Yes"
         }
       ],
-      "peerings": ["hub-to-spoke5"],
-      "peering_resource_ids": [],
+      "peerings": ["hub-vnet", "spoke3-vnet"],
+      "peering_resource_ids": [
+        "/subscriptions/12345678-1234-5678-9abc-123456789abc/resourceGroups/hub-rg/providers/Microsoft.Network/virtualNetworks/hub-vnet",
+        "/subscriptions/33333333-3333-3333-3333-333333333333/resourceGroups/spoke3-rg/providers/Microsoft.Network/virtualNetworks/spoke3-vnet"
+      ],
       "subscription_name": "Spoke5-Subscription",
-      "expressroute": "No",
+      "expressroute": "Yes",
       "vpn_gateway": "No",
-      "firewall": "No",
-      "peerings_count": 1
+      "firewall": "Yes",
+      "peerings_count": 2
     },
     {
       "name": "spoke6-vnet",
-      "resource_id": "/subscriptions/dddddddd-eeee-ffff-aaaa-bbbbbbbbbbbb/resourceGroups/spoke6-rg/providers/Microsoft.Network/virtualNetworks/spoke6-vnet",
-      "subscription_id": "dddddddd-eeee-ffff-aaaa-bbbbbbbbbbbb",
+      "resource_id": "/subscriptions/66666666-6666-6666-6666-666666666666/resourceGroups/spoke6-rg/providers/Microsoft.Network/virtualNetworks/spoke6-vnet",
+      "subscription_id": "66666666-6666-6666-6666-666666666666",
       "resource_group": "spoke6-rg",
       "address_space": "10.6.0.0/16",
       "subnets": [
@@ -233,20 +272,21 @@
           "udr": "Yes"
         }
       ],
-      "peerings": ["hub-to-spoke6", "spoke6-vnet-to-spoke17-vnet"],
+      "peerings": ["hub-vnet", "spoke7-vnet"],
       "peering_resource_ids": [
-        "/subscriptions/b8b8b8b8-c9c9-dada-ebeb-fefefefefefe/resourceGroups/spoke17-rg/providers/Microsoft.Network/virtualNetworks/spoke17-vnet"
+        "/subscriptions/12345678-1234-5678-9abc-123456789abc/resourceGroups/hub-rg/providers/Microsoft.Network/virtualNetworks/hub-vnet",
+        "/subscriptions/77777777-7777-7777-7777-777777777777/resourceGroups/spoke7-rg/providers/Microsoft.Network/virtualNetworks/spoke7-vnet"
       ],
       "subscription_name": "Spoke6-Subscription",
       "expressroute": "No",
       "vpn_gateway": "Yes",
-      "firewall": "No",
-      "peerings_count": 1
+      "firewall": "Yes",
+      "peerings_count": 2
     },
     {
       "name": "spoke7-vnet",
-      "resource_id": "/subscriptions/cccccccc-dddd-eeee-ffff-aaaaaaaaaaaa/resourceGroups/spoke7-rg/providers/Microsoft.Network/virtualNetworks/spoke7-vnet",
-      "subscription_id": "cccccccc-dddd-eeee-ffff-aaaaaaaaaaaa",
+      "resource_id": "/subscriptions/77777777-7777-7777-7777-777777777777/resourceGroups/spoke7-rg/providers/Microsoft.Network/virtualNetworks/spoke7-vnet",
+      "subscription_id": "77777777-7777-7777-7777-777777777777",
       "resource_group": "spoke7-rg",
       "address_space": "10.7.0.0/16",
       "subnets": [
@@ -263,18 +303,21 @@
           "udr": "Yes"
         }
       ],
-      "peerings": ["hub-to-spoke7"],
-      "peering_resource_ids": [],
+      "peerings": ["hub-vnet", "spoke6-vnet"],
+      "peering_resource_ids": [
+        "/subscriptions/12345678-1234-5678-9abc-123456789abc/resourceGroups/hub-rg/providers/Microsoft.Network/virtualNetworks/hub-vnet",
+        "/subscriptions/66666666-6666-6666-6666-666666666666/resourceGroups/spoke6-rg/providers/Microsoft.Network/virtualNetworks/spoke6-vnet"
+      ],
       "subscription_name": "Spoke7-Subscription",
       "expressroute": "No",
       "vpn_gateway": "No",
       "firewall": "No",
-      "peerings_count": 1
+      "peerings_count": 2
     },
     {
       "name": "spoke8-vnet",
-      "resource_id": "/subscriptions/eeeeeeee-ffff-aaaa-bbbb-cccccccccccc/resourceGroups/spoke8-rg/providers/Microsoft.Network/virtualNetworks/spoke8-vnet",
-      "subscription_id": "eeeeeeee-ffff-aaaa-bbbb-cccccccccccc",
+      "resource_id": "/subscriptions/88888888-8888-8888-8888-888888888888/resourceGroups/spoke8-rg/providers/Microsoft.Network/virtualNetworks/spoke8-vnet",
+      "subscription_id": "88888888-8888-8888-8888-888888888888",
       "resource_group": "spoke8-rg",
       "address_space": "10.8.0.0/16",
       "subnets": [
@@ -285,18 +328,20 @@
           "udr": "Yes"
         }
       ],
-      "peerings": ["hub-to-spoke8"],
-      "peering_resource_ids": [],
+      "peerings": ["hub-vnet"],
+      "peering_resource_ids": [
+        "/subscriptions/12345678-1234-5678-9abc-123456789abc/resourceGroups/hub-rg/providers/Microsoft.Network/virtualNetworks/hub-vnet"
+      ],
       "subscription_name": "Spoke8-Subscription",
-      "expressroute": "No",
+      "expressroute": "Yes",
       "vpn_gateway": "No",
       "firewall": "No",
       "peerings_count": 1
     },
     {
       "name": "spoke9-vnet",
-      "resource_id": "/subscriptions/ffffffff-aaaa-bbbb-cccc-dddddddddddd/resourceGroups/spoke9-rg/providers/Microsoft.Network/virtualNetworks/spoke9-vnet",
-      "subscription_id": "ffffffff-aaaa-bbbb-cccc-dddddddddddd",
+      "resource_id": "/subscriptions/99999999-9999-9999-9999-999999999999/resourceGroups/spoke9-rg/providers/Microsoft.Network/virtualNetworks/spoke9-vnet",
+      "subscription_id": "99999999-9999-9999-9999-999999999999",
       "resource_group": "spoke9-rg",
       "address_space": "10.9.0.0/16",
       "subnets": [
@@ -307,21 +352,20 @@
           "udr": "No"
         }
       ],
-      "peerings": ["hub-to-spoke9", "spoke9-vnet-to-spoke18-vnet", "spoke9-vnet-to-spoke20-vnet"],
+      "peerings": ["hub-vnet"],
       "peering_resource_ids": [
-        "/subscriptions/c9c9c9c9-dada-ebeb-fefe-a1a2a1a2a1a2/resourceGroups/spoke18-rg/providers/Microsoft.Network/virtualNetworks/spoke18-vnet",
-        "/subscriptions/ebebebeb-fefe-a1a2-b3b4-c5c6c5c6c5c6/resourceGroups/spoke20-rg/providers/Microsoft.Network/virtualNetworks/spoke20-vnet"
+        "/subscriptions/12345678-1234-5678-9abc-123456789abc/resourceGroups/hub-rg/providers/Microsoft.Network/virtualNetworks/hub-vnet"
       ],
       "subscription_name": "Spoke9-Subscription",
       "expressroute": "No",
-      "vpn_gateway": "No",
+      "vpn_gateway": "Yes",
       "firewall": "No",
       "peerings_count": 1
     },
     {
       "name": "spoke10-vnet",
-      "resource_id": "/subscriptions/a1a1a1a1-b2b2-c3c3-d4d4-e5e5e5e5e5e5/resourceGroups/spoke10-rg/providers/Microsoft.Network/virtualNetworks/spoke10-vnet",
-      "subscription_id": "a1a1a1a1-b2b2-c3c3-d4d4-e5e5e5e5e5e5",
+      "resource_id": "/subscriptions/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa/resourceGroups/spoke10-rg/providers/Microsoft.Network/virtualNetworks/spoke10-vnet",
+      "subscription_id": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
       "resource_group": "spoke10-rg",
       "address_space": "10.10.0.0/16",
       "subnets": [
@@ -338,256 +382,20 @@
           "udr": "No"
         }
       ],
-      "peerings": ["hub-to-spoke10"],
-      "peering_resource_ids": [],
+      "peerings": ["hub-vnet"],
+      "peering_resource_ids": [
+        "/subscriptions/12345678-1234-5678-9abc-123456789abc/resourceGroups/hub-rg/providers/Microsoft.Network/virtualNetworks/hub-vnet"
+      ],
       "subscription_name": "Spoke10-Subscription",
-      "expressroute": "No",
-      "vpn_gateway": "No",
-      "firewall": "No",
-      "peerings_count": 1
-    },
-    {
-      "name": "spoke11-vnet",
-      "resource_id": "/subscriptions/b2b2b2b2-c3c3-d4d4-e5e5-f6f6f6f6f6f6/resourceGroups/spoke11-rg/providers/Microsoft.Network/virtualNetworks/spoke11-vnet",
-      "subscription_id": "b2b2b2b2-c3c3-d4d4-e5e5-f6f6f6f6f6f6",
-      "resource_group": "spoke11-rg",
-      "address_space": "10.11.0.0/16",
-      "subnets": [
-        {
-          "name": "backup",
-          "address": "10.11.1.0/24",
-          "nsg": "Yes",
-          "udr": "Yes"
-        }
-      ],
-      "peerings": ["hub-to-spoke11"],
-      "peering_resource_ids": [],
-      "subscription_name": "Spoke11-Subscription",
-      "expressroute": "No",
-      "vpn_gateway": "No",
-      "firewall": "No",
-      "peerings_count": 1
-    },
-    {
-      "name": "spoke12-vnet",
-      "resource_id": "/subscriptions/c3c3c3c3-d4d4-e5e5-f6f6-a7a7a7a7a7a7/resourceGroups/spoke12-rg/providers/Microsoft.Network/virtualNetworks/spoke12-vnet",
-      "subscription_id": "c3c3c3c3-d4d4-e5e5-f6f6-a7a7a7a7a7a7",
-      "resource_group": "spoke12-rg",
-      "address_space": "10.12.0.0/16",
-      "subnets": [
-        {
-          "name": "security",
-          "address": "10.12.1.0/24",
-          "nsg": "Yes",
-          "udr": "Yes"
-        }
-      ],
-      "peerings": ["hub-to-spoke12"],
-      "peering_resource_ids": [],
-      "subscription_name": "Spoke12-Subscription",
       "expressroute": "No",
       "vpn_gateway": "No",
       "firewall": "Yes",
       "peerings_count": 1
     },
     {
-      "name": "spoke13-vnet",
-      "resource_id": "/subscriptions/d4d4d4d4-e5e5-f6f6-a7a7-b8b8b8b8b8b8/resourceGroups/spoke13-rg/providers/Microsoft.Network/virtualNetworks/spoke13-vnet",
-      "subscription_id": "d4d4d4d4-e5e5-f6f6-a7a7-b8b8b8b8b8b8",
-      "resource_group": "spoke13-rg",
-      "address_space": "10.13.0.0/16",
-      "subnets": [
-        {
-          "name": "devops",
-          "address": "10.13.1.0/24",
-          "nsg": "Yes",
-          "udr": "No"
-        },
-        {
-          "name": "ci-cd",
-          "address": "10.13.2.0/24",
-          "nsg": "No",
-          "udr": "Yes"
-        }
-      ],
-      "peerings": ["hub-to-spoke13"],
-      "peering_resource_ids": [],
-      "subscription_name": "Spoke13-Subscription",
-      "expressroute": "No",
-      "vpn_gateway": "No",
-      "firewall": "No",
-      "peerings_count": 1
-    },
-    {
-      "name": "spoke14-vnet",
-      "resource_id": "/subscriptions/e5e5e5e5-f6f6-a7a7-b8b8-c9c9c9c9c9c9/resourceGroups/spoke14-rg/providers/Microsoft.Network/virtualNetworks/spoke14-vnet",
-      "subscription_id": "e5e5e5e5-f6f6-a7a7-b8b8-c9c9c9c9c9c9",
-      "resource_group": "spoke14-rg",
-      "address_space": "10.14.0.0/16",
-      "subnets": [
-        {
-          "name": "testing",
-          "address": "10.14.1.0/24",
-          "nsg": "Yes",
-          "udr": "Yes"
-        }
-      ],
-      "peerings": ["hub-to-spoke14"],
-      "peering_resource_ids": [],
-      "subscription_name": "Spoke14-Subscription",
-      "expressroute": "No",
-      "vpn_gateway": "No",
-      "firewall": "No",
-      "peerings_count": 1
-    },
-    {
-      "name": "spoke15-vnet",
-      "resource_id": "/subscriptions/f6f6f6f6-a7a7-b8b8-c9c9-dadadadadada/resourceGroups/spoke15-rg/providers/Microsoft.Network/virtualNetworks/spoke15-vnet",
-      "subscription_id": "f6f6f6f6-a7a7-b8b8-c9c9-dadadadadada",
-      "resource_group": "spoke15-rg",
-      "address_space": "10.15.0.0/16",
-      "subnets": [
-        {
-          "name": "staging",
-          "address": "10.15.1.0/24",
-          "nsg": "Yes",
-          "udr": "No"
-        }
-      ],
-      "peerings": ["hub-to-spoke15"],
-      "peering_resource_ids": [],
-      "subscription_name": "Spoke15-Subscription",
-      "expressroute": "No",
-      "vpn_gateway": "No",
-      "firewall": "No",
-      "peerings_count": 1
-    },
-    {
-      "name": "spoke16-vnet",
-      "resource_id": "/subscriptions/a7a7a7a7-b8b8-c9c9-dada-ebebebebebebeb/resourceGroups/spoke16-rg/providers/Microsoft.Network/virtualNetworks/spoke16-vnet",
-      "subscription_id": "a7a7a7a7-b8b8-c9c9-dada-ebebebebebebeb",
-      "resource_group": "spoke16-rg",
-      "address_space": "10.16.0.0/16",
-      "subnets": [
-        {
-          "name": "production",
-          "address": "10.16.1.0/24",
-          "nsg": "Yes",
-          "udr": "Yes"
-        },
-        {
-          "name": "maintenance",
-          "address": "10.16.2.0/24",
-          "nsg": "No",
-          "udr": "Yes"
-        }
-      ],
-      "peerings": ["hub-to-spoke16"],
-      "peering_resource_ids": [],
-      "subscription_name": "Spoke16-Subscription",
-      "expressroute": "No",
-      "vpn_gateway": "No",
-      "firewall": "No",
-      "peerings_count": 1
-    },
-    {
-      "name": "spoke17-vnet",
-      "resource_id": "/subscriptions/b8b8b8b8-c9c9-dada-ebeb-fefefefefefe/resourceGroups/spoke17-rg/providers/Microsoft.Network/virtualNetworks/spoke17-vnet",
-      "subscription_id": "b8b8b8b8-c9c9-dada-ebeb-fefefefefefe",
-      "resource_group": "spoke17-rg",
-      "address_space": "10.17.0.0/16",
-      "subnets": [
-        {
-          "name": "ml-training",
-          "address": "10.17.1.0/24",
-          "nsg": "Yes",
-          "udr": "Yes"
-        }
-      ],
-      "peerings": ["hub-to-spoke17"],
-      "peering_resource_ids": [],
-      "subscription_name": "Spoke17-Subscription",
-      "expressroute": "No",
-      "vpn_gateway": "No",
-      "firewall": "No",
-      "peerings_count": 1
-    },
-    {
-      "name": "spoke18-vnet",
-      "resource_id": "/subscriptions/c9c9c9c9-dada-ebeb-fefe-a1a2a1a2a1a2/resourceGroups/spoke18-rg/providers/Microsoft.Network/virtualNetworks/spoke18-vnet",
-      "subscription_id": "c9c9c9c9-dada-ebeb-fefe-a1a2a1a2a1a2",
-      "resource_group": "spoke18-rg",
-      "address_space": "10.18.0.0/16",
-      "subnets": [
-        {
-          "name": "data-lake",
-          "address": "10.18.1.0/24",
-          "nsg": "No",
-          "udr": "Yes"
-        }
-      ],
-      "peerings": ["hub-to-spoke18"],
-      "peering_resource_ids": [],
-      "subscription_name": "Spoke18-Subscription",
-      "expressroute": "No",
-      "vpn_gateway": "No",
-      "firewall": "No",
-      "peerings_count": 1
-    },
-    {
-      "name": "spoke19-vnet",
-      "resource_id": "/subscriptions/dadadada-ebeb-fefe-a1a2-b3b4b3b4b3b4/resourceGroups/spoke19-rg/providers/Microsoft.Network/virtualNetworks/spoke19-vnet",
-      "subscription_id": "dadadada-ebeb-fefe-a1a2-b3b4b3b4b3b4",
-      "resource_group": "spoke19-rg",
-      "address_space": "10.19.0.0/16",
-      "subnets": [
-        {
-          "name": "iot-hub",
-          "address": "10.19.1.0/24",
-          "nsg": "Yes",
-          "udr": "No"
-        },
-        {
-          "name": "iot-devices",
-          "address": "10.19.2.0/24",
-          "nsg": "Yes",
-          "udr": "Yes"
-        }
-      ],
-      "peerings": ["hub-to-spoke19"],
-      "peering_resource_ids": [],
-      "subscription_name": "Spoke19-Subscription",
-      "expressroute": "No",
-      "vpn_gateway": "No",
-      "firewall": "No",
-      "peerings_count": 1
-    },
-    {
-      "name": "spoke20-vnet",
-      "resource_id": "/subscriptions/ebebebeb-fefe-a1a2-b3b4-c5c6c5c6c5c6/resourceGroups/spoke20-rg/providers/Microsoft.Network/virtualNetworks/spoke20-vnet",
-      "subscription_id": "ebebebeb-fefe-a1a2-b3b4-c5c6c5c6c5c6",
-      "resource_group": "spoke20-rg",
-      "address_space": "10.20.0.0/16",
-      "subnets": [
-        {
-          "name": "edge-computing",
-          "address": "10.20.1.0/24",
-          "nsg": "Yes",
-          "udr": "Yes"
-        }
-      ],
-      "peerings": ["hub-to-spoke20"],
-      "peering_resource_ids": [],
-      "subscription_name": "Spoke20-Subscription",
-      "expressroute": "No",
-      "vpn_gateway": "No",
-      "firewall": "No",
-      "peerings_count": 1
-    },
-    {
       "name": "spoke21-vnet",
-      "resource_id": "/subscriptions/f2f2f2f2-a3a3-b4b4-c5c5-d6d6d6d6d6d6/resourceGroups/spoke21-rg/providers/Microsoft.Network/virtualNetworks/spoke21-vnet",
-      "subscription_id": "f2f2f2f2-a3a3-b4b4-c5c5-d6d6d6d6d6d6",
+      "resource_id": "/subscriptions/s21s21s2-1s21-s21s-21s2-1s21s21s21s2/resourceGroups/spoke21-rg/providers/Microsoft.Network/virtualNetworks/spoke21-vnet",
+      "subscription_id": "s21s21s2-1s21-s21s-21s2-1s21s21s21s2",
       "resource_group": "spoke21-rg",
       "address_space": "10.21.0.0/16",
       "subnets": [
@@ -604,20 +412,21 @@
           "udr": "No"
         }
       ],
-      "peerings": ["hub2-to-spoke21", "spoke21-vnet-to-spoke28-vnet"],
+      "peerings": ["hub2-vnet", "spoke1-vnet"],
       "peering_resource_ids": [
-        "/subscriptions/a9a9a9a9-baba-cbcb-dcdc-edededededed/resourceGroups/spoke28-rg/providers/Microsoft.Network/virtualNetworks/spoke28-vnet"
+        "/subscriptions/h2h2h2h2-h2h2-h2h2-h2h2-h2h2h2h2h2h2/resourceGroups/hub2-rg/providers/Microsoft.Network/virtualNetworks/hub2-vnet",
+        "/subscriptions/11111111-1111-1111-1111-111111111111/resourceGroups/spoke1-rg/providers/Microsoft.Network/virtualNetworks/spoke1-vnet"
       ],
       "subscription_name": "Spoke21-Subscription",
-      "expressroute": "No",
-      "vpn_gateway": "No",
-      "firewall": "No",
-      "peerings_count": 1
+      "expressroute": "Yes",
+      "vpn_gateway": "Yes",
+      "firewall": "Yes",
+      "peerings_count": 2
     },
     {
       "name": "spoke22-vnet",
-      "resource_id": "/subscriptions/a3a3a3a3-b4b4-c5c5-d6d6-e7e7e7e7e7e7/resourceGroups/spoke22-rg/providers/Microsoft.Network/virtualNetworks/spoke22-vnet",
-      "subscription_id": "a3a3a3a3-b4b4-c5c5-d6d6-e7e7e7e7e7e7",
+      "resource_id": "/subscriptions/s22s22s2-2s22-s22s-22s2-2s22s22s22s2/resourceGroups/spoke22-rg/providers/Microsoft.Network/virtualNetworks/spoke22-vnet",
+      "subscription_id": "s22s22s2-2s22-s22s-22s2-2s22s22s22s2",
       "resource_group": "spoke22-rg",
       "address_space": "10.22.0.0/16",
       "subnets": [
@@ -628,20 +437,21 @@
           "udr": "Yes"
         }
       ],
-      "peerings": ["hub2-to-spoke22", "spoke22-vnet-to-spoke30-vnet"],
+      "peerings": ["hub2-vnet", "hub-vnet"],
       "peering_resource_ids": [
-        "/subscriptions/cbcbcbcb-dcdc-eded-fefe-a1b2a1b2a1b2/resourceGroups/spoke30-rg/providers/Microsoft.Network/virtualNetworks/spoke30-vnet"
+        "/subscriptions/h2h2h2h2-h2h2-h2h2-h2h2-h2h2h2h2h2h2/resourceGroups/hub2-rg/providers/Microsoft.Network/virtualNetworks/hub2-vnet",
+        "/subscriptions/12345678-1234-5678-9abc-123456789abc/resourceGroups/hub-rg/providers/Microsoft.Network/virtualNetworks/hub-vnet"
       ],
       "subscription_name": "Spoke22-Subscription",
       "expressroute": "No",
       "vpn_gateway": "No",
       "firewall": "No",
-      "peerings_count": 1
+      "peerings_count": 2
     },
     {
       "name": "spoke23-vnet",
-      "resource_id": "/subscriptions/b4b4b4b4-c5c5-d6d6-e7e7-f8f8f8f8f8f8/resourceGroups/spoke23-rg/providers/Microsoft.Network/virtualNetworks/spoke23-vnet",
-      "subscription_id": "b4b4b4b4-c5c5-d6d6-e7e7-f8f8f8f8f8f8",
+      "resource_id": "/subscriptions/s23s23s2-3s23-s23s-23s2-3s23s23s23s2/resourceGroups/spoke23-rg/providers/Microsoft.Network/virtualNetworks/spoke23-vnet",
+      "subscription_id": "s23s23s2-3s23-s23s-23s2-3s23s23s23s2",
       "resource_group": "spoke23-rg",
       "address_space": "10.23.0.0/16",
       "subnets": [
@@ -658,18 +468,22 @@
           "udr": "Yes"
         }
       ],
-      "peerings": ["hub2-to-spoke23"],
-      "peering_resource_ids": [],
+      "peerings": ["hub2-vnet", "spoke24-vnet", "spoke25-vnet"],
+      "peering_resource_ids": [
+        "/subscriptions/h2h2h2h2-h2h2-h2h2-h2h2-h2h2h2h2h2h2/resourceGroups/hub2-rg/providers/Microsoft.Network/virtualNetworks/hub2-vnet",
+        "/subscriptions/s24s24s2-4s24-s24s-24s2-4s24s24s24s2/resourceGroups/spoke24-rg/providers/Microsoft.Network/virtualNetworks/spoke24-vnet",
+        "/subscriptions/s25s25s2-5s25-s25s-25s2-5s25s25s25s2/resourceGroups/spoke25-rg/providers/Microsoft.Network/virtualNetworks/spoke25-vnet"
+      ],
       "subscription_name": "Spoke23-Subscription",
       "expressroute": "No",
       "vpn_gateway": "No",
       "firewall": "No",
-      "peerings_count": 1
+      "peerings_count": 3
     },
     {
       "name": "spoke24-vnet",
-      "resource_id": "/subscriptions/c5c5c5c5-d6d6-e7e7-f8f8-a9a9a9a9a9a9/resourceGroups/spoke24-rg/providers/Microsoft.Network/virtualNetworks/spoke24-vnet",
-      "subscription_id": "c5c5c5c5-d6d6-e7e7-f8f8-a9a9a9a9a9a9",
+      "resource_id": "/subscriptions/s24s24s2-4s24-s24s-24s2-4s24s24s24s2/resourceGroups/spoke24-rg/providers/Microsoft.Network/virtualNetworks/spoke24-vnet",
+      "subscription_id": "s24s24s2-4s24-s24s-24s2-4s24s24s24s2",
       "resource_group": "spoke24-rg",
       "address_space": "10.24.0.0/16",
       "subnets": [
@@ -680,18 +494,21 @@
           "udr": "Yes"
         }
       ],
-      "peerings": ["hub2-to-spoke24"],
-      "peering_resource_ids": [],
+      "peerings": ["hub2-vnet", "spoke23-vnet"],
+      "peering_resource_ids": [
+        "/subscriptions/h2h2h2h2-h2h2-h2h2-h2h2-h2h2h2h2h2h2/resourceGroups/hub2-rg/providers/Microsoft.Network/virtualNetworks/hub2-vnet",
+        "/subscriptions/s23s23s2-3s23-s23s-23s2-3s23s23s23s2/resourceGroups/spoke23-rg/providers/Microsoft.Network/virtualNetworks/spoke23-vnet"
+      ],
       "subscription_name": "Spoke24-Subscription",
       "expressroute": "No",
-      "vpn_gateway": "No",
+      "vpn_gateway": "Yes",
       "firewall": "No",
-      "peerings_count": 1
+      "peerings_count": 2
     },
     {
       "name": "spoke25-vnet",
-      "resource_id": "/subscriptions/d6d6d6d6-e7e7-f8f8-a9a9-babababababa/resourceGroups/spoke25-rg/providers/Microsoft.Network/virtualNetworks/spoke25-vnet",
-      "subscription_id": "d6d6d6d6-e7e7-f8f8-a9a9-babababababa",
+      "resource_id": "/subscriptions/s25s25s2-5s25-s25s-25s2-5s25s25s25s2/resourceGroups/spoke25-rg/providers/Microsoft.Network/virtualNetworks/spoke25-vnet",
+      "subscription_id": "s25s25s2-5s25-s25s-25s2-5s25s25s25s2",
       "resource_group": "spoke25-rg",
       "address_space": "10.25.0.0/16",
       "subnets": [
@@ -708,18 +525,21 @@
           "udr": "Yes"
         }
       ],
-      "peerings": ["hub2-to-spoke25"],
-      "peering_resource_ids": [],
+      "peerings": ["hub2-vnet", "spoke23-vnet"],
+      "peering_resource_ids": [
+        "/subscriptions/h2h2h2h2-h2h2-h2h2-h2h2-h2h2h2h2h2h2/resourceGroups/hub2-rg/providers/Microsoft.Network/virtualNetworks/hub2-vnet",
+        "/subscriptions/s23s23s2-3s23-s23s-23s2-3s23s23s23s2/resourceGroups/spoke23-rg/providers/Microsoft.Network/virtualNetworks/spoke23-vnet"
+      ],
       "subscription_name": "Spoke25-Subscription",
       "expressroute": "No",
       "vpn_gateway": "No",
-      "firewall": "No",
-      "peerings_count": 1
+      "firewall": "Yes",
+      "peerings_count": 2
     },
     {
       "name": "spoke26-vnet",
-      "resource_id": "/subscriptions/e7e7e7e7-f8f8-a9a9-baba-cbcbcbcbcbcb/resourceGroups/spoke26-rg/providers/Microsoft.Network/virtualNetworks/spoke26-vnet",
-      "subscription_id": "e7e7e7e7-f8f8-a9a9-baba-cbcbcbcbcbcb",
+      "resource_id": "/subscriptions/s26s26s2-6s26-s26s-26s2-6s26s26s26s2/resourceGroups/spoke26-rg/providers/Microsoft.Network/virtualNetworks/spoke26-vnet",
+      "subscription_id": "s26s26s2-6s26-s26s-26s2-6s26s26s26s2",
       "resource_group": "spoke26-rg",
       "address_space": "10.26.0.0/16",
       "subnets": [
@@ -730,21 +550,21 @@
           "udr": "Yes"
         }
       ],
-      "peerings": ["hub2-to-spoke26", "spoke26-vnet-to-spoke27-vnet", "spoke26-vnet-to-spoke31-vnet"],
+      "peerings": ["hub2-vnet", "spoke27-vnet"],
       "peering_resource_ids": [
-        "/subscriptions/f8f8f8f8-a9a9-baba-cbcb-dcdcdcdcdcdc/resourceGroups/spoke27-rg/providers/Microsoft.Network/virtualNetworks/spoke27-vnet",
-        "/subscriptions/dcdcdcdc-eded-fefe-a1b2-c3d4c3d4c3d4/resourceGroups/spoke31-rg/providers/Microsoft.Network/virtualNetworks/spoke31-vnet"
+        "/subscriptions/h2h2h2h2-h2h2-h2h2-h2h2-h2h2h2h2h2h2/resourceGroups/hub2-rg/providers/Microsoft.Network/virtualNetworks/hub2-vnet",
+        "/subscriptions/s27s27s2-7s27-s27s-27s2-7s27s27s27s2/resourceGroups/spoke27-rg/providers/Microsoft.Network/virtualNetworks/spoke27-vnet"
       ],
       "subscription_name": "Spoke26-Subscription",
-      "expressroute": "No",
-      "vpn_gateway": "Yes",
+      "expressroute": "Yes",
+      "vpn_gateway": "No",
       "firewall": "No",
-      "peerings_count": 1
+      "peerings_count": 2
     },
     {
       "name": "spoke27-vnet",
-      "resource_id": "/subscriptions/f8f8f8f8-a9a9-baba-cbcb-dcdcdcdcdcdc/resourceGroups/spoke27-rg/providers/Microsoft.Network/virtualNetworks/spoke27-vnet",
-      "subscription_id": "f8f8f8f8-a9a9-baba-cbcb-dcdcdcdcdcdc",
+      "resource_id": "/subscriptions/s27s27s2-7s27-s27s-27s2-7s27s27s27s2/resourceGroups/spoke27-rg/providers/Microsoft.Network/virtualNetworks/spoke27-vnet",
+      "subscription_id": "s27s27s2-7s27-s27s-27s2-7s27s27s27s2",
       "resource_group": "spoke27-rg",
       "address_space": "10.27.0.0/16",
       "subnets": [
@@ -761,18 +581,21 @@
           "udr": "Yes"
         }
       ],
-      "peerings": ["hub2-to-spoke27"],
-      "peering_resource_ids": [],
+      "peerings": ["hub2-vnet", "spoke26-vnet"],
+      "peering_resource_ids": [
+        "/subscriptions/h2h2h2h2-h2h2-h2h2-h2h2-h2h2h2h2h2h2/resourceGroups/hub2-rg/providers/Microsoft.Network/virtualNetworks/hub2-vnet",
+        "/subscriptions/s26s26s2-6s26-s26s-26s2-6s26s26s26s2/resourceGroups/spoke26-rg/providers/Microsoft.Network/virtualNetworks/spoke26-vnet"
+      ],
       "subscription_name": "Spoke27-Subscription",
       "expressroute": "No",
-      "vpn_gateway": "No",
-      "firewall": "No",
-      "peerings_count": 1
+      "vpn_gateway": "Yes",
+      "firewall": "Yes",
+      "peerings_count": 2
     },
     {
       "name": "spoke28-vnet",
-      "resource_id": "/subscriptions/a9a9a9a9-baba-cbcb-dcdc-edededededed/resourceGroups/spoke28-rg/providers/Microsoft.Network/virtualNetworks/spoke28-vnet",
-      "subscription_id": "a9a9a9a9-baba-cbcb-dcdc-edededededed",
+      "resource_id": "/subscriptions/s28s28s2-8s28-s28s-28s2-8s28s28s28s2/resourceGroups/spoke28-rg/providers/Microsoft.Network/virtualNetworks/spoke28-vnet",
+      "subscription_id": "s28s28s2-8s28-s28s-28s2-8s28s28s28s2",
       "resource_group": "spoke28-rg",
       "address_space": "10.28.0.0/16",
       "subnets": [
@@ -783,18 +606,20 @@
           "udr": "Yes"
         }
       ],
-      "peerings": ["hub2-to-spoke28"],
-      "peering_resource_ids": [],
+      "peerings": ["hub2-vnet"],
+      "peering_resource_ids": [
+        "/subscriptions/h2h2h2h2-h2h2-h2h2-h2h2-h2h2h2h2h2h2/resourceGroups/hub2-rg/providers/Microsoft.Network/virtualNetworks/hub2-vnet"
+      ],
       "subscription_name": "Spoke28-Subscription",
-      "expressroute": "No",
-      "vpn_gateway": "No",
+      "expressroute": "Yes",
+      "vpn_gateway": "Yes",
       "firewall": "No",
       "peerings_count": 1
     },
     {
       "name": "spoke29-vnet",
-      "resource_id": "/subscriptions/babababa-cbcb-dcdc-eded-fefefefefefe/resourceGroups/spoke29-rg/providers/Microsoft.Network/virtualNetworks/spoke29-vnet",
-      "subscription_id": "babababa-cbcb-dcdc-eded-fefefefefefe",
+      "resource_id": "/subscriptions/s29s29s2-9s29-s29s-29s2-9s29s29s29s2/resourceGroups/spoke29-rg/providers/Microsoft.Network/virtualNetworks/spoke29-vnet",
+      "subscription_id": "s29s29s2-9s29-s29s-29s2-9s29s29s29s2",
       "resource_group": "spoke29-rg",
       "address_space": "10.29.0.0/16",
       "subnets": [
@@ -805,8 +630,10 @@
           "udr": "No"
         }
       ],
-      "peerings": ["hub2-to-spoke29"],
-      "peering_resource_ids": [],
+      "peerings": ["hub2-vnet"],
+      "peering_resource_ids": [
+        "/subscriptions/h2h2h2h2-h2h2-h2h2-h2h2-h2h2h2h2h2h2/resourceGroups/hub2-rg/providers/Microsoft.Network/virtualNetworks/hub2-vnet"
+      ],
       "subscription_name": "Spoke29-Subscription",
       "expressroute": "No",
       "vpn_gateway": "No",
@@ -815,8 +642,8 @@
     },
     {
       "name": "spoke30-vnet",
-      "resource_id": "/subscriptions/cbcbcbcb-dcdc-eded-fefe-a1b2a1b2a1b2/resourceGroups/spoke30-rg/providers/Microsoft.Network/virtualNetworks/spoke30-vnet",
-      "subscription_id": "cbcbcbcb-dcdc-eded-fefe-a1b2a1b2a1b2",
+      "resource_id": "/subscriptions/s30s30s3-0s30-s30s-30s3-0s30s30s30s3/resourceGroups/spoke30-rg/providers/Microsoft.Network/virtualNetworks/spoke30-vnet",
+      "subscription_id": "s30s30s3-0s30-s30s-30s3-0s30s30s30s3",
       "resource_group": "spoke30-rg",
       "address_space": "10.30.0.0/16",
       "subnets": [
@@ -833,8 +660,10 @@
           "udr": "No"
         }
       ],
-      "peerings": ["hub2-to-spoke30"],
-      "peering_resource_ids": [],
+      "peerings": ["hub2-vnet"],
+      "peering_resource_ids": [
+        "/subscriptions/h2h2h2h2-h2h2-h2h2-h2h2-h2h2h2h2h2h2/resourceGroups/hub2-rg/providers/Microsoft.Network/virtualNetworks/hub2-vnet"
+      ],
       "subscription_name": "Spoke30-Subscription",
       "expressroute": "No",
       "vpn_gateway": "No",
@@ -842,31 +671,9 @@
       "peerings_count": 1
     },
     {
-      "name": "spoke31-vnet",
-      "resource_id": "/subscriptions/dcdcdcdc-eded-fefe-a1b2-c3d4c3d4c3d4/resourceGroups/spoke31-rg/providers/Microsoft.Network/virtualNetworks/spoke31-vnet",
-      "subscription_id": "dcdcdcdc-eded-fefe-a1b2-c3d4c3d4c3d4",
-      "resource_group": "spoke31-rg",
-      "address_space": "10.31.0.0/16",
-      "subnets": [
-        {
-          "name": "streaming-media",
-          "address": "10.31.1.0/24",
-          "nsg": "Yes",
-          "udr": "Yes"
-        }
-      ],
-      "peerings": ["hub2-to-spoke31"],
-      "peering_resource_ids": [],
-      "subscription_name": "Spoke31-Subscription",
-      "expressroute": "No",
-      "vpn_gateway": "No",
-      "firewall": "Yes",
-      "peerings_count": 1
-    },
-    {
       "name": "unpeered1-vnet",
-      "resource_id": "/subscriptions/fefefefe-a1a2-b3b4-c5c6-d7d8d7d8d7d8/resourceGroups/unpeered1-rg/providers/Microsoft.Network/virtualNetworks/unpeered1-vnet",
-      "subscription_id": "fefefefe-a1a2-b3b4-c5c6-d7d8d7d8d7d8",
+      "resource_id": "/subscriptions/u1u1u1u1-u1u1-u1u1-u1u1-u1u1u1u1u1u1/resourceGroups/unpeered1-rg/providers/Microsoft.Network/virtualNetworks/unpeered1-vnet",
+      "subscription_id": "u1u1u1u1-u1u1-u1u1-u1u1-u1u1u1u1u1u1",
       "resource_group": "unpeered1-rg",
       "address_space": "10.51.0.0/16",
       "subnets": [
@@ -887,8 +694,8 @@
     },
     {
       "name": "unpeered2-vnet",
-      "resource_id": "/subscriptions/a1a2a1a2-b3b4-c5c6-d7d8-e9e0e9e0e9e0/resourceGroups/unpeered2-rg/providers/Microsoft.Network/virtualNetworks/unpeered2-vnet",
-      "subscription_id": "a1a2a1a2-b3b4-c5c6-d7d8-e9e0e9e0e9e0",
+      "resource_id": "/subscriptions/u2u2u2u2-u2u2-u2u2-u2u2-u2u2u2u2u2u2/resourceGroups/unpeered2-rg/providers/Microsoft.Network/virtualNetworks/unpeered2-vnet",
+      "subscription_id": "u2u2u2u2-u2u2-u2u2-u2u2-u2u2u2u2u2u2",
       "resource_group": "unpeered2-rg",
       "address_space": "10.52.0.0/16",
       "subnets": [
@@ -909,8 +716,8 @@
     },
     {
       "name": "unpeered3-vnet",
-      "resource_id": "/subscriptions/b3b4b3b4-c5c6-d7d8-e9e0-f1f2f1f2f1f2/resourceGroups/unpeered3-rg/providers/Microsoft.Network/virtualNetworks/unpeered3-vnet",
-      "subscription_id": "b3b4b3b4-c5c6-d7d8-e9e0-f1f2f1f2f1f2",
+      "resource_id": "/subscriptions/u3u3u3u3-u3u3-u3u3-u3u3-u3u3u3u3u3u3/resourceGroups/unpeered3-rg/providers/Microsoft.Network/virtualNetworks/unpeered3-vnet",
+      "subscription_id": "u3u3u3u3-u3u3-u3u3-u3u3-u3u3u3u3u3u3",
       "resource_group": "unpeered3-rg",
       "address_space": "10.53.0.0/16",
       "subnets": [
@@ -931,8 +738,8 @@
     },
     {
       "name": "unpeered4-vnet",
-      "resource_id": "/subscriptions/c5c6c5c6-d7d8-e9e0-f1f2-a3a4a3a4a3a4/resourceGroups/unpeered4-rg/providers/Microsoft.Network/virtualNetworks/unpeered4-vnet",
-      "subscription_id": "c5c6c5c6-d7d8-e9e0-f1f2-a3a4a3a4a3a4",
+      "resource_id": "/subscriptions/u4u4u4u4-u4u4-u4u4-u4u4-u4u4u4u4u4u4/resourceGroups/unpeered4-rg/providers/Microsoft.Network/virtualNetworks/unpeered4-vnet",
+      "subscription_id": "u4u4u4u4-u4u4-u4u4-u4u4-u4u4u4u4u4u4",
       "resource_group": "unpeered4-rg",
       "address_space": "10.54.0.0/16",
       "subnets": [
@@ -953,8 +760,8 @@
     },
     {
       "name": "unpeered5-vnet",
-      "resource_id": "/subscriptions/d7d8d7d8-e9e0-f1f2-a3a4-b5b6b5b6b5b6/resourceGroups/unpeered5-rg/providers/Microsoft.Network/virtualNetworks/unpeered5-vnet",
-      "subscription_id": "d7d8d7d8-e9e0-f1f2-a3a4-b5b6b5b6b5b6",
+      "resource_id": "/subscriptions/u5u5u5u5-u5u5-u5u5-u5u5-u5u5u5u5u5u5/resourceGroups/unpeered5-rg/providers/Microsoft.Network/virtualNetworks/unpeered5-vnet",
+      "subscription_id": "u5u5u5u5-u5u5-u5u5-u5u5-u5u5u5u5u5u5",
       "resource_group": "unpeered5-rg",
       "address_space": "10.55.0.0/16",
       "subnets": [
@@ -975,8 +782,8 @@
     },
     {
       "name": "unpeered6-vnet",
-      "resource_id": "/subscriptions/e9e0e9e0-f1f2-a3a4-b5b6-c7c8c7c8c7c8/resourceGroups/unpeered6-rg/providers/Microsoft.Network/virtualNetworks/unpeered6-vnet",
-      "subscription_id": "e9e0e9e0-f1f2-a3a4-b5b6-c7c8c7c8c7c8",
+      "resource_id": "/subscriptions/u6u6u6u6-u6u6-u6u6-u6u6-u6u6u6u6u6u6/resourceGroups/unpeered6-rg/providers/Microsoft.Network/virtualNetworks/unpeered6-vnet",
+      "subscription_id": "u6u6u6u6-u6u6-u6u6-u6u6-u6u6u6u6u6u6",
       "resource_group": "unpeered6-rg",
       "address_space": "10.56.0.0/16",
       "subnets": [
@@ -997,8 +804,8 @@
     },
     {
       "name": "unpeered7-vnet",
-      "resource_id": "/subscriptions/f1f2f1f2-a3a4-b5b6-c7c8-d9d0d9d0d9d0/resourceGroups/unpeered7-rg/providers/Microsoft.Network/virtualNetworks/unpeered7-vnet",
-      "subscription_id": "f1f2f1f2-a3a4-b5b6-c7c8-d9d0d9d0d9d0",
+      "resource_id": "/subscriptions/u7u7u7u7-u7u7-u7u7-u7u7-u7u7u7u7u7u7/resourceGroups/unpeered7-rg/providers/Microsoft.Network/virtualNetworks/unpeered7-vnet",
+      "subscription_id": "u7u7u7u7-u7u7-u7u7-u7u7-u7u7u7u7u7u7",
       "resource_group": "unpeered7-rg",
       "address_space": "10.57.0.0/16",
       "subnets": [
@@ -1019,8 +826,8 @@
     },
     {
       "name": "unpeered8-vnet",
-      "resource_id": "/subscriptions/a3a4a3a4-b5b6-c7c8-d9d0-e1e2e1e2e1e2/resourceGroups/unpeered8-rg/providers/Microsoft.Network/virtualNetworks/unpeered8-vnet",
-      "subscription_id": "a3a4a3a4-b5b6-c7c8-d9d0-e1e2e1e2e1e2",
+      "resource_id": "/subscriptions/u8u8u8u8-u8u8-u8u8-u8u8-u8u8u8u8u8u8/resourceGroups/unpeered8-rg/providers/Microsoft.Network/virtualNetworks/unpeered8-vnet",
+      "subscription_id": "u8u8u8u8-u8u8-u8u8-u8u8-u8u8u8u8u8u8",
       "resource_group": "unpeered8-rg",
       "address_space": "10.58.0.0/16",
       "subnets": [
@@ -1047,8 +854,8 @@
     },
     {
       "name": "unpeered9-vnet",
-      "resource_id": "/subscriptions/b5b6b5b6-c7c8-d9d0-e1e2-f3f4f3f4f3f4/resourceGroups/unpeered9-rg/providers/Microsoft.Network/virtualNetworks/unpeered9-vnet",
-      "subscription_id": "b5b6b5b6-c7c8-d9d0-e1e2-f3f4f3f4f3f4",
+      "resource_id": "/subscriptions/u9u9u9u9-u9u9-u9u9-u9u9-u9u9u9u9u9u9/resourceGroups/unpeered9-rg/providers/Microsoft.Network/virtualNetworks/unpeered9-vnet",
+      "subscription_id": "u9u9u9u9-u9u9-u9u9-u9u9-u9u9u9u9u9u9",
       "resource_group": "unpeered9-rg",
       "address_space": "10.59.0.0/16",
       "subnets": [
@@ -1069,8 +876,8 @@
     },
     {
       "name": "unpeered10-vnet",
-      "resource_id": "/subscriptions/c7c8c7c8-d9d0-e1e2-f3f4-a5a6a5a6a5a6/resourceGroups/unpeered10-rg/providers/Microsoft.Network/virtualNetworks/unpeered10-vnet",
-      "subscription_id": "c7c8c7c8-d9d0-e1e2-f3f4-a5a6a5a6a5a6",
+      "resource_id": "/subscriptions/u10u10u1-0u10-u10u-10u1-0u10u10u10u1/resourceGroups/unpeered10-rg/providers/Microsoft.Network/virtualNetworks/unpeered10-vnet",
+      "subscription_id": "u10u10u1-0u10-u10u-10u1-0u10u10u10u1",
       "resource_group": "unpeered10-rg",
       "address_space": "10.60.0.0/16",
       "subnets": [
@@ -1091,8 +898,8 @@
     },
     {
       "name": "unpeered11-vnet",
-      "resource_id": "/subscriptions/d9d0d9d0-e1e2-f3f4-a5a6-b7b8b7b8b7b8/resourceGroups/unpeered11-rg/providers/Microsoft.Network/virtualNetworks/unpeered11-vnet",
-      "subscription_id": "d9d0d9d0-e1e2-f3f4-a5a6-b7b8b7b8b7b8",
+      "resource_id": "/subscriptions/u11u11u1-1u11-u11u-11u1-1u11u11u11u1/resourceGroups/unpeered11-rg/providers/Microsoft.Network/virtualNetworks/unpeered11-vnet",
+      "subscription_id": "u11u11u1-1u11-u11u-11u1-1u11u11u11u1",
       "resource_group": "unpeered11-rg",
       "address_space": "10.61.0.0/16",
       "subnets": [
@@ -1119,8 +926,8 @@
     },
     {
       "name": "unpeered12-vnet",
-      "resource_id": "/subscriptions/e1e2e1e2-f3f4-a5a6-b7b8-c9c0c9c0c9c0/resourceGroups/unpeered12-rg/providers/Microsoft.Network/virtualNetworks/unpeered12-vnet",
-      "subscription_id": "e1e2e1e2-f3f4-a5a6-b7b8-c9c0c9c0c9c0",
+      "resource_id": "/subscriptions/u12u12u1-2u12-u12u-12u1-2u12u12u12u1/resourceGroups/unpeered12-rg/providers/Microsoft.Network/virtualNetworks/unpeered12-vnet",
+      "subscription_id": "u12u12u1-2u12-u12u-12u1-2u12u12u12u1",
       "resource_group": "unpeered12-rg",
       "address_space": "10.62.0.0/16",
       "subnets": [
@@ -1141,8 +948,8 @@
     },
     {
       "name": "unpeered13-vnet",
-      "resource_id": "/subscriptions/f3f4f3f4-a5a6-b7b8-c9c0-d1d2d1d2d1d2/resourceGroups/unpeered13-rg/providers/Microsoft.Network/virtualNetworks/unpeered13-vnet",
-      "subscription_id": "f3f4f3f4-a5a6-b7b8-c9c0-d1d2d1d2d1d2",
+      "resource_id": "/subscriptions/u13u13u1-3u13-u13u-13u1-3u13u13u13u1/resourceGroups/unpeered13-rg/providers/Microsoft.Network/virtualNetworks/unpeered13-vnet",
+      "subscription_id": "u13u13u1-3u13-u13u-13u1-3u13u13u13u1",
       "resource_group": "unpeered13-rg",
       "address_space": "10.63.0.0/16",
       "subnets": [
@@ -1163,8 +970,8 @@
     },
     {
       "name": "unpeered14-vnet",
-      "resource_id": "/subscriptions/a5a6a5a6-b7b8-c9c0-d1d2-e3e4e3e4e3e4/resourceGroups/unpeered14-rg/providers/Microsoft.Network/virtualNetworks/unpeered14-vnet",
-      "subscription_id": "a5a6a5a6-b7b8-c9c0-d1d2-e3e4e3e4e3e4",
+      "resource_id": "/subscriptions/u14u14u1-4u14-u14u-14u1-4u14u14u14u1/resourceGroups/unpeered14-rg/providers/Microsoft.Network/virtualNetworks/unpeered14-vnet",
+      "subscription_id": "u14u14u1-4u14-u14u-14u1-4u14u14u14u1",
       "resource_group": "unpeered14-rg",
       "address_space": "10.64.0.0/16",
       "subnets": [
@@ -1191,8 +998,8 @@
     },
     {
       "name": "unpeered15-vnet",
-      "resource_id": "/subscriptions/b7b8b7b8-c9c0-d1d2-e3e4-f5f6f5f6f5f6/resourceGroups/unpeered15-rg/providers/Microsoft.Network/virtualNetworks/unpeered15-vnet",
-      "subscription_id": "b7b8b7b8-c9c0-d1d2-e3e4-f5f6f5f6f5f6",
+      "resource_id": "/subscriptions/u15u15u1-5u15-u15u-15u1-5u15u15u15u1/resourceGroups/unpeered15-rg/providers/Microsoft.Network/virtualNetworks/unpeered15-vnet",
+      "subscription_id": "u15u15u1-5u15-u15u-15u1-5u15u15u15u1",
       "resource_group": "unpeered15-rg",
       "address_space": "10.65.0.0/16",
       "subnets": [
@@ -1213,8 +1020,8 @@
     },
     {
       "name": "unpeered16-vnet",
-      "resource_id": "/subscriptions/c9c0c9c0-d1d2-e3e4-f5f6-a7a8a7a8a7a8/resourceGroups/unpeered16-rg/providers/Microsoft.Network/virtualNetworks/unpeered16-vnet",
-      "subscription_id": "c9c0c9c0-d1d2-e3e4-f5f6-a7a8a7a8a7a8",
+      "resource_id": "/subscriptions/u16u16u1-6u16-u16u-16u1-6u16u16u16u1/resourceGroups/unpeered16-rg/providers/Microsoft.Network/virtualNetworks/unpeered16-vnet",
+      "subscription_id": "u16u16u1-6u16-u16u-16u1-6u16u16u16u1",
       "resource_group": "unpeered16-rg",
       "address_space": "10.66.0.0/16",
       "subnets": [
@@ -1228,84 +1035,6 @@
       "peerings": [],
       "peering_resource_ids": [],
       "subscription_name": "Unpeered16-Subscription",
-      "expressroute": "No",
-      "vpn_gateway": "No",
-      "firewall": "No",
-      "peerings_count": 0
-    },
-    {
-      "name": "unpeered17-vnet",
-      "resource_id": "/subscriptions/d1d2d1d2-e3e4-f5f6-a7a8-b9b0b9b0b9b0/resourceGroups/unpeered17-rg/providers/Microsoft.Network/virtualNetworks/unpeered17-vnet",
-      "subscription_id": "d1d2d1d2-e3e4-f5f6-a7a8-b9b0b9b0b9b0",
-      "resource_group": "unpeered17-rg",
-      "address_space": "10.67.0.0/16",
-      "subnets": [
-        {
-          "name": "partner-integration",
-          "address": "10.67.1.0/24",
-          "nsg": "Yes",
-          "udr": "No"
-        },
-        {
-          "name": "api-gateway",
-          "address": "10.67.2.0/24",
-          "nsg": "Yes",
-          "udr": "Yes"
-        }
-      ],
-      "peerings": [],
-      "peering_resource_ids": [],
-      "subscription_name": "Unpeered17-Subscription",
-      "expressroute": "No",
-      "vpn_gateway": "No",
-      "firewall": "No",
-      "peerings_count": 0
-    },
-    {
-      "name": "unpeered18-vnet",
-      "resource_id": "/subscriptions/e3e4e3e4-f5f6-a7a8-b9b0-c1c2c1c2c1c2/resourceGroups/unpeered18-rg/providers/Microsoft.Network/virtualNetworks/unpeered18-vnet",
-      "subscription_id": "e3e4e3e4-f5f6-a7a8-b9b0-c1c2c1c2c1c2",
-      "resource_group": "unpeered18-rg",
-      "address_space": "10.68.0.0/16",
-      "subnets": [
-        {
-          "name": "customer-demo",
-          "address": "10.68.1.0/24",
-          "nsg": "Yes",
-          "udr": "Yes"
-        }
-      ],
-      "peerings": [],
-      "peering_resource_ids": [],
-      "subscription_name": "Unpeered18-Subscription",
-      "expressroute": "No",
-      "vpn_gateway": "No",
-      "firewall": "No",
-      "peerings_count": 0
-    },
-    {
-      "name": "unpeered19-vnet",
-      "resource_id": "/subscriptions/f5f6f5f6-a7a8-b9b0-c1c2-d3d4d3d4d3d4/resourceGroups/unpeered19-rg/providers/Microsoft.Network/virtualNetworks/unpeered19-vnet",
-      "subscription_id": "f5f6f5f6-a7a8-b9b0-c1c2-d3d4d3d4d3d4",
-      "resource_group": "unpeered19-rg",
-      "address_space": "10.69.0.0/16",
-      "subnets": [
-        {
-          "name": "training-lab",
-          "address": "10.69.1.0/24",
-          "nsg": "No",
-          "udr": "No"
-        },
-        {
-          "name": "certification",
-          "address": "10.69.2.0/24",
-          "nsg": "Yes",
-          "udr": "No"
-        }
-      ],
-      "peerings": [],
-      "peering_resource_ids": [],
-      "subscription_name": "Unpeered19-Subscription",
       "expressroute": "No",
       "vpn_gateway": "No",
       "firewall": "No",

@@ -109,8 +109,6 @@ class TestVNetTopologyCollection:
             vnet = result['vnets'][0]
             assert vnet['name'] == 'hub-vnet'
             assert vnet['peerings_count'] == 2
-            assert 'hub-vnet_to_spoke1' in vnet['peerings']
-            assert 'hub-vnet_to_spoke2' in vnet['peerings']
             assert vnet['expressroute'] == 'Yes'  # Due to GatewaySubnet
             assert vnet['vpn_gateway'] == 'Yes'   # Due to GatewaySubnet
             assert vnet['firewall'] == 'No'       # No AzureFirewallSubnet

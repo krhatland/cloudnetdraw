@@ -157,7 +157,7 @@ def sample_vnets():
                 {'name': 'default', 'address': '10.0.0.0/24', 'nsg': 'Yes', 'udr': 'No'},
                 {'name': 'GatewaySubnet', 'address': '10.0.1.0/24', 'nsg': 'No', 'udr': 'No'}
             ],
-            'peerings': ['hub-vnet_to_spoke1', 'hub-vnet_to_spoke2', 'hub-vnet_to_spoke3'],
+            
             'peerings_count': 3,
             'subscription_name': 'test-subscription',
             'expressroute': 'Yes',
@@ -170,7 +170,7 @@ def sample_vnets():
             'subnets': [
                 {'name': 'default', 'address': '10.1.0.0/24', 'nsg': 'Yes', 'udr': 'Yes'}
             ],
-            'peerings': ['spoke1_to_hub-vnet'],
+            
             'peerings_count': 1,
             'subscription_name': 'test-subscription',
             'expressroute': 'No',
@@ -184,7 +184,7 @@ def sample_vnets():
                 {'name': 'default', 'address': '10.2.0.0/24', 'nsg': 'No', 'udr': 'Yes'},
                 {'name': 'web-tier', 'address': '10.2.1.0/24', 'nsg': 'Yes', 'udr': 'Yes'}
             ],
-            'peerings': ['spoke2_to_hub-vnet', 'spoke2_to_spoke3'],
+            
             'peerings_count': 2,
             'subscription_name': 'test-subscription',
             'expressroute': 'No',
@@ -197,7 +197,7 @@ def sample_vnets():
             'subnets': [
                 {'name': 'default', 'address': '10.3.0.0/24', 'nsg': 'No', 'udr': 'No'}
             ],
-            'peerings': ['spoke3_to_hub-vnet', 'spoke3_to_spoke2'],
+            
             'peerings_count': 2,
             'subscription_name': 'test-subscription',
             'expressroute': 'No',
@@ -210,7 +210,7 @@ def sample_vnets():
             'subnets': [
                 {'name': 'default', 'address': '10.4.0.0/24', 'nsg': 'No', 'udr': 'No'}
             ],
-            'peerings': [],
+            
             'peerings_count': 0,
             'subscription_name': 'test-subscription',
             'expressroute': 'No',
@@ -311,7 +311,7 @@ def virtual_hub_vnet():
         'address_space': '10.0.0.0/16',
         'type': 'virtual_hub',
         'subnets': [],
-        'peerings': [],
+        
         'peerings_count': 0,
         'subscription_name': 'test-subscription',
         'expressroute': 'Yes',
@@ -334,7 +334,7 @@ def large_topology():
                 {'name': 'default', 'address': f'10.{i}.0.0/24', 'nsg': 'Yes', 'udr': 'Yes'},
                 {'name': 'GatewaySubnet', 'address': f'10.{i}.1.0/24', 'nsg': 'No', 'udr': 'No'}
             ],
-            'peerings': [f'hub-{i}_to_spoke{i}-{j}' for j in range(10)],
+            
             'peerings_count': 10,
             'subscription_name': f'test-subscription-{i}',
             'expressroute': 'Yes' if i % 2 == 0 else 'No',
@@ -351,7 +351,7 @@ def large_topology():
                 'subnets': [
                     {'name': 'default', 'address': f'10.{i+10}.{j}.0/26', 'nsg': 'Yes', 'udr': 'Yes'}
                 ],
-                'peerings': [f'spoke{i}-{j}_to_hub-{i}'],
+                
                 'peerings_count': 1,
                 'subscription_name': f'test-subscription-{i}',
                 'expressroute': 'No',
@@ -408,7 +408,7 @@ def mock_hub_vnet():
             {'name': 'default', 'address': '10.0.0.0/24', 'nsg': 'Yes', 'udr': 'No'},
             {'name': 'GatewaySubnet', 'address': '10.0.1.0/24', 'nsg': 'No', 'udr': 'No'}
         ],
-        'peerings': ['hub-vnet-001_to_spoke1', 'hub-vnet-001_to_spoke2'],
+        
         'peerings_count': 2,
         'subscription_name': 'Test Subscription',
         'subscription_id': 'sub-1',
@@ -430,7 +430,7 @@ def mock_spoke_vnets():
             'subnets': [
                 {'name': 'default', 'address': '10.1.0.0/24', 'nsg': 'Yes', 'udr': 'Yes'}
             ],
-            'peerings': ['spoke1_to_hub-vnet-001'],
+            
             'peerings_count': 1,
             'subscription_name': 'Test Subscription',
             'subscription_id': 'sub-1',
@@ -446,7 +446,7 @@ def mock_spoke_vnets():
                 {'name': 'default', 'address': '10.2.0.0/24', 'nsg': 'No', 'udr': 'Yes'},
                 {'name': 'web-tier', 'address': '10.2.1.0/24', 'nsg': 'Yes', 'udr': 'Yes'}
             ],
-            'peerings': ['spoke2_to_hub-vnet-001'],
+            
             'peerings_count': 1,
             'subscription_name': 'Test Subscription',
             'subscription_id': 'sub-1',
@@ -466,7 +466,7 @@ def mock_virtual_hub():
         'address_space': '10.100.0.0/24',
         'type': 'virtual_hub',
         'subnets': [],
-        'peerings': [],
+        
         'peerings_count': 0,
         'subscription_name': 'Test Subscription',
         'subscription_id': 'sub-1',

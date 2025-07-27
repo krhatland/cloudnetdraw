@@ -240,7 +240,7 @@ def find_hub_vnet_using_resource_graph(vnet_identifier: str) -> Dict[str, Any]:
                 }
                 for subnet in vnet.subnets
             ],
-            "peerings": [],
+            
             "resource_id": vnet.id,
             "tenant_id": tenant_id,
             "subscription_id": subscription_id,
@@ -258,13 +258,12 @@ def find_hub_vnet_using_resource_graph(vnet_identifier: str) -> Dict[str, Any]:
         peerings = network_client.virtual_network_peerings.list(resource_group, vnet.name)
         peering_resource_ids = []
         for peering in peerings:
-            vnet_info["peerings"].append(peering.name)  # Keep for backward compatibility
             if peering.remote_virtual_network and peering.remote_virtual_network.id:
                 peering_resource_ids.append(peering.remote_virtual_network.id)
         
         vnet_info["peering_resource_ids"] = peering_resource_ids
         
-        vnet_info["peerings_count"] = len(vnet_info["peerings"])
+        vnet_info["peerings_count"] = len(peering_resource_ids)
         return vnet_info
         
     except Exception as e:
@@ -337,7 +336,7 @@ def find_peered_vnets(peering_resource_ids: List[str]) -> Tuple[List[Dict[str, A
                     }
                     for subnet in vnet.subnets
                 ],
-                "peerings": [],
+                
                 "resource_id": vnet.id,
                 "tenant_id": tenant_id,
                 "subscription_id": subscription_id,
@@ -354,12 +353,11 @@ def find_peered_vnets(peering_resource_ids: List[str]) -> Tuple[List[Dict[str, A
             peerings = network_client.virtual_network_peerings.list(resource_group, vnet.name)
             peering_resource_ids = []
             for peering in peerings:
-                vnet_info["peerings"].append(peering.name)  # Keep for backward compatibility
                 if peering.remote_virtual_network and peering.remote_virtual_network.id:
                     peering_resource_ids.append(peering.remote_virtual_network.id)
             
             vnet_info["peering_resource_ids"] = peering_resource_ids
-            vnet_info["peerings_count"] = len(vnet_info["peerings"])
+            vnet_info["peerings_count"] = len(peering_resource_ids)
             peered_vnets.append(vnet_info)
             accessible_resource_ids.append(resource_id)  # Track this successful resolution
             
@@ -506,7 +504,7 @@ def get_vnet_topology_for_selected_subscriptions(subscription_ids: List[str]) ->
                             "address_space": hub.address_prefix,
                             "type": "virtual_hub",
                             "subnets": [],  # Virtual hubs don't have traditional subnets
-                            "peerings": [],  # Will be populated if needed
+                              # Will be populated if needed
                             "resource_id": hub.id,
                             "tenant_id": tenant_id,
                             "subscription_id": subscription_id,
@@ -559,7 +557,7 @@ def get_vnet_topology_for_selected_subscriptions(subscription_ids: List[str]) ->
                             }
                             for subnet in vnet.subnets
                         ],
-                        "peerings": [],
+                        
                         "resource_id": vnet.id,
                         "tenant_id": tenant_id,
                         "subscription_id": subscription_id,
@@ -576,12 +574,11 @@ def get_vnet_topology_for_selected_subscriptions(subscription_ids: List[str]) ->
                     peerings = network_client.virtual_network_peerings.list(resource_group_name, vnet.name)
                     peering_resource_ids = []
                     for peering in peerings:
-                        vnet_info["peerings"].append(peering.name)  # Keep for backward compatibility
                         if peering.remote_virtual_network and peering.remote_virtual_network.id:
                             peering_resource_ids.append(peering.remote_virtual_network.id)
                     
                     vnet_info["peering_resource_ids"] = peering_resource_ids
-                    vnet_info["peerings_count"] = len(vnet_info["peerings"])
+                    vnet_info["peerings_count"] = len(peering_resource_ids)
                     vnet_candidates.append(vnet_info)
                     
                 except Exception as e:
@@ -1016,7 +1013,7 @@ def _classify_spoke_vnets(vnets: List[Dict[str, Any]], hub_vnets: List[Dict[str,
     for vnet in vnets:
         if vnet in hub_vnets:
             continue  # Skip hubs
-        elif vnet.get("peerings"):
+        elif vnet.get("peering_resource_ids"):
             spoke_vnets_classified.append(vnet)
         else:
             unpeered_vnets.append(vnet)

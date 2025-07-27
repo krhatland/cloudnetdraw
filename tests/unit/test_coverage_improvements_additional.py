@@ -126,7 +126,7 @@ class TestAdditionalCoverageImprovements:
     def test_determine_hub_for_spoke_fallback(self):
         """Test determine_hub_for_spoke fallback return"""
         # Empty hub list should trigger fallback (line 710)
-        spoke_vnet = {"peerings": ["some-peering"]}
+        spoke_vnet = {"peering_resource_ids": ["/subscriptions/sub1/resourceGroups/rg1/providers/Microsoft.Network/virtualNetworks/some-peering"]}
         hub_vnets = []
         
         result = determine_hub_for_spoke(spoke_vnet, hub_vnets)
@@ -134,8 +134,8 @@ class TestAdditionalCoverageImprovements:
 
     def test_determine_hub_for_spoke_with_hubs_no_match(self):
         """Test determine_hub_for_spoke with hubs but no match"""
-        spoke_vnet = {"peerings": ["spoke-peering"]}
-        hub_vnets = [{"peerings": ["different-peering"]}]
+        spoke_vnet = {"peering_resource_ids": ["/subscriptions/sub1/resourceGroups/rg1/providers/Microsoft.Network/virtualNetworks/spoke-peering"]}
+        hub_vnets = [{"peering_resource_ids": ["/subscriptions/sub1/resourceGroups/rg1/providers/Microsoft.Network/virtualNetworks/different-peering"]}]
         
         result = determine_hub_for_spoke(spoke_vnet, hub_vnets)
         # Should return hub_0 as fallback
@@ -266,5 +266,5 @@ class TestAdditionalCoverageImprovements:
             assert len(result_vnets) == 1
             assert len(result_ids) == 1
             assert result_vnets[0]["name"] == "test-vnet"
-            assert result_vnets[0]["peerings"] == ["test-peering"]
             assert result_vnets[0]["peering_resource_ids"] == ["/subscriptions/test-sub/resourceGroups/test-rg/providers/Microsoft.Network/virtualNetworks/remote-vnet"]
+            assert result_vnets[0]["peerings_count"] == 1

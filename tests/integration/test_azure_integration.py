@@ -212,7 +212,7 @@ class TestVNetDiscoveryAcrossSubscriptions:
         assert "name" in vnet
         assert "address_space" in vnet
         assert "subnets" in vnet
-        assert "peerings" in vnet
+        assert "peering_resource_ids" in vnet
         assert "subscription_name" in vnet
         assert "peerings_count" in vnet
     
@@ -456,10 +456,12 @@ class TestPeeringRelationshipMapping:
             if vnet_name == "hub-vnet":
                 mock_peering = MagicMock()
                 mock_peering.name = "hub-to-spoke1"
+                mock_peering.remote_virtual_network.id = "/subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/spoke-rg/providers/Microsoft.Network/virtualNetworks/spoke1-vnet"
                 return [mock_peering]
             elif vnet_name == "spoke1-vnet":
                 mock_peering = MagicMock()
                 mock_peering.name = "spoke1-to-hub"
+                mock_peering.remote_virtual_network.id = "/subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/hub-rg/providers/Microsoft.Network/virtualNetworks/hub-vnet"
                 return [mock_peering]
             return []
         
@@ -485,13 +487,13 @@ class TestPeeringRelationshipMapping:
         hub_vnet = next(vnet for vnet in vnets["vnets"] if vnet["name"] == "hub-vnet")
         spoke_vnet = next(vnet for vnet in vnets["vnets"] if vnet["name"] == "spoke1-vnet")
         
-        # Hub should have peerings to spokes (stored as peering names)
-        assert len(hub_vnet["peerings"]) >= 1
-        assert "hub-to-spoke1" in hub_vnet["peerings"]
+        # Hub should have peerings to spokes (stored as resource IDs)
+        assert len(hub_vnet["peering_resource_ids"]) >= 1
+        assert "/subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/spoke-rg/providers/Microsoft.Network/virtualNetworks/spoke1-vnet" in hub_vnet["peering_resource_ids"]
         
-        # Spoke should have peering to hub (stored as peering names)
-        assert len(spoke_vnet["peerings"]) >= 1
-        assert "spoke1-to-hub" in spoke_vnet["peerings"]
+        # Spoke should have peering to hub (stored as resource IDs)
+        assert len(spoke_vnet["peering_resource_ids"]) >= 1
+        assert "/subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/hub-rg/providers/Microsoft.Network/virtualNetworks/hub-vnet" in spoke_vnet["peering_resource_ids"]
     
     def test_extract_vnet_name_from_resource_id(self):
         """Test extraction of VNet names from resource IDs for reliable peering relationships."""
@@ -541,8 +543,10 @@ class TestPeeringRelationshipMapping:
         # Mock peering relationships
         mock_peering1 = MagicMock()
         mock_peering1.name = "hub1-to-spoke1"
+        mock_peering1.remote_virtual_network.id = "/subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/rg/providers/Microsoft.Network/virtualNetworks/spoke1"
         mock_peering2 = MagicMock()
         mock_peering2.name = "hub1-to-hub2"
+        mock_peering2.remote_virtual_network.id = "/subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/rg/providers/Microsoft.Network/virtualNetworks/hub2"
         mock_client_instance.virtual_network_peerings.list.return_value = [mock_peering1, mock_peering2]
         
         # Mock virtual WANs to return empty
@@ -567,11 +571,11 @@ class TestPeeringRelationshipMapping:
         # Verify complex peering relationships are handled
         assert len(vnets["vnets"]) >= 1
         hub1 = vnets["vnets"][0]
-        assert len(hub1["peerings"]) == 2
+        assert len(hub1["peering_resource_ids"]) == 2
         
-        # Check that both hub-to-spoke and hub-to-hub peerings are present
-        assert "hub1-to-spoke1" in hub1["peerings"]
-        assert "hub1-to-hub2" in hub1["peerings"]
+        # Check that both hub-to-spoke and hub-to-hub peerings are present (stored as resource IDs)
+        assert "/subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/rg/providers/Microsoft.Network/virtualNetworks/spoke1" in hub1["peering_resource_ids"]
+        assert "/subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/rg/providers/Microsoft.Network/virtualNetworks/hub2" in hub1["peering_resource_ids"]
 
 
 class TestVirtualWANHubIntegration:
