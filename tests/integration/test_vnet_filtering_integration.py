@@ -57,7 +57,7 @@ class TestVnetFilteringCLI:
             with patch('azure_query.get_credentials') as mock_creds, \
                  patch('azure_query.get_subscriptions_non_interactive') as mock_subs, \
                  patch('azure_query.resolve_subscription_names_to_ids') as mock_resolve, \
-                 patch('azure_query.get_filtered_vnet_topology') as mock_filter, \
+                 patch('azure_query.get_filtered_vnets_topology') as mock_filter, \
                  patch('azure_query.save_to_json') as mock_save:
 
                 mock_creds.return_value = MagicMock()
@@ -70,7 +70,7 @@ class TestVnetFilteringCLI:
                 args.service_principal = False
                 args.subscriptions = None
                 args.subscriptions_file = None
-                args.vnet = 'sub-1/rg-1/hub-vnet-001'  # Use new path format
+                args.vnets = 'sub-1/rg-1/hub-vnet-001'  # Use new path format
                 args.output = output_file
                 args.verbose = False
                 
@@ -82,7 +82,7 @@ class TestVnetFilteringCLI:
                 query_command(args)
                 
                 # Verify the right functions were called
-                mock_filter.assert_called_once_with('sub-1/rg-1/hub-vnet-001', ['sub-1'])
+                mock_filter.assert_called_once_with(['sub-1/rg-1/hub-vnet-001'], ['sub-1'])
                 mock_save.assert_called_once_with(mock_topology, output_file)
                 
         finally:
@@ -112,7 +112,7 @@ class TestVnetFilteringCLI:
         
         try:
             with patch('azure_query.get_credentials') as mock_creds, \
-                 patch('azure_query.get_filtered_vnet_topology') as mock_filter, \
+                 patch('azure_query.get_filtered_vnets_topology') as mock_filter, \
                  patch('azure_query.save_to_json') as mock_save:
                 
                 mock_creds.return_value = MagicMock()
@@ -123,7 +123,7 @@ class TestVnetFilteringCLI:
                 args.service_principal = False
                 args.subscriptions = None  # No subscriptions needed with resource ID
                 args.subscriptions_file = None
-                args.vnet = resource_id
+                args.vnets = resource_id
                 args.output = output_file
                 args.verbose = False
                 
@@ -135,7 +135,7 @@ class TestVnetFilteringCLI:
                 query_command(args)
                 
                 # Verify the right functions were called - subscription ID extracted from resource ID
-                mock_filter.assert_called_once_with(resource_id, ['12345678-1234-1234-1234-123456789012'])
+                mock_filter.assert_called_once_with([resource_id], ['12345678-1234-1234-1234-123456789012'])
                 mock_save.assert_called_once_with(mock_topology, output_file)
                 
         finally:
@@ -158,7 +158,7 @@ class TestVnetFilteringCLI:
             args.service_principal = False
             args.subscriptions = 'sub-1,sub-2'
             args.subscriptions_file = None
-            args.vnet = None  # Only subscriptions, no vnet
+            args.vnets = None  # Only subscriptions, no vnet
             args.output = None
             args.verbose = False
             
@@ -195,7 +195,7 @@ class TestVnetFilteringCLI:
                 args.service_principal = False
                 args.subscriptions = None
                 args.subscriptions_file = subscriptions_file
-                args.vnet = None  # Only subscriptions file, no vnet
+                args.vnets = None  # Only subscriptions file, no vnet
                 args.output = None
                 args.verbose = False
                 
@@ -230,7 +230,7 @@ class TestVnetFilteringCLI:
             args.service_principal = False
             args.subscriptions = 'sub-1'
             args.subscriptions_file = None
-            args.vnet = None  # No VNet filtering
+            args.vnets = None  # No VNet filtering
             args.output = None
             args.verbose = False
             
@@ -255,7 +255,7 @@ class TestVnetFilteringCLI:
             args.service_principal = False
             args.subscriptions = None
             args.subscriptions_file = None
-            args.vnet = 'rg-1/hub-vnet'  # Legacy format
+            args.vnets = 'rg-1/hub-vnet'  # Legacy format
             args.output = None
             args.verbose = False
             
@@ -275,7 +275,7 @@ class TestVnetFilteringCLI:
         with patch('azure_query.get_credentials') as mock_creds, \
              patch('azure_query.is_subscription_id') as mock_is_sub_id, \
              patch('azure_query.resolve_subscription_names_to_ids') as mock_resolve, \
-             patch('azure_query.get_filtered_vnet_topology') as mock_filter, \
+             patch('azure_query.get_filtered_vnets_topology') as mock_filter, \
              patch('azure_query.save_to_json') as mock_save:
             
             mock_creds.return_value = MagicMock()
@@ -288,7 +288,7 @@ class TestVnetFilteringCLI:
             args.service_principal = False
             args.subscriptions = None
             args.subscriptions_file = None
-            args.vnet = 'test-subscription/rg-1/hub-vnet'  # New format
+            args.vnets = 'test-subscription/rg-1/hub-vnet'  # New format
             args.output = None
             args.verbose = False
             
@@ -301,14 +301,14 @@ class TestVnetFilteringCLI:
             
             # Verify functions were called correctly
             mock_resolve.assert_called_once_with(['test-subscription'])
-            mock_filter.assert_called_once_with('test-subscription/rg-1/hub-vnet', ['12345678-1234-1234-1234-123456789012'])
+            mock_filter.assert_called_once_with(['test-subscription/rg-1/hub-vnet'], ['12345678-1234-1234-1234-123456789012'])
 
     def test_query_command_with_resource_id_no_subscriptions_needed(self):
         """Test that --vnet with resource ID format doesn't require --subscriptions"""
         resource_id = "/subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/rg-1/providers/Microsoft.Network/virtualNetworks/hub-vnet"
         
         with patch('azure_query.get_credentials') as mock_creds, \
-             patch('azure_query.get_filtered_vnet_topology') as mock_filter, \
+             patch('azure_query.get_filtered_vnets_topology') as mock_filter, \
              patch('azure_query.save_to_json') as mock_save:
             
             mock_creds.return_value = MagicMock()
@@ -319,7 +319,7 @@ class TestVnetFilteringCLI:
             args.service_principal = False
             args.subscriptions = None
             args.subscriptions_file = None
-            args.vnet = resource_id  # Resource ID format
+            args.vnets = resource_id  # Resource ID format
             args.output = None
             args.verbose = False
             
@@ -331,13 +331,13 @@ class TestVnetFilteringCLI:
             query_command(args)
             
             # Verify functions were called correctly
-            mock_filter.assert_called_once_with(resource_id, ['12345678-1234-1234-1234-123456789012'])
+            mock_filter.assert_called_once_with([resource_id], ['12345678-1234-1234-1234-123456789012'])
 
     def test_query_command_with_subscription_id_in_path_format(self):
         """Test that --vnet with subscription ID in path format works correctly"""
         with patch('azure_query.get_credentials') as mock_creds, \
              patch('azure_query.is_subscription_id') as mock_is_sub_id, \
-             patch('azure_query.get_filtered_vnet_topology') as mock_filter, \
+             patch('azure_query.get_filtered_vnets_topology') as mock_filter, \
              patch('azure_query.save_to_json') as mock_save:
             
             mock_creds.return_value = MagicMock()
@@ -349,7 +349,7 @@ class TestVnetFilteringCLI:
             args.service_principal = False
             args.subscriptions = None
             args.subscriptions_file = None
-            args.vnet = '12345678-1234-1234-1234-123456789012/rg-1/hub-vnet'  # Path format with subscription ID
+            args.vnets = '12345678-1234-1234-1234-123456789012/rg-1/hub-vnet'  # Path format with subscription ID
             args.output = None
             args.verbose = False
             
@@ -361,8 +361,42 @@ class TestVnetFilteringCLI:
             query_command(args)
             
             # Verify functions were called correctly
-            mock_filter.assert_called_once_with('12345678-1234-1234-1234-123456789012/rg-1/hub-vnet', ['12345678-1234-1234-1234-123456789012'])
+            mock_filter.assert_called_once_with(['12345678-1234-1234-1234-123456789012/rg-1/hub-vnet'], ['12345678-1234-1234-1234-123456789012'])
     
+    def test_query_command_with_multiple_vnets_comma_separated(self):
+        """Test query command with --vnets using multiple comma-separated VNets"""
+        with patch('azure_query.get_credentials') as mock_creds, \
+             patch('azure_query.is_subscription_id') as mock_is_sub_id, \
+             patch('azure_query.get_filtered_vnets_topology') as mock_filter, \
+             patch('azure_query.save_to_json') as mock_save:
+
+            mock_creds.return_value = MagicMock()
+            mock_is_sub_id.return_value = True  # Both are subscription IDs
+            mock_filter.return_value = {"vnets": []}
+
+            # Create mock args with multiple VNets
+            args = MagicMock()
+            args.service_principal = False
+            args.subscriptions = None
+            args.subscriptions_file = None
+            args.vnets = '12345678-1234-1234-1234-123456789012/rg-1/hub-vnet1,12345678-1234-1234-1234-123456789012/rg-2/hub-vnet2'
+            args.output = None
+            args.verbose = False
+
+            # Initialize credentials for global usage
+            from azure_query import initialize_credentials
+            initialize_credentials()
+
+            # Should not raise an exception
+            query_command(args)
+
+            # Verify the function was called with correct arguments - multiple VNets
+            expected_vnet_identifiers = [
+                '12345678-1234-1234-1234-123456789012/rg-1/hub-vnet1',
+                '12345678-1234-1234-1234-123456789012/rg-2/hub-vnet2'
+            ]
+            mock_filter.assert_called_once_with(expected_vnet_identifiers, ['12345678-1234-1234-1234-123456789012'])
+
     def test_mutual_exclusion_subscriptions_and_subscriptions_file(self):
         """Test that --subscriptions and --subscriptions-file are mutually exclusive"""
         with patch('azure_query.get_credentials') as mock_creds:
@@ -372,7 +406,7 @@ class TestVnetFilteringCLI:
             args.service_principal = False
             args.subscriptions = 'sub-1'  # Both subscriptions and file provided
             args.subscriptions_file = 'subscriptions.txt'
-            args.vnet = None
+            args.vnets = None
             args.output = None
             args.verbose = False
             
@@ -395,7 +429,7 @@ class TestVnetFilteringCLI:
             args.service_principal = False
             args.subscriptions = 'sub-1'  # Both subscriptions and vnet provided
             args.subscriptions_file = None
-            args.vnet = 'test-sub/rg-1/hub-vnet'
+            args.vnets = 'test-sub/rg-1/hub-vnet'
             args.output = None
             args.verbose = False
             
@@ -417,8 +451,8 @@ class TestVnetFilteringCLI:
             args = MagicMock()
             args.service_principal = False
             args.subscriptions = None
-            args.subscriptions_file = 'subscriptions.txt'  # Both file and vnet provided
-            args.vnet = '/subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/rg-1/providers/Microsoft.Network/virtualNetworks/hub-vnet'
+            args.subscriptions_file = 'subscriptions.txt'  # Both file and vnets provided
+            args.vnets = '/subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/rg-1/providers/Microsoft.Network/virtualNetworks/hub-vnet'
             args.output = None
             args.verbose = False
             
@@ -441,7 +475,7 @@ class TestVnetFilteringCLI:
             args.service_principal = False
             args.subscriptions = 'sub-1'  # All three provided
             args.subscriptions_file = 'subscriptions.txt'
-            args.vnet = 'rg-1/hub-vnet'
+            args.vnets = 'rg-1/hub-vnet'
             args.output = None
             args.verbose = False
             
@@ -470,7 +504,7 @@ class TestVnetFilteringCLI:
             args.service_principal = False
             args.subscriptions = None  # No arguments provided - should allow interactive
             args.subscriptions_file = None
-            args.vnet = None
+            args.vnets = None
             args.output = None
             args.verbose = False
             
@@ -513,8 +547,8 @@ class TestVnetFilteringCLI:
         ], capture_output=True, text=True)
         
         assert result.returncode == 0
-        assert '--vnet' in result.stdout
-        assert 'resource_id (starting with /) or path (SUBSCRIPTION/RESOURCEGROUP/VNET)' in result.stdout
+        assert '--vnets' in result.stdout
+        assert 'resource_ids (starting with /) or paths (SUBSCRIPTION/RESOURCEGROUP/VNET)' in result.stdout
     
     def test_subprocess_cli_vnet_with_verbose(self):
         """Test CLI with --vnet and --verbose flags"""
@@ -613,7 +647,7 @@ class TestVnetFilteringEndToEnd:
                 args.service_principal = False
                 args.subscriptions = None
                 args.subscriptions_file = None
-                args.vnet = '12345678-1234-1234-1234-123456789012/rg-1/hub-vnet-001'  # New path format
+                args.vnets = '12345678-1234-1234-1234-123456789012/rg-1/hub-vnet-001'  # New path format
                 args.output = output_file
                 args.verbose = False
                 
@@ -792,7 +826,7 @@ class TestVnetFilteringEndToEnd:
                 args.service_principal = False
                 args.subscriptions = None
                 args.subscriptions_file = None
-                args.vnet = f'{test_subscription_id1}/rg-1/hub-vnet-001'  # New path format
+                args.vnets = f'{test_subscription_id1}/rg-1/hub-vnet-001'  # New path format
                 args.output = output_file
                 args.verbose = False
                 
@@ -833,7 +867,7 @@ class TestVnetFilteringErrorHandling:
         with patch('azure_query.get_credentials') as mock_creds, \
              patch('azure_query.get_subscriptions_non_interactive') as mock_subs, \
              patch('azure_query.resolve_subscription_names_to_ids') as mock_resolve, \
-             patch('azure_query.get_filtered_vnet_topology') as mock_filter:
+             patch('azure_query.get_filtered_vnets_topology') as mock_filter:
 
             mock_creds.return_value = MagicMock()
             mock_subs.return_value = ['sub-1']
@@ -844,7 +878,7 @@ class TestVnetFilteringErrorHandling:
             args.service_principal = False
             args.subscriptions = None
             args.subscriptions_file = None
-            args.vnet = 'sub-1/rg-1/nonexistent-vnet'  # New path format
+            args.vnets = 'sub-1/rg-1/nonexistent-vnet'  # New path format
             args.output = None
             args.verbose = False
             
@@ -865,7 +899,7 @@ class TestVnetFilteringErrorHandling:
             args.service_principal = False
             args.subscriptions = None
             args.subscriptions_file = None
-            args.vnet = '/subscriptions/invalid/format'  # Invalid resource ID
+            args.vnets = '/subscriptions/invalid/format'  # Invalid resource ID
             args.output = None
             args.verbose = False
             
@@ -884,7 +918,7 @@ class TestVnetFilteringErrorHandling:
         with patch('azure_query.get_credentials') as mock_creds, \
              patch('azure_query.get_subscriptions_non_interactive') as mock_subs, \
              patch('azure_query.resolve_subscription_names_to_ids') as mock_resolve, \
-             patch('azure_query.get_filtered_vnet_topology') as mock_filter:
+             patch('azure_query.get_filtered_vnets_topology') as mock_filter:
 
             mock_creds.return_value = MagicMock()
             mock_subs.return_value = ['sub-1']
@@ -895,7 +929,7 @@ class TestVnetFilteringErrorHandling:
             args.service_principal = False
             args.subscriptions = None
             args.subscriptions_file = None
-            args.vnet = 'sub-1/rg-1/hub-vnet-001'  # New path format
+            args.vnets = 'sub-1/rg-1/hub-vnet-001'  # New path format
             args.output = None
             args.verbose = False
             
@@ -915,7 +949,7 @@ class TestVnetFilteringErrorHandling:
         try:
             with patch('azure_query.get_credentials') as mock_creds, \
                  patch('azure_query.get_subscriptions_non_interactive') as mock_subs, \
-                 patch('azure_query.get_filtered_vnet_topology') as mock_filter, \
+                 patch('azure_query.get_filtered_vnets_topology') as mock_filter, \
                  patch('azure_query.save_to_json') as mock_save:
                 
                 mock_creds.return_value = MagicMock()
@@ -926,7 +960,7 @@ class TestVnetFilteringErrorHandling:
                 args.service_principal = False
                 args.subscriptions = None
                 args.subscriptions_file = subscriptions_file
-                args.vnet = 'rg-1/hub-vnet'
+                args.vnets = 'rg-1/hub-vnet'
                 args.output = None
                 args.verbose = False
                 
@@ -984,7 +1018,7 @@ class TestVnetFilteringErrorHandling:
             args.service_principal = False
             args.subscriptions = 'invalid-subscription'
             args.subscriptions_file = None
-            args.vnet = 'hub-vnet-001'  # This will fail due to mutual exclusion
+            args.vnets = 'hub-vnet-001'  # This will fail due to mutual exclusion
             args.output = None
             args.verbose = False
             

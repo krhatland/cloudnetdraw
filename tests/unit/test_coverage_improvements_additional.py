@@ -153,7 +153,7 @@ class TestAdditionalCoverageImprovements:
             args.service_principal = False
             args.subscriptions = None
             args.subscriptions_file = None
-            args.vnet = "invalid/format/with/too/many/parts"
+            args.vnets = "invalid/format/with/too/many/parts"
             args.output = None
             args.verbose = False
             

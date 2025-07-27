@@ -410,6 +410,52 @@ def get_filtered_vnet_topology(hub_vnet_identifier: str, subscription_ids: List[
     
     return {"vnets": filtered_vnets}
 
+def get_filtered_vnets_topology(vnet_identifiers: List[str], subscription_ids: List[str]) -> Dict[str, Any]:
+    """Collect filtered topology containing multiple specified hubs and their directly peered spokes"""
+    
+    all_vnets = {}  # Use dict to avoid duplicates by resource_id
+    
+    for vnet_identifier in vnet_identifiers:
+        # Find the hub VNet
+        hub_vnet = find_hub_vnet_using_resource_graph(vnet_identifier)
+        if not hub_vnet:
+            logging.error(f"Hub VNet '{vnet_identifier}' not found in any of the specified subscriptions")
+            sys.exit(1)
+        
+        logging.info(f"Found hub VNet: {hub_vnet['name']} in subscription {hub_vnet['subscription_name']}")
+        
+        # Add hub VNet to collection using resource_id as key to avoid duplicates
+        resource_id = hub_vnet.get('resource_id')
+        if resource_id and resource_id not in all_vnets:
+            all_vnets[resource_id] = hub_vnet
+        
+        # Get peering resource IDs from the hub VNet
+        hub_peering_resource_ids = hub_vnet.get('peering_resource_ids', [])
+        
+        logging.info(f"Looking for {len(hub_peering_resource_ids)} directly peered VNets using resource IDs for {hub_vnet['name']}")
+        
+        # Use direct API calls to get peered VNets efficiently using exact resource IDs
+        directly_peered_vnets, accessible_peering_resource_ids = find_peered_vnets(hub_peering_resource_ids)
+        
+        # Update hub VNet to only include accessible peering resource IDs
+        if resource_id in all_vnets:
+            all_vnets[resource_id]["peering_resource_ids"] = accessible_peering_resource_ids
+            all_vnets[resource_id]["peerings_count"] = len(accessible_peering_resource_ids)
+        
+        # Add peered VNets to collection using resource_id as key to avoid duplicates
+        for peered_vnet in directly_peered_vnets:
+            peered_resource_id = peered_vnet.get('resource_id')
+            if peered_resource_id and peered_resource_id not in all_vnets:
+                all_vnets[peered_resource_id] = peered_vnet
+        
+        logging.info(f"Hub VNet {hub_vnet['name']} has {len(accessible_peering_resource_ids)} accessible peerings out of {len(hub_peering_resource_ids)} total peering relationships")
+    
+    # Convert dict back to list
+    filtered_vnets = list(all_vnets.values())
+    logging.info(f"Combined filtered topology contains {len(filtered_vnets)} unique VNets: {[v['name'] for v in filtered_vnets]}")
+    
+    return {"vnets": filtered_vnets}
+
 # Collect all VNets and their details across selected subscriptions
 def get_vnet_topology_for_selected_subscriptions(subscription_ids: List[str]) -> Dict[str, Any]:
     network_data = {"vnets": []}
@@ -586,50 +632,61 @@ def query_command(args: argparse.Namespace) -> None:
     exclusive_args = [
         ('--subscriptions', args.subscriptions),
         ('--subscriptions-file', args.subscriptions_file),
-        ('--vnet', args.vnet)
+        ('--vnets', args.vnets)
     ]
     
     provided_args = [arg_name for arg_name, arg_value in exclusive_args if arg_value is not None]
     
     if len(provided_args) > 1:
         logging.error(f"The following arguments are mutually exclusive: {', '.join(provided_args)}")
-        logging.error("Please specify only one of: --subscriptions, --subscriptions-file, or --vnet")
+        logging.error("Please specify only one of: --subscriptions, --subscriptions-file, or --vnets")
         logging.error("Use --help for more information about these options")
         sys.exit(1)
     
     # Determine subscription selection mode
-    if args.vnet:
-        # VNet filtering mode - check if subscription is specified in vnet identifier
-        try:
-            subscription_id, resource_group, vnet_name = parse_vnet_identifier(args.vnet)
-            
-            if subscription_id:
-                # Subscription specified in vnet identifier (resource ID or path format)
-                # Check if it's a subscription name or ID and resolve if needed
-                if is_subscription_id(subscription_id):
-                    selected_subscriptions = [subscription_id]
-                    logging.info(f"Using subscription ID from VNet identifier: {subscription_id}")
-                else:
-                    # It's a subscription name, resolve to ID
-                    logging.info(f"Resolving subscription name from VNet identifier: {subscription_id}")
-                    selected_subscriptions = resolve_subscription_names_to_ids([subscription_id])
-                    logging.info(f"Resolved to subscription ID: {selected_subscriptions[0]}")
-            else:
-                # Legacy format - require explicit subscription specification
-                if not (args.subscriptions or args.subscriptions_file):
-                    logging.error("When using --vnet with 'resource_group/vnet_name' format, you must specify subscriptions using either --subscriptions or --subscriptions-file")
-                    logging.error("This prevents ambiguous results when multiple VNets with the same name exist in different subscriptions")
-                    logging.error("Example: --vnet 'rg-1/hub-vnet' --subscriptions 'prod-subscription,dev-subscription'")
-                    logging.error("Or use the new format: --vnet 'subscription/resource_group/vnet_name' or --vnet '/subscriptions/sub-id/resourceGroups/rg/providers/Microsoft.Network/virtualNetworks/vnet'")
-                    sys.exit(1)
-                
-                selected_subscriptions = get_subscriptions_non_interactive(args)
-        except ValueError as e:
-            logging.error(f"Invalid VNet identifier format: {e}")
-            sys.exit(1)
+    if args.vnets:
+        # VNet filtering mode - parse comma-separated VNet identifiers
+        vnet_identifiers = [vnet.strip() for vnet in args.vnets.split(',') if vnet.strip()]
         
-        logging.info(f"Filtering topology for hub VNet: {args.vnet}")
-        topology = get_filtered_vnet_topology(args.vnet, selected_subscriptions)
+        if not vnet_identifiers:
+            logging.error("No valid VNet identifiers provided")
+            sys.exit(1)
+            
+        # Collect all subscriptions needed for the VNets
+        all_subscriptions = set()
+        
+        for vnet_identifier in vnet_identifiers:
+            try:
+                subscription_id, resource_group, vnet_name = parse_vnet_identifier(vnet_identifier)
+                
+                if subscription_id:
+                    # Subscription specified in vnet identifier (resource ID or path format)
+                    # Check if it's a subscription name or ID and resolve if needed
+                    if is_subscription_id(subscription_id):
+                        all_subscriptions.add(subscription_id)
+                    else:
+                        # It's a subscription name, resolve to ID
+                        resolved_subs = resolve_subscription_names_to_ids([subscription_id])
+                        all_subscriptions.update(resolved_subs)
+                else:
+                    # Legacy format - require explicit subscription specification
+                    if not (args.subscriptions or args.subscriptions_file):
+                        logging.error("When using --vnets with 'resource_group/vnet_name' format, you must specify subscriptions using either --subscriptions or --subscriptions-file")
+                        logging.error("This prevents ambiguous results when multiple VNets with the same name exist in different subscriptions")
+                        logging.error("Example: --vnets 'rg-1/hub-vnet,rg-2/hub-vnet2' --subscriptions 'prod-subscription,dev-subscription'")
+                        logging.error("Or use the new format: --vnets 'subscription/resource_group/vnet_name,subscription2/resource_group2/vnet_name2'")
+                        sys.exit(1)
+                    
+                    # Get subscriptions from args for legacy format
+                    legacy_subscriptions = get_subscriptions_non_interactive(args)
+                    all_subscriptions.update(legacy_subscriptions)
+            except ValueError as e:
+                logging.error(f"Invalid VNet identifier format '{vnet_identifier}': {e}")
+                sys.exit(1)
+        
+        selected_subscriptions = list(all_subscriptions)
+        logging.info(f"Filtering topology for hub VNets: {args.vnets}")
+        topology = get_filtered_vnets_topology(vnet_identifiers, selected_subscriptions)
     else:
         # Original behavior for non-VNet filtering
         if args.subscriptions or args.subscriptions_file:
@@ -2180,8 +2237,8 @@ def main() -> None:
                              help='File containing subscriptions (one per line)')
     query_parser.add_argument('-c', '--config-file', default='config.yaml',
                              help='Configuration file (default: config.yaml)')
-    query_parser.add_argument('-n', '--vnet',
-                             help='Specify hub VNet as resource_id (starting with /) or path (SUBSCRIPTION/RESOURCEGROUP/VNET) to filter topology')
+    query_parser.add_argument('-n', '--vnets',
+                             help='Specify hub VNets as comma-separated resource_ids (starting with /) or paths (SUBSCRIPTION/RESOURCEGROUP/VNET) to filter topology')
     query_parser.add_argument('-v', '--verbose', action='store_true',
                              help='Enable verbose logging')
     query_parser.set_defaults(func=query_command)

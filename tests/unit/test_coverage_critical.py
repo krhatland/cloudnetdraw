@@ -183,7 +183,7 @@ class TestQueryCommandValidation:
         mock_args.service_principal = False
         mock_args.subscriptions = "subscription1,subscription2"
         mock_args.subscriptions_file = "subscriptions.txt"
-        mock_args.vnet = None
+        mock_args.vnets = None
         
         with pytest.raises(SystemExit) as exc_info:
             azure_query.query_command(mock_args)
@@ -199,7 +199,7 @@ class TestQueryCommandValidation:
         mock_args.service_principal = False
         mock_args.subscriptions = None
         mock_args.subscriptions_file = None
-        mock_args.vnet = "rg-test/vnet-test"
+        mock_args.vnets = "rg-test/vnet-test"
         
         with pytest.raises(SystemExit) as exc_info:
             azure_query.query_command(mock_args)
