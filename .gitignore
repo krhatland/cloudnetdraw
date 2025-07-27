@@ -264,3 +264,4 @@ examples/*.drawio
 azure_query.py
 *.drawio
 *.json
+*.drawio.bkp

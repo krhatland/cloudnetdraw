@@ -81,7 +81,7 @@ class TestConfig:
         with patch('os.path.exists', return_value=True):
             config = Config('config.yaml')
             edges = config.edges
-            assert 'edgeStyle=orthogonalEdgeStyle' in edges['style']
+            assert 'edgeStyle=orthogonalEdgeStyle' in edges['spoke_spoke']['style']
 
     def test_icons_property(self, sample_config_dict, mock_config_file):
         """Test icons property access"""
@@ -339,9 +339,15 @@ class TestConfig:
                 }
             },
             'edges': {
-                'stroke_color': '#0078D4',
-                'stroke_width': 2,
-                'style': 'edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#0078D4;strokeWidth=2;'
+                'spoke_spoke': {
+                    'style': 'edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#0078D4;strokeWidth=2;'
+                },
+                'hub_spoke': {
+                    'style': 'edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#000000;strokeWidth=3;endArrow=block;startArrow=block;'
+                },
+                'cross_zone': {
+                    'style': 'edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#0066CC;strokeWidth=2;endArrow=block;startArrow=block;dashed=1;dashPattern=8 4;'
+                }
             },
             'icons': {
                 'vnet': {'path': 'test.svg', 'width': 20, 'height': 20}
@@ -392,7 +398,7 @@ class TestConfigValidation:
                 'styles': {'hub': {'border_color': '#0078D4', 'fill_color': '#E6F1FB', 'font_color': '#004578', 'line_color': '#0078D4', 'text_align': 'left'}},
                 'subnet': {'border_color': '#C8C6C4', 'fill_color': '#FAF9F8', 'font_color': '#323130', 'text_align': 'left'},
                 'layout': {'hub': {'spacing_x': 450, 'spacing_y': 400, 'width': 400, 'height': 50}},
-                'edges': {'stroke_color': '#0078D4', 'stroke_width': 2, 'style': 'edgeStyle=orthogonalEdgeStyle'},
+                'edges': {'spoke_spoke': {'style': 'edgeStyle=orthogonalEdgeStyle'}},
                 'icons': {'vnet': {'path': 'test.svg', 'width': 20, 'height': 20}},
                 'icon_positioning': {'vnet_icons': {'y_offset': 3.39, 'right_margin': 6, 'icon_gap': 5}},
                 'drawio': {'canvas': {'background': '#ffffff'}, 'group': {'extra_height': 20, 'connectable': '0'}}
@@ -402,7 +408,7 @@ class TestConfigValidation:
                 'thresholds': {'hub_peering_count': 3},
                 'subnet': {'border_color': '#C8C6C4', 'fill_color': '#FAF9F8', 'font_color': '#323130', 'text_align': 'left'},
                 'layout': {'hub': {'spacing_x': 450, 'spacing_y': 400, 'width': 400, 'height': 50}},
-                'edges': {'stroke_color': '#0078D4', 'stroke_width': 2, 'style': 'edgeStyle=orthogonalEdgeStyle'},
+                'edges': {'spoke_spoke': {'style': 'edgeStyle=orthogonalEdgeStyle'}},
                 'icons': {'vnet': {'path': 'test.svg', 'width': 20, 'height': 20}},
                 'icon_positioning': {'vnet_icons': {'y_offset': 3.39, 'right_margin': 6, 'icon_gap': 5}},
                 'drawio': {'canvas': {'background': '#ffffff'}, 'group': {'extra_height': 20, 'connectable': '0'}}
@@ -427,7 +433,7 @@ class TestConfigValidation:
             },
             'subnet': {'border_color': '#C8C6C4', 'fill_color': '#FAF9F8', 'font_color': '#323130', 'text_align': 'left'},
             'layout': {'hub': {'spacing_x': 450, 'spacing_y': 400, 'width': 400, 'height': 50}},
-            'edges': {'stroke_color': '#0078D4', 'stroke_width': 2, 'style': 'edgeStyle=orthogonalEdgeStyle'},
+            'edges': {'spoke_spoke': {'style': 'edgeStyle=orthogonalEdgeStyle'}},
             'icons': {'vnet': {'path': 'test.svg', 'width': 20, 'height': 20}},
             'icon_positioning': {'vnet_icons': {'y_offset': 3.39, 'right_margin': 6, 'icon_gap': 5}},
             'drawio': {'canvas': {'background': '#ffffff'}, 'group': {'extra_height': 20, 'connectable': '0'}}
@@ -456,7 +462,7 @@ class TestConfigValidation:
                 'vnet': {'width': 400, 'spacing_x': 450, 'spacing_y': 100},
                 'hub': {'spacing_x': 450, 'spacing_y': 400, 'width': 400, 'height': 50}
             },
-            'edges': {'stroke_color': '#0078D4', 'stroke_width': 2, 'style': 'edgeStyle=orthogonalEdgeStyle'},
+            'edges': {'spoke_spoke': {'style': 'edgeStyle=orthogonalEdgeStyle'}},
             'icons': {'vnet': {'path': 'test.svg', 'width': 20, 'height': 20}},
             'icon_positioning': {'vnet_icons': {'y_offset': 3.39, 'right_margin': 6, 'icon_gap': 5}},
             'drawio': {'canvas': {'background': '#ffffff'}, 'group': {'extra_height': 20, 'connectable': '0'}}
@@ -487,7 +493,17 @@ class TestConfigValidation:
                 'non_peered': {'spacing_y': 100, 'start_y': 200, 'x': 1450, 'width': 400, 'height': 50},
                 'subnet': {'width': 350, 'height': 20, 'padding_x': 25, 'padding_y': 55, 'spacing_y': 30}
             },
-            'edges': {'stroke_color': '#0078D4', 'stroke_width': 2, 'style': 'edgeStyle=orthogonalEdgeStyle'},
+            'edges': {
+                'spoke_spoke': {
+                    'style': 'edgeStyle=orthogonalEdgeStyle'
+                },
+                'hub_spoke': {
+                    'style': 'edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#000000;strokeWidth=3;endArrow=block;startArrow=block;'
+                },
+                'cross_zone': {
+                    'style': 'edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#0066CC;strokeWidth=2;endArrow=block;startArrow=block;dashed=1;dashPattern=8 4;'
+                }
+            },
             'icons': {
                 'vnet': {'path': 'test.svg', 'width': 20},  # Missing height
                 'firewall': {'path': 'firewall.svg'}  # Missing width and height
@@ -528,7 +544,17 @@ class TestConfigValidation:
                 'non_peered': {'spacing_y': 100, 'start_y': 200, 'x': 1450, 'width': 400, 'height': 50},
                 'subnet': {'width': 350, 'height': 20, 'padding_x': 25, 'padding_y': 55, 'spacing_y': 30}
             },
-            'edges': {'stroke_color': '#0078D4', 'stroke_width': 2, 'style': 'edgeStyle=orthogonalEdgeStyle'},
+            'edges': {
+                'spoke_spoke': {
+                    'style': 'edgeStyle=orthogonalEdgeStyle'
+                },
+                'hub_spoke': {
+                    'style': 'edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#000000;strokeWidth=3;endArrow=block;startArrow=block;'
+                },
+                'cross_zone': {
+                    'style': 'edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#0066CC;strokeWidth=2;endArrow=block;startArrow=block;dashed=1;dashPattern=8 4;'
+                }
+            },
             'icons': {
                 'vnet': {'path': 'test.svg', 'width': 'twenty', 'height': 20}  # width should be int
             },
@@ -568,7 +594,17 @@ class TestConfigValidation:
                 'non_peered': {'spacing_y': 100, 'start_y': 200, 'x': 1450, 'width': 400, 'height': 50},
                 'subnet': {'width': 350, 'height': 20, 'padding_x': 25, 'padding_y': 55, 'spacing_y': 30}
             },
-            'edges': {'stroke_color': '#0078D4', 'stroke_width': 2, 'style': 'edgeStyle=orthogonalEdgeStyle'},
+            'edges': {
+                'spoke_spoke': {
+                    'style': 'edgeStyle=orthogonalEdgeStyle'
+                },
+                'hub_spoke': {
+                    'style': 'edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#000000;strokeWidth=3;endArrow=block;startArrow=block;'
+                },
+                'cross_zone': {
+                    'style': 'edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#0066CC;strokeWidth=2;endArrow=block;startArrow=block;dashed=1;dashPattern=8 4;'
+                }
+            },
             'icons': {'vnet': {'path': 'test.svg', 'width': 20, 'height': 20}},
             'icon_positioning': {
                 'vnet_icons': {'y_offset': 3.5, 'right_margin': 6, 'icon_gap': 5},  # Float is allowed
@@ -607,7 +643,7 @@ class TestConfigValidation:
                 'non_peered': {'spacing_y': 100, 'start_y': 200, 'x': 1450, 'width': 400, 'height': 50},
                 'subnet': {'width': 350, 'height': 20, 'padding_x': 25, 'padding_y': 55, 'spacing_y': 30}
             },
-            'edges': {'stroke_color': '#0078D4', 'stroke_width': 2, 'style': 'edgeStyle=orthogonalEdgeStyle'},
+            'edges': {'spoke_spoke': {'style': 'edgeStyle=orthogonalEdgeStyle'}},
             'icons': {'vnet': {'path': 'test.svg', 'width': 20, 'height': 20}},
             'icon_positioning': {
                 'vnet_icons': {'y_offset': 3.39, 'right_margin': 6, 'icon_gap': 5},

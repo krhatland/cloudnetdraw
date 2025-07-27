@@ -622,13 +622,24 @@ class TestErrorHandling:
             input_file = f.name
         
         try:
-            # Try to write to root directory (should fail)
-            result = subprocess.run([
-                'python', 'azure-query.py', 'hld',
-                '--topology', input_file,
-                '--output', '/root/test.drawio'
-            ], capture_output=True, text=True)
-            
-            assert result.returncode != 0
+            # Create a directory with no write permissions
+            import stat
+            with tempfile.TemporaryDirectory() as temp_dir:
+                readonly_dir = os.path.join(temp_dir, 'readonly')
+                os.mkdir(readonly_dir)
+                # Remove write permissions for the directory
+                os.chmod(readonly_dir, stat.S_IREAD | stat.S_IEXEC)
+                
+                try:
+                    result = subprocess.run([
+                        'python', 'azure-query.py', 'hld',
+                        '--topology', input_file,
+                        '--output', os.path.join(readonly_dir, 'test.drawio')
+                    ], capture_output=True, text=True)
+                    
+                    assert result.returncode != 0
+                finally:
+                    # Restore permissions so directory can be cleaned up
+                    os.chmod(readonly_dir, stat.S_IREAD | stat.S_IWRITE | stat.S_IEXEC)
         finally:
             os.unlink(input_file)

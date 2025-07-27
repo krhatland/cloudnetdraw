@@ -89,9 +89,15 @@ class Config:
             }
         },
         'edges': {
-            'stroke_color': str,
-            'stroke_width': int,
-            'style': str
+            'spoke_spoke': {
+                'style': str
+            },
+            'hub_spoke': {
+                'style': str
+            },
+            'cross_zone': {
+                'style': str
+            }
         },
         'icons': dict,  # Icons section has dynamic keys, validate individually
         'icon_positioning': {
@@ -260,8 +266,16 @@ class Config:
                 f"fillColor={subnet['fill_color']};align={subnet['text_align']}")
     
     def get_edge_style_string(self) -> str:
-        """Get formatted style string for edge connections"""
-        return self.edges['style']
+        """Get formatted style string for edge connections (spoke-to-spoke edges)"""
+        return self.edges['spoke_spoke']['style']
+    
+    def get_hub_spoke_edge_style(self) -> str:
+        """Get formatted style string for hub-to-spoke connections"""
+        return self.edges['hub_spoke']['style']
+    
+    def get_cross_zone_edge_style(self) -> str:
+        """Get formatted style string for cross-zone connections"""
+        return self.edges['cross_zone']['style']
     
     def get_icon_path(self, icon_type: str) -> str:
         """Get the path for a specific icon type"""

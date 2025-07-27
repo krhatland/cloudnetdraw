@@ -80,9 +80,17 @@ layout:
 
 # Edge/Connection styling
 edges:
-  stroke_color: "#0078D4"
-  stroke_width: 2
-  style: "edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#0078D4;strokeWidth=2;endArrow=block;startArrow=block;"
+  # Spoke-to-spoke edges - gray dotted for subtle connection indication
+  spoke_spoke:
+    style: "edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#666666;strokeWidth=2;endArrow=block;startArrow=block;dashed=1;dashPattern=4 1;"
+  
+  # Hub-to-spoke edges - black solid thick for primary connections
+  hub_spoke:
+    style: "edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#000000;strokeWidth=3;endArrow=block;startArrow=block;"
+    
+  # Cross-zone edges - blue dashed for inter-zone connections
+  cross_zone:
+    style: "edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#0066CC;strokeWidth=2;endArrow=block;startArrow=block;dashed=1;dashPattern=8 4;"
 
 # Icon settings for Azure service decorators
 icons:

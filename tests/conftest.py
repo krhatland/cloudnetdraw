@@ -4,9 +4,15 @@ Pytest configuration and shared fixtures for CloudNet Draw tests
 import pytest
 import json
 import os
+import sys
 import tempfile
 from unittest.mock import Mock, patch, mock_open
 from pathlib import Path
+
+# Add the project root directory to Python path so tests can import modules
+project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if project_root not in sys.path:
+    sys.path.insert(0, project_root)
 
 
 @pytest.fixture
@@ -87,9 +93,15 @@ def sample_config_dict():
             }
         },
         'edges': {
-            'stroke_color': '#0078D4',
-            'stroke_width': 2,
-            'style': 'edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#0078D4;strokeWidth=2;'
+            'spoke_spoke': {
+                'style': 'edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#0078D4;strokeWidth=2;'
+            },
+            'hub_spoke': {
+                'style': 'edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#000000;strokeWidth=3;endArrow=block;startArrow=block;'
+            },
+            'cross_zone': {
+                'style': 'edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#0066CC;strokeWidth=2;endArrow=block;startArrow=block;dashed=1;dashPattern=8 4;'
+            }
         },
         'icons': {
             'vnet': {'path': 'img/lib/azure2/networking/Virtual_Networks.svg', 'width': 20, 'height': 20},
