@@ -973,14 +973,73 @@ def _classify_and_sort_vnets(vnets: List[Dict[str, Any]], config: Any) -> Tuple[
     # Classify VNets for layout purposes (keep existing layout logic)
     # Highly connected VNets (hubs) vs others, including explicitly specified hubs
     hub_vnets = [vnet for vnet in vnets if vnet.get("peerings_count", 0) >= config.hub_threshold or vnet.get("is_explicit_hub", False)]
+    
+    # Enhanced fallback logic: if no highly connected VNets, detect multi-hub topologies
+    if not hub_vnets and vnets:
+        # Create resource ID to VNet mapping for efficient lookups
+        resource_id_to_vnet = {vnet.get('resource_id'): vnet for vnet in vnets if vnet.get('resource_id')}
+        
+        # Find VNets that should be considered hubs based on connectivity patterns
+        # This handles multi-hub topologies where hubs haven't met the threshold
+        potential_hubs = []
+        
+        # First, identify the most highly connected VNets as hub candidates
+        sorted_vnets = sorted(vnets, key=lambda x: x.get('peerings_count', 0), reverse=True)
+        max_peerings = sorted_vnets[0].get('peerings_count', 0) if sorted_vnets else 0
+        
+        # Use a more conservative threshold - at least 50% of max peerings AND at least 4 peerings
+        min_hub_peerings = max(max_peerings * 0.6, 4)
+        hub_candidates = [vnet for vnet in sorted_vnets[:5] if vnet.get('peerings_count', 0) >= min_hub_peerings]
+        
+        logging.info(f"Hub candidates (>= {min_hub_peerings:.1f} peerings): {[(v.get('name'), v.get('peerings_count')) for v in hub_candidates]}")
+        
+        # Strategy 1: Include VNets with mutual hub-to-hub peering relationships
+        hub_relationship_detected = False
+        for candidate in hub_candidates:
+            candidate_resource_id = candidate.get('resource_id')
+            candidate_peerings = candidate.get('peering_resource_ids', [])
+            
+            # Check if this candidate has mutual peering with other top candidates
+            mutual_hub_peers = []
+            for peering_id in candidate_peerings:
+                if peering_id in resource_id_to_vnet:
+                    peer_vnet = resource_id_to_vnet[peering_id]
+                    # Check if peer is also a hub candidate and has mutual peering back
+                    if (peer_vnet in hub_candidates and peer_vnet != candidate and
+                        candidate_resource_id in peer_vnet.get('peering_resource_ids', [])):
+                        mutual_hub_peers.append(peer_vnet.get('name'))
+            
+            # Include as hub if it has mutual relationships with other hub candidates
+            if mutual_hub_peers:
+                potential_hubs.append(candidate)
+                hub_relationship_detected = True
+                logging.info(f"Detected hub via mutual peer relationships: {candidate.get('name')} ({candidate.get('peerings_count')} peerings) ↔ {mutual_hub_peers}")
+        
+        # Strategy 2: If we found hub relationships, also include highly connected standalone hubs
+        if hub_relationship_detected:
+            for candidate in hub_candidates:
+                if candidate not in potential_hubs and candidate.get('peerings_count', 0) >= max_peerings * 0.7:
+                    potential_hubs.append(candidate)
+                    logging.info(f"Detected standalone hub via high connectivity: {candidate.get('name')} ({candidate.get('peerings_count')} peerings)")
+        
+        # Strategy 3: For single-hub topologies, promote the sole hub candidate if it's reasonably connected
+        if not potential_hubs and len(hub_candidates) == 1:
+            sole_candidate = hub_candidates[0]
+            if sole_candidate.get('peerings_count', 0) >= 3:  # Reasonable minimum for a hub
+                potential_hubs.append(sole_candidate)
+                logging.info(f"Detected single hub via sole candidacy: {sole_candidate.get('name')} ({sole_candidate.get('peerings_count')} peerings)")
+        
+        if potential_hubs:
+            hub_vnets = potential_hubs
+            logging.info(f"Using relationship-based hub detection: {[v.get('name') for v in hub_vnets]}")
+        else:
+            # Original fallback: treat the first one as primary for layout
+            hub_vnets = [vnets[0]]
+            logging.info(f"Using first VNet as fallback hub: {hub_vnets[0].get('name')}")
+    
     # Sort hubs deterministically by name to ensure consistent zone assignment
     hub_vnets.sort(key=lambda x: x.get('name', ''))
-    spoke_vnets = [vnet for vnet in vnets if vnet.get("peerings_count", 0) < config.hub_threshold and not vnet.get("is_explicit_hub", False)]
-    
-    # If no highly connected VNets, treat the first one as primary for layout
-    if not hub_vnets and vnets:
-        hub_vnets = [vnets[0]]
-        spoke_vnets = vnets[1:]
+    spoke_vnets = [vnet for vnet in vnets if vnet not in hub_vnets]
     
     logging.info(f"Found {len(hub_vnets)} hub VNet(s) and {len(spoke_vnets)} spoke VNet(s)")
     
@@ -1481,20 +1540,24 @@ def generate_diagram(filename: str, topology_file: str, config: Any, render_mode
             spoke_style = config.get_vnet_style_string('spoke')
             vnet_height = _add_vnet_with_optional_subnets(spoke, x_position, y_position, root, config, show_subnets=show_subnets, style_override=spoke_style)
             
-            # Connect to hub
-            edge_id = f"edge_right_{zone_index}_{index}_{spoke['name']}"
-            edge = etree.SubElement(
-                root, "mxCell", id=edge_id, edge="1",
-                source=hub_main_id, target=spoke_main_id,
-                style=config.get_hub_spoke_edge_style(),
-                parent="1"
-            )
-            edge_geometry = etree.SubElement(edge, "mxGeometry", attrib={"relative": "1", "as": "geometry"})
-            edge_points = etree.SubElement(edge_geometry, "Array", attrib={"as": "points"})
+            # Connect to hub only if there's an actual peering relationship
+            hub_resource_id = hub_vnet.get('resource_id')
+            spoke_peering_ids = spoke.get('peering_resource_ids', [])
             
-            if y_position != hub_y:
-                hub_center_x = base_hub_x + 200 + zone_offset_x
-                etree.SubElement(edge_points, "mxPoint", attrib={"x": str(hub_center_x + 100), "y": str(y_position + 25)})
+            if hub_resource_id in spoke_peering_ids:
+                edge_id = f"edge_right_{zone_index}_{index}_{spoke['name']}"
+                edge = etree.SubElement(
+                    root, "mxCell", id=edge_id, edge="1",
+                    source=hub_main_id, target=spoke_main_id,
+                    style=config.get_hub_spoke_edge_style(),
+                    parent="1"
+                )
+                edge_geometry = etree.SubElement(edge, "mxGeometry", attrib={"relative": "1", "as": "geometry"})
+                edge_points = etree.SubElement(edge_geometry, "Array", attrib={"as": "points"})
+                
+                if y_position != hub_y:
+                    hub_center_x = base_hub_x + 200 + zone_offset_x
+                    etree.SubElement(edge_points, "mxPoint", attrib={"x": str(hub_center_x + 100), "y": str(y_position + 25)})
             
             if show_subnets:
                 current_y_right += vnet_height + spacing
@@ -1511,20 +1574,24 @@ def generate_diagram(filename: str, topology_file: str, config: Any, render_mode
             spoke_style = config.get_vnet_style_string('spoke')
             vnet_height = _add_vnet_with_optional_subnets(spoke, x_position, y_position, root, config, show_subnets=show_subnets, style_override=spoke_style)
             
-            # Connect to hub
-            edge_id = f"edge_left_{zone_index}_{index}_{spoke['name']}"
-            edge = etree.SubElement(
-                root, "mxCell", id=edge_id, edge="1",
-                source=hub_main_id, target=spoke_main_id,
-                style=config.get_hub_spoke_edge_style(),
-                parent="1"
-            )
-            edge_geometry = etree.SubElement(edge, "mxGeometry", attrib={"relative": "1", "as": "geometry"})
-            edge_points = etree.SubElement(edge_geometry, "Array", attrib={"as": "points"})
+            # Connect to hub only if there's an actual peering relationship
+            hub_resource_id = hub_vnet.get('resource_id')
+            spoke_peering_ids = spoke.get('peering_resource_ids', [])
             
-            if y_position != hub_y:
-                hub_center_x = base_hub_x + 200 + zone_offset_x
-                etree.SubElement(edge_points, "mxPoint", attrib={"x": str(hub_center_x - 100), "y": str(y_position + 25)})
+            if hub_resource_id in spoke_peering_ids:
+                edge_id = f"edge_left_{zone_index}_{index}_{spoke['name']}"
+                edge = etree.SubElement(
+                    root, "mxCell", id=edge_id, edge="1",
+                    source=hub_main_id, target=spoke_main_id,
+                    style=config.get_hub_spoke_edge_style(),
+                    parent="1"
+                )
+                edge_geometry = etree.SubElement(edge, "mxGeometry", attrib={"relative": "1", "as": "geometry"})
+                edge_points = etree.SubElement(edge_geometry, "Array", attrib={"as": "points"})
+                
+                if y_position != hub_y:
+                    hub_center_x = base_hub_x + 200 + zone_offset_x
+                    etree.SubElement(edge_points, "mxPoint", attrib={"x": str(hub_center_x - 100), "y": str(y_position + 25)})
             
             if show_subnets:
                 current_y_left += vnet_height + spacing
@@ -1587,7 +1654,7 @@ def generate_diagram(filename: str, topology_file: str, config: Any, render_mode
     
     # Only draw edges for VNets that should have connectivity (exclude unpeered)
     vnets_with_edges = hub_vnets + spoke_vnets_classified
-    add_peering_edges(vnets_with_edges, vnet_mapping, root, config)
+    add_peering_edges(vnets_with_edges, vnet_mapping, root, config, hub_vnets=hub_vnets)
     
     # Add cross-zone connectivity edges for multi-hub spokes
     add_cross_zone_connectivity_edges(zones, hub_vnets, vnet_mapping, root, config)
@@ -1606,7 +1673,12 @@ def generate_hld_diagram(filename: str, topology_file: str, config: Any) -> None
 
 def add_cross_zone_connectivity_edges(zones: List[Dict[str, Any]], hub_vnets: List[Dict[str, Any]],
                                     vnet_mapping: Dict[str, str], root: Any, config: Any) -> None:
-    """Add cross-zone connectivity edges for spokes that connect to multiple hubs"""
+    """Add cross-zone connectivity edges for spokes that connect to multiple hubs
+    
+    This function creates edges from spokes to hubs in OTHER zones only.
+    It prevents duplicate edges by ensuring no spoke gets a cross-zone edge
+    back to its own zone hub (which already has a layout edge).
+    """
     from lxml import etree
     
     edge_counter = 3000  # Start high to avoid conflicts
@@ -1615,10 +1687,12 @@ def add_cross_zone_connectivity_edges(zones: List[Dict[str, Any]], hub_vnets: Li
     
     for zone in zones:
         zone_hub_index = zone['hub_index']
+        zone_hub_resource_id = zone['hub'].get('resource_id')
         
         for spoke in zone['spokes']:
             spoke_name = spoke.get('name')
-            if not spoke_name:
+            spoke_resource_id = spoke.get('resource_id')
+            if not spoke_name or not spoke_resource_id:
                 continue
                 
             # Find ALL hubs this spoke connects to
@@ -1626,34 +1700,52 @@ def add_cross_zone_connectivity_edges(zones: List[Dict[str, Any]], hub_vnets: Li
             
             # Create edges to OTHER hubs (not the assigned zone hub)
             for hub_index in connected_hub_indices:
-                if hub_index != zone_hub_index:  # Skip the already-connected hub
-                    target_hub = hub_vnets[hub_index]
-                    target_hub_name = target_hub.get('name')
+                target_hub = hub_vnets[hub_index]
+                target_hub_resource_id = target_hub.get('resource_id')
+                
+                # Skip if this is the same hub as the zone hub (prevents duplicates)
+                # This prevents creating cross-zone edges back to the same hub that
+                # already has a layout edge from the hub-spoke generation
+                if hub_index == zone_hub_index or target_hub_resource_id == zone_hub_resource_id:
+                    logging.debug(f"Skipping cross-zone edge for {spoke_name} → {target_hub.get('name')} - already connected via layout (zone {zone_hub_index})")
+                    continue
                     
-                    spoke_id = vnet_mapping.get(spoke.get('resource_id'))
-                    target_hub_id = vnet_mapping.get(target_hub.get('resource_id'))
+                target_hub_name = target_hub.get('name')
+                spoke_id = vnet_mapping.get(spoke_resource_id)
+                target_hub_id = vnet_mapping.get(target_hub_resource_id)
+                
+                if spoke_id and target_hub_id:
+                    # Create cross-zone edge with distinct styling
+                    edge = etree.SubElement(
+                        root,
+                        "mxCell",
+                        id=f"cross_zone_edge_{edge_counter}",
+                        edge="1",
+                        source=spoke_id,
+                        target=target_hub_id,
+                        style=config.get_cross_zone_edge_style(),
+                        parent="1",
+                    )
                     
-                    if spoke_id and target_hub_id:
-                        # Create cross-zone edge with distinct styling
-                        edge = etree.SubElement(
-                            root,
-                            "mxCell",
-                            id=f"cross_zone_edge_{edge_counter}",
-                            edge="1",
-                            source=spoke_id,
-                            target=target_hub_id,
-                            style=config.get_cross_zone_edge_style(),
-                            parent="1",
-                        )
-                        
-                        # Add basic geometry (draw.io will auto-route)
-                        edge_geometry = etree.SubElement(edge, "mxGeometry", attrib={"relative": "1", "as": "geometry"})
-                        
-                        edge_counter += 1
-                        logging.info(f"Added cross-zone edge: {spoke_name} → {target_hub_name} (zone {zone_hub_index} → zone {hub_index})")
+                    # Add basic geometry (draw.io will auto-route)
+                    edge_geometry = etree.SubElement(edge, "mxGeometry", attrib={"relative": "1", "as": "geometry"})
+                    
+                    edge_counter += 1
+                    logging.info(f"Added cross-zone edge: {spoke_name} → {target_hub_name} (zone {zone_hub_index} → zone {hub_index})")
 
-def add_peering_edges(vnets, vnet_mapping, root, config):
-    """Add edges for all VNet peerings using reliable resource IDs with proper symmetry validation"""
+def add_peering_edges(vnets, vnet_mapping, root, config, hub_vnets=None):
+    """Add edges for all VNet peerings using reliable resource IDs with proper symmetry validation
+    
+    Only draws peering edges for spoke-to-spoke and hub-to-hub connections.
+    Skips hub-to-spoke connections that are already drawn as hub-spoke edges.
+    
+    Args:
+        vnets: List of VNets to process
+        vnet_mapping: Resource ID to diagram ID mapping
+        root: XML root element
+        config: Configuration object
+        hub_vnets: Optional list of hub VNets (if not provided, will be determined automatically)
+    """
     from lxml import etree
     
     edge_counter = 1000  # Start high to avoid conflicts with existing edge IDs
@@ -1664,6 +1756,70 @@ def add_peering_edges(vnets, vnet_mapping, root, config):
     
     # Create VNet name to resource ID mapping for symmetry validation
     vnet_name_to_resource_id = {vnet['name']: vnet['resource_id'] for vnet in vnets if 'name' in vnet and 'resource_id' in vnet}
+    
+    # Use provided hub classification or determine automatically
+    if hub_vnets is None:
+        # Identify hub VNets to avoid duplicating hub-to-spoke edges
+        # Use the same logic as _classify_and_sort_vnets function including enhanced fallback
+        hub_vnets = [vnet for vnet in vnets if vnet.get("peerings_count", 0) >= config.hub_threshold or vnet.get("is_explicit_hub", False)]
+        
+        # Apply same enhanced fallback logic as _classify_and_sort_vnets to ensure consistency
+        if not hub_vnets and vnets:
+            # Create resource ID to VNet mapping for efficient lookups
+            resource_id_to_vnet = {vnet.get('resource_id'): vnet for vnet in vnets if vnet.get('resource_id')}
+            
+            # Find VNets that should be considered hubs based on connectivity patterns
+            potential_hubs = []
+            
+            # First, identify the most highly connected VNets as hub candidates
+            sorted_vnets = sorted(vnets, key=lambda x: x.get('peerings_count', 0), reverse=True)
+            max_peerings = sorted_vnets[0].get('peerings_count', 0) if sorted_vnets else 0
+            
+            # Use a more conservative threshold - at least 50% of max peerings AND at least 4 peerings
+            min_hub_peerings = max(max_peerings * 0.6, 4)
+            hub_candidates = [vnet for vnet in sorted_vnets[:5] if vnet.get('peerings_count', 0) >= min_hub_peerings]
+            
+            # Strategy 1: Include VNets with mutual hub-to-hub peering relationships
+            hub_relationship_detected = False
+            for candidate in hub_candidates:
+                candidate_resource_id = candidate.get('resource_id')
+                candidate_peerings = candidate.get('peering_resource_ids', [])
+                
+                # Check if this candidate has mutual peering with other top candidates
+                mutual_hub_peers = []
+                for peering_id in candidate_peerings:
+                    if peering_id in resource_id_to_vnet:
+                        peer_vnet = resource_id_to_vnet[peering_id]
+                        # Check if peer is also a hub candidate and has mutual peering back
+                        if (peer_vnet in hub_candidates and peer_vnet != candidate and
+                            candidate_resource_id in peer_vnet.get('peering_resource_ids', [])):
+                            mutual_hub_peers.append(peer_vnet.get('name'))
+                
+                # Include as hub if it has mutual relationships with other hub candidates
+                if mutual_hub_peers:
+                    potential_hubs.append(candidate)
+                    hub_relationship_detected = True
+            
+            # Strategy 2: If we found hub relationships, also include highly connected standalone hubs
+            if hub_relationship_detected:
+                for candidate in hub_candidates:
+                    if candidate not in potential_hubs and candidate.get('peerings_count', 0) >= max_peerings * 0.7:
+                        potential_hubs.append(candidate)
+            
+            # Strategy 3: For single-hub topologies, promote the sole hub candidate if it's reasonably connected
+            if not potential_hubs and len(hub_candidates) == 1:
+                sole_candidate = hub_candidates[0]
+                if sole_candidate.get('peerings_count', 0) >= 3:  # Reasonable minimum for a hub
+                    potential_hubs.append(sole_candidate)
+            
+            if potential_hubs:
+                hub_vnets = potential_hubs
+            else:
+                # Original fallback: treat the first one as primary
+                hub_vnets = [vnets[0]]
+    
+    # Create hub resource IDs set from the provided or determined hub_vnets
+    hub_resource_ids = set(hub['resource_id'] for hub in hub_vnets if 'resource_id' in hub)
     
     for vnet in vnets:
         if 'resource_id' not in vnet:
@@ -1687,14 +1843,17 @@ def add_peering_edges(vnets, vnet_mapping, root, config):
             if not target_id:
                 continue  # Skip if target VNet not in diagram
             
-            # Skip hub-to-spoke connections (already drawn) - now using hierarchical IDs
-            # Check if this is a hub-to-spoke connection by checking if one is a main ID from a hub VNet
-            # and the other is a main ID from a spoke VNet that's already connected
-            source_vnet = next((v for v in vnets if v.get('name') == source_vnet_name), None)
-            target_vnet = next((v for v in vnets if v.get('name') == target_vnet_name), None)
+            # Skip hub-to-spoke connections (already drawn as hub-spoke edges)
+            source_is_hub = source_resource_id in hub_resource_ids
+            target_is_hub = peering_resource_id in hub_resource_ids
             
-            # Removed hub-to-spoke filtering to create fully connected graph
-            # All peering relationships will be drawn as edges
+            # Skip if this is a hub-to-spoke connection (one is hub, other is spoke)
+            if source_is_hub and not target_is_hub:
+                logging.debug(f"Skipping hub-to-spoke edge: {source_vnet_name} (hub) → {target_vnet_name} (spoke) - already drawn as hub-spoke edge")
+                continue
+            elif not source_is_hub and target_is_hub:
+                logging.debug(f"Skipping spoke-to-hub edge: {source_vnet_name} (spoke) → {target_vnet_name} (hub) - already drawn as hub-spoke edge")
+                continue
             
             # Create a deterministic peering key to avoid duplicates
             peering_key = tuple(sorted([source_vnet_name, target_vnet_name]))
@@ -1715,7 +1874,8 @@ def add_peering_edges(vnets, vnet_mapping, root, config):
             # Mark this peering relationship as processed
             processed_peerings.add(peering_key)
             
-            # Create edge for spoke-to-spoke or hub-to-hub connections
+            # Create edge for spoke-to-spoke or hub-to-hub connections only
+            edge_type = "hub-to-hub" if source_is_hub and target_is_hub else "spoke-to-spoke"
             edge = etree.SubElement(
                 root,
                 "mxCell",
@@ -1731,7 +1891,7 @@ def add_peering_edges(vnets, vnet_mapping, root, config):
             edge_geometry = etree.SubElement(edge, "mxGeometry", attrib={"relative": "1", "as": "geometry"})
             
             edge_counter += 1
-            logging.info(f"Added bidirectional peering edge: {source_vnet_name} ({source_id}) ↔ {target_vnet_name} ({target_id})")
+            logging.info(f"Added {edge_type} peering edge: {source_vnet_name} ({source_id}) ↔ {target_vnet_name} ({target_id})")
 
 def hld_command(args: argparse.Namespace) -> None:
     """Execute the HLD command to generate high-level diagrams"""

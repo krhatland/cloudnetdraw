@@ -337,21 +337,24 @@ class TestAddPeeringEdgesStandalone:
             {
                 "name": "vnet1",
                 "resource_id": "/subscriptions/sub1/resourceGroups/rg1/providers/Microsoft.Network/virtualNetworks/vnet1",
+                "peerings_count": 2,
                 "peering_resource_ids": [
                     "/subscriptions/sub1/resourceGroups/rg1/providers/Microsoft.Network/virtualNetworks/vnet2",
                     "/subscriptions/sub1/resourceGroups/rg1/providers/Microsoft.Network/virtualNetworks/vnet3"
                 ]
             },
             {
-                "name": "vnet2", 
+                "name": "vnet2",
                 "resource_id": "/subscriptions/sub1/resourceGroups/rg1/providers/Microsoft.Network/virtualNetworks/vnet2",
+                "peerings_count": 1,
                 "peering_resource_ids": [
                     "/subscriptions/sub1/resourceGroups/rg1/providers/Microsoft.Network/virtualNetworks/vnet1"
                 ]
             },
             {
                 "name": "vnet3",
-                "resource_id": "/subscriptions/sub1/resourceGroups/rg1/providers/Microsoft.Network/virtualNetworks/vnet3",  
+                "resource_id": "/subscriptions/sub1/resourceGroups/rg1/providers/Microsoft.Network/virtualNetworks/vnet3",
+                "peerings_count": 1,
                 "peering_resource_ids": [
                     "/subscriptions/sub1/resourceGroups/rg1/providers/Microsoft.Network/virtualNetworks/vnet1"
                 ]
@@ -370,10 +373,11 @@ class TestAddPeeringEdgesStandalone:
         
         # Mock config
         mock_config = Mock()
+        mock_config.hub_threshold = 10  # Set proper threshold value
         mock_config.get_edge_style_string.return_value = "test-edge-style"
         
-        # Call the function
-        azure_query.add_peering_edges(vnets, vnet_mapping, root, mock_config)
+        # Call the function - provide empty hub_vnets list so all VNets are treated as spokes
+        azure_query.add_peering_edges(vnets, vnet_mapping, root, mock_config, hub_vnets=[])
         
         # Verify edges were created
         edges = root.findall(".//mxCell[@edge='1']")
@@ -395,13 +399,15 @@ class TestAddPeeringEdgesStandalone:
             {
                 "name": "vnet1",
                 "resource_id": "/subscriptions/sub1/resourceGroups/rg1/providers/Microsoft.Network/virtualNetworks/vnet1",
+                "peerings_count": 1,
                 "peering_resource_ids": [
                     "/subscriptions/sub1/resourceGroups/rg1/providers/Microsoft.Network/virtualNetworks/vnet2"
                 ]
             },
             {
                 "name": "vnet2",
-                "resource_id": "/subscriptions/sub1/resourceGroups/rg1/providers/Microsoft.Network/virtualNetworks/vnet2", 
+                "resource_id": "/subscriptions/sub1/resourceGroups/rg1/providers/Microsoft.Network/virtualNetworks/vnet2",
+                "peerings_count": 0,
                 "peering_resource_ids": []  # No peering back to vnet1
             }
         ]
@@ -413,10 +419,11 @@ class TestAddPeeringEdgesStandalone:
         
         root = etree.Element("root")
         mock_config = Mock()
+        mock_config.hub_threshold = 10  # Set proper threshold value
         mock_config.get_edge_style_string.return_value = "test-edge-style"
         
-        # Should handle asymmetric peering without errors
-        azure_query.add_peering_edges(vnets, vnet_mapping, root, mock_config)
+        # Should handle asymmetric peering without errors - provide empty hub_vnets list
+        azure_query.add_peering_edges(vnets, vnet_mapping, root, mock_config, hub_vnets=[])
         
         edges = root.findall(".//mxCell[@edge='1']")
         assert len(edges) == 1  # Should create one edge for the one-way peering
@@ -430,6 +437,7 @@ class TestAddPeeringEdgesStandalone:
             {
                 "name": "vnet1",
                 "resource_id": "/subscriptions/sub1/resourceGroups/rg1/providers/Microsoft.Network/virtualNetworks/vnet1",
+                "peerings_count": 1,
                 "peering_resource_ids": [
                     "/subscriptions/sub1/resourceGroups/rg1/providers/Microsoft.Network/virtualNetworks/vnet2"
                 ]
@@ -437,6 +445,7 @@ class TestAddPeeringEdgesStandalone:
             {
                 "name": "vnet2",
                 "resource_id": "/subscriptions/sub1/resourceGroups/rg1/providers/Microsoft.Network/virtualNetworks/vnet2",
+                "peerings_count": 1,
                 "peering_resource_ids": [
                     "/subscriptions/sub1/resourceGroups/rg1/providers/Microsoft.Network/virtualNetworks/vnet1"
                 ]
@@ -450,10 +459,11 @@ class TestAddPeeringEdgesStandalone:
         
         root = etree.Element("root")
         mock_config = Mock()
+        mock_config.hub_threshold = 10  # Set proper threshold value
         mock_config.get_edge_style_string.return_value = "test-edge-style"
         
-        # Should create only one edge, not two (prevents duplicates)
-        azure_query.add_peering_edges(vnets, vnet_mapping, root, mock_config)
+        # Should create only one edge, not two (prevents duplicates) - provide empty hub_vnets list
+        azure_query.add_peering_edges(vnets, vnet_mapping, root, mock_config, hub_vnets=[])
         
         edges = root.findall(".//mxCell[@edge='1']")
         assert len(edges) == 1  # Should create only one edge for bidirectional peering

@@ -261,6 +261,7 @@ network_mld.drawio
 *.dtmp
 azure_query.py
 examples/*.drawio
+examples/*.json
 azure_query.py
 *.drawio
 *.json
