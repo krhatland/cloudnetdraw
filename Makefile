@@ -118,7 +118,6 @@ build: setup
 	@echo "Building package..."
 	@uv build
 	@echo "Package built successfully"
->>>>>>> Stashed changes
 
 # Publish to TestPyPI for testing
 test-publish: build
