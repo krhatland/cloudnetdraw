@@ -1,0 +1,231 @@
+# CloudNet Draw Configuration
+# =========================
+# This file contains all styling, layout, and icon settings for network diagrams.
+# Run 'cloudnetdraw init-config' to copy this file for customization.
+# 
+# Quick customization tips:
+# - Change hub threshold: Adjust thresholds.hub_peering_count (3=small, 5=medium, 10=large networks)
+# - Update colors: Modify styles.hub.border_color, styles.spoke.fill_color 
+# - Layout spacing: Adjust layout.zone.spacing, layout.vnet.width
+# - Icon sizes: Change icons.*.width and icons.*.height values
+
+# VNet Classification Thresholds
+# ===============================
+thresholds:
+  # Hub Detection: VNets with this many peerings become "hubs" in diagrams
+  # Lower values = more hubs (good for small networks)
+  # Higher values = fewer hubs (good for large enterprise networks)  
+  # Common values: 3 (small), 5 (medium), 10 (large enterprise)
+  hub_peering_count: 10
+
+# VNet Visual Styling by Type
+# ===========================
+styles:
+  # Hub VNets (central connection points)
+  hub:
+    border_color: "#0078D4"    # Microsoft Azure blue
+    fill_color: "#E6F1FB"      # Light blue background  
+    font_color: "#004578"      # Dark blue text
+    line_color: "#0078D4"      # Connection line color
+    text_align: "left"         # Text alignment in boxes
+    # Alternative themes:
+    # Orange: border_color: "#FF6B35", fill_color: "#FFF2E6" 
+    # Green: border_color: "#28A745", fill_color: "#E8F5E8"
+    
+  # Spoke VNets (connected to hubs)  
+  spoke:
+    border_color: "#CC6600"    # Orange border for distinction
+    fill_color: "#f2f7fc"      # Very light blue background
+    font_color: "#CC6600"      # Orange text to match border
+    line_color: "#0078D4"      # Blue connection lines
+    text_align: "left"
+    
+  # Non-peered VNets (isolated networks)
+  non_peered:
+    border_color: "gray"       # Gray indicates isolation
+    fill_color: "#f5f5f5"      # Light gray background
+    font_color: "gray"         # Gray text
+    line_color: "gray"         # Gray connection lines
+    text_align: "left"
+
+# Subnet Visual Styling  
+# =====================
+subnet:
+  border_color: "#C8C6C4"      # Light gray border
+  fill_color: "#FAF9F8"        # Off-white background
+  font_color: "#323130"        # Dark gray text
+  text_align: "left"
+
+# Layout and Positioning Settings
+# ===============================
+layout:
+  # Canvas Settings
+  canvas:
+    padding: 20                # Space from canvas edges (pixels)
+    
+  # Zone Settings (groups of related VNets)
+  zone:
+    spacing: 500               # Gap between different zones (pixels)
+                              # Increase for more spread out diagrams
+    
+  # Common VNet Settings
+  vnet:
+    width: 400                # Standard width for all VNet boxes (pixels)
+    spacing_x: 450            # Horizontal space between VNets (pixels)
+    spacing_y: 100            # Vertical space between VNets (pixels)
+    
+  # Hub-Specific Layout
+  hub:
+    spacing_x: 450            # Horizontal spacing between multiple hubs
+    spacing_y: 400            # Vertical position of hubs from top
+    width: 400                # Width of hub VNet boxes (inherits from vnet.width)
+    height: 50                # Height of hub VNet boxes
+    
+  # Spoke-Specific Layout  
+  spoke:
+    spacing_y: 100            # Vertical spacing between spokes
+    start_y: 200              # Starting Y position for first spoke
+    width: 400                # Width of spoke VNet boxes (inherits from vnet.width)
+    height: 50                # Height of spoke VNet boxes
+    left_x: -100              # X position for left-side spokes (negative = left of center)
+    right_x: 900              # X position for right-side spokes
+    
+  # Non-Peered VNet Layout
+  non_peered:
+    spacing_y: 100            # Vertical spacing between isolated VNets
+    start_y: 200              # Starting Y position for first isolated VNet
+    x: 1450                   # X position (far right side)
+    width: 400                # Width of non-peered VNet boxes (inherits from vnet.width)
+    height: 50                # Height of non-peered VNet boxes
+    
+  # Subnet Layout (within VNets)
+  subnet:
+    width: 350                # Width of subnet boxes (smaller than VNets)
+    height: 20                # Height of subnet boxes (compact)
+    padding_x: 25             # Horizontal padding inside VNet boxes
+    padding_y: 55             # Vertical padding inside VNet boxes  
+    spacing_y: 30             # Vertical spacing between subnets
+
+# Connection Line Styling by Type
+# ===============================
+edges:
+  # Spoke-to-spoke connections (peer-to-peer)
+  spoke_spoke:
+    # Gray dotted lines for subtle peer connections
+    style: "edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#666666;strokeWidth=2;endArrow=block;startArrow=block;dashed=1;dashPattern=4 1;"
+  
+  # Hub-to-spoke connections (primary architecture) 
+  hub_spoke:
+    # Black solid thick lines for main connections
+    style: "edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#000000;strokeWidth=3;endArrow=block;startArrow=block;"
+    
+  # Cross-zone connections (between different regions/zones)
+  cross_zone:
+    # Blue dashed lines for inter-zone connections  
+    style: "edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#0066CC;strokeWidth=2;endArrow=block;startArrow=block;dashed=1;dashPattern=8 4;"
+  
+  # Multi-hub spoke connections (spoke connected to multiple hubs)
+  spoke_to_multi_hub:
+    # Purple dashed lines for complex multi-hub scenarios
+    style: "edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#9933CC;strokeWidth=2;endArrow=block;startArrow=block;dashed=1;dashPattern=6 2;"
+
+# Azure Service Icons
+# ===================
+# Icons use Draw.io's built-in Azure icon library paths
+# Adjust width/height to resize icons (proportional scaling recommended)
+icons:
+  # Base VNet icon (appears on all VNets)
+  vnet:
+    path: "img/lib/azure2/networking/Virtual_Networks.svg"
+    width: 20                 # Icon width in pixels
+    height: 20                # Icon height in pixels
+    
+  # Virtual WAN Hub icon  
+  virtual_hub:
+    path: "img/lib/azure2/networking/Virtual_WANs.svg"
+    width: 20
+    height: 20
+    
+  # ExpressRoute Circuit icon
+  expressroute:
+    path: "img/lib/azure2/networking/ExpressRoute_Circuits.svg"
+    width: 20
+    height: 20
+    
+  # Azure Firewall icon
+  firewall:
+    path: "img/lib/azure2/networking/Firewalls.svg"
+    width: 20
+    height: 20
+    
+  # VPN Gateway icon  
+  vpn_gateway:
+    path: "img/lib/azure2/networking/Virtual_Network_Gateways.svg"
+    width: 20
+    height: 20
+    
+  # Network Security Group icon (smaller for subnet decorations)
+  nsg:
+    path: "img/lib/azure2/networking/Network_Security_Groups.svg"
+    width: 16                 # Smaller than main VNet icons
+    height: 16
+    
+  # Route Table (User Defined Routes) icon  
+  route_table:
+    path: "img/lib/azure2/networking/Route_Tables.svg"
+    width: 16                 # Smaller than main VNet icons
+    height: 16
+    
+  # Subnet icon (for subnet-level diagrams)
+  subnet:
+    path: "img/lib/azure2/networking/Subnet.svg"
+    width: 20
+    height: 12                # Shorter aspect ratio for subnets
+
+# Icon Positioning Rules
+# ======================
+icon_positioning:
+  # VNet service icons (positioned top-right of VNet boxes)
+  vnet_icons:
+    y_offset: 3.39            # Y position from top edge of VNet box
+    right_margin: 6           # Margin from right edge of VNet box  
+    icon_gap: 5               # Horizontal spacing between multiple icons
+    
+  # Virtual Hub special icon positioning
+  virtual_hub_icon:
+    offset_x: -10             # X offset from VNet left edge (negative = left)
+    offset_y: -15             # Y offset from VNet bottom edge (negative = above)
+    
+  # Subnet service icons (positioned right-aligned within subnets)
+  subnet_icons:
+    icon_y_offset: 2          # Y offset from subnet top edge
+    subnet_icon_y_offset: 3   # Additional offset for subnet icon height alignment
+    icon_gap: 3               # Horizontal spacing between subnet icons
+
+# Draw.io Application Settings
+# ============================
+# These settings control the Draw.io editor behavior when opening generated files
+drawio:
+  # Canvas view settings
+  canvas:
+    dx: "371"                 # Default X pan position
+    dy: "1462"                # Default Y pan position  
+    grid: "0"                 # Grid visibility (0=hidden, 1=visible)
+    gridSize: "10"            # Grid spacing in pixels
+    guides: "1"               # Guide lines (0=off, 1=on)
+    tooltips: "1"             # Tooltips on hover (0=off, 1=on)
+    connect: "1"              # Connection helpers (0=off, 1=on)
+    arrows: "1"               # Arrow connection points (0=off, 1=on)
+    fold: "1"                 # Collapsible groups (0=off, 1=on)
+    page: "0"                 # Page view mode (0=infinite canvas, 1=page)
+    pageScale: "1"            # Zoom level (1.0 = 100%)
+    pageWidth: "827"          # Page width (A4 width in pixels)
+    pageHeight: "1169"        # Page height (A4 height in pixels)
+    background: "#ffffff"     # Canvas background color
+    math: "0"                 # Math typesetting (0=off, 1=on)
+    shadow: "0"               # Drop shadows (0=off, 1=on)
+    
+  # VNet group container settings
+  group:
+    extra_height: 20          # Extra vertical space in VNet groups for service icons
+    connectable: "0"          # Group connection points (0=off, 1=on)

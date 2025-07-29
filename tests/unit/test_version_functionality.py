@@ -86,8 +86,7 @@ class TestVersionFunctionality:
         
         assert exc_info.value.code == 0, "--version should work without subcommands"
         
-        # But normal usage should still require subcommands
-        with pytest.raises(SystemExit) as exc_info:
-            parser.parse_args([])
-        
-        assert exc_info.value.code == 2, "Missing subcommand should cause error exit"
+        # Test that parsing empty arguments creates namespace without func attribute
+        # (The actual SystemExit behavior is tested in main() function in integration tests)
+        args = parser.parse_args([])
+        assert not hasattr(args, 'func') or args.func is None, "Missing subcommand should not set func attribute"

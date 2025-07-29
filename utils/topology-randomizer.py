@@ -135,7 +135,7 @@ class StressTestRunner:
                 )
             
             # Validate the generated files
-            validator_cmd = ["python3", "topology-validator.py", "--json", str(json_file), "--hld", str(hld_file), "--mld", str(mld_file)]
+            validator_cmd = ["python3", "topology-validator.py", "--topology", str(json_file), "--hld", str(hld_file), "--mld", str(mld_file)]
             result = subprocess.run(validator_cmd, capture_output=True, text=True)
             if result.returncode != 0:
                 return IterationResult(

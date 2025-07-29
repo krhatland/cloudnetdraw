@@ -318,8 +318,7 @@ def main() -> None:
     
     # Check if no command was provided (but --version was handled automatically by argparse)
     if not hasattr(args, 'func') or args.func is None:
-        parser.print_help()
-        sys.exit(1)
+        parser.error("the following arguments are required: command")
     
     # Configure logging based on verbose flag (only exists when subcommand is provided)
     log_level = logging.INFO if getattr(args, 'verbose', False) else logging.WARNING
