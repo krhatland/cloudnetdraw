@@ -261,11 +261,7 @@ network_mld.drawio
 # draw.io temp files
 *.dtmp
 examples/*.drawio
-<<<<<<< Updated upstream
 examples/*.json
-azure_query.py
-=======
->>>>>>> Stashed changes
 *.drawio
 *.json
 *.drawio.bkp
