@@ -2,9 +2,6 @@
 
 .DEFAULT_GOAL := help
 
-<<<<<<< Updated upstream
-.PHONY: help setup test unit integration performance security coverage clean clean-all examples
-=======
 .PHONY: help setup test unit integration performance security coverage clean clean-all clean-build build test-publish publish prepare-release examples example-hld example-mld stress
 
 # Set SEED variable to enable deterministic topology generation
@@ -18,7 +15,6 @@ SEED_FLAG = $(if $(SEED),--seed $(SEED),)
 #        make examples                          (default, no guarantee)
 ENSURE_ALL_EDGE_TYPES ?=
 ENSURE_FLAG = $(if $(ENSURE_ALL_EDGE_TYPES),--ensure-all-edge-types,)
->>>>>>> Stashed changes
 
 
 # Setup environment and install dependencies
@@ -72,39 +68,6 @@ clean-all: clean
 	@rm -rf .venv
 	@echo "All artifacts cleaned"
 
-<<<<<<< Updated upstream
-# Generate example JSON files and both HLD/MLD diagrams
-examples: setup
-	@echo "Cleaning existing example files..."
-	@rm -f examples/*.json examples/*.drawio
-	@echo "Generating example JSON files..."
-	@cd examples && uv run generate-sample-topology.py 1 15 20 single_zone.json
-	@cd examples && uv run generate-sample-topology.py 2 40 25 double_zone.json
-	@cd examples && uv run generate-sample-topology.py 1 8 0 hub_to_spoke_example.json
-	@cd examples && uv run generate-sample-topology.py 0 6 3 spoke_to_spoke_example.json
-	@cd examples && uv run generate-sample-topology.py 0 0 8 unpeered_only_example.json
-	@cd examples && uv run generate-sample-topology.py 3 60 31 multi_hub_example.json
-	@cd examples && uv run generate-sample-topology.py 2 8 5 test_topology.json
-	@echo "Generating HLD diagrams..."
-	@PYTHONPATH=. uv run azure-query.py hld -t examples/single_zone.json -o examples/single_zone_hld.drawio
-	@PYTHONPATH=. uv run azure-query.py hld -t examples/double_zone.json -o examples/double_zone_hld.drawio
-	@PYTHONPATH=. uv run azure-query.py hld -t examples/hub_to_spoke_example.json -o examples/hub_to_spoke_hld.drawio
-	@PYTHONPATH=. uv run azure-query.py hld -t examples/spoke_to_spoke_example.json -o examples/spoke_to_spoke_hld.drawio
-	@PYTHONPATH=. uv run azure-query.py hld -t examples/unpeered_only_example.json -o examples/unpeered_only_hld.drawio
-	@PYTHONPATH=. uv run azure-query.py hld -t examples/multi_hub_example.json -o examples/multi_hub_hld.drawio
-	@PYTHONPATH=. uv run azure-query.py hld -t examples/test_topology.json -o examples/test_topology_hld.drawio
-	@echo "Generating MLD diagrams..."
-	@PYTHONPATH=. uv run azure-query.py mld -t examples/single_zone.json -o examples/single_zone_mld.drawio
-	@PYTHONPATH=. uv run azure-query.py mld -t examples/double_zone.json -o examples/double_zone_mld.drawio
-	@PYTHONPATH=. uv run azure-query.py mld -t examples/hub_to_spoke_example.json -o examples/hub_to_spoke_mld.drawio
-	@PYTHONPATH=. uv run azure-query.py mld -t examples/spoke_to_spoke_example.json -o examples/spoke_to_spoke_mld.drawio
-	@PYTHONPATH=. uv run azure-query.py mld -t examples/unpeered_only_example.json -o examples/unpeered_only_mld.drawio
-	@PYTHONPATH=. uv run azure-query.py mld -t examples/multi_hub_example.json -o examples/multi_hub_mld.drawio
-	@PYTHONPATH=. uv run azure-query.py mld -t examples/test_topology.json -o examples/test_topology_mld.drawio
-	@echo "Validating generated diagrams..."
-	@cd examples && python3 validate-samples.py
-	@echo "All example files and diagrams generated"
-=======
 # Generate all example diagrams
 examples: setup
 	@rm -f examples/*.json examples/*.drawio
