@@ -248,7 +248,7 @@ def create_parser() -> argparse.ArgumentParser:
     parser.add_argument('--version', action='version', version=f'CloudNet Draw {__version__}')
     
     subparsers = parser.add_subparsers(dest='command')
-    subparsers.required = True
+    # Don't require subcommands to allow --version to work at top level
     
     # Query command
     query_parser = subparsers.add_parser('query', help='Query Azure and collect VNet topology',
@@ -316,8 +316,13 @@ def main() -> None:
     # Parse arguments and dispatch to appropriate function
     args = parser.parse_args()
     
-    # Configure logging based on verbose flag
-    log_level = logging.INFO if args.verbose else logging.WARNING
+    # Check if no command was provided (but --version was handled automatically by argparse)
+    if not hasattr(args, 'func') or args.func is None:
+        parser.print_help()
+        sys.exit(1)
+    
+    # Configure logging based on verbose flag (only exists when subcommand is provided)
+    log_level = logging.INFO if getattr(args, 'verbose', False) else logging.WARNING
     logging.basicConfig(level=log_level, format='%(asctime)s - %(levelname)s - %(message)s')
     
     try:
