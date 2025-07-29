@@ -65,19 +65,8 @@ export AZURE_TENANT_ID="your-tenant-id"
 ### 3. Generate Your First Diagram
 
 ```bash
-<<<<<<< Updated upstream
-# Query Azure and save topology
-uv run azure-query.py query
-
-# Generate high-level diagram (VNets only)
-uv run azure-query.py hld
-
-# Generate mid-level diagram (VNets + subnets)
-uv run azure-query.py mld
-=======
 cloudnetdraw query
 cloudnetdraw hld
->>>>>>> Stashed changes
 ```
 
 ### 4. View Results
@@ -100,56 +89,16 @@ at [diagrams.net](https://diagrams.net).
 
 CloudNet Draw uses [`config.yaml`](config.yaml) for diagram styling and layout settings. Key configuration sections:
 
-<<<<<<< Updated upstream
-### Hub Classification
-- `thresholds.hub_peering_count: 10` - VNets with 10+ peerings are classified as hubs
-
-### VNet Styling
-- **Hub VNets**: Blue theme (`#0078D4` border, `#E6F1FB` fill)
-- **Spoke VNets**: Orange theme (`#CC6600` border, `#f2f7fc` fill)
-- **Non-peered VNets**: Gray theme (`gray` border, `#f5f5f5` fill)
-- **Subnets**: Light gray theme (`#C8C6C4` border, `#FAF9F8` fill)
-
-### Layout Settings
-- **Canvas**: 20px padding, 500px zone spacing
-- **VNets**: 400px width, 50px height
-- **Subnets**: 350px width, 20px height with 25px/55px padding
-
-### Edge Styling
-- **Hub-Spoke**: Black solid lines (3px width)
-- **Spoke-Spoke**: Gray dashed lines (2px width)
-- **Cross-Zone**: Blue dashed lines (2px width)
-
-### Azure Icons
-Includes paths and sizing for VNet, ExpressRoute, Firewall, VPN Gateway, NSG, Route Table, and Subnet icons from Azure icon library.
-
-### Custom Configuration
-```bash
-# Copy and modify default configuration
-cp config.yaml my-config.yaml
-
-# Use custom configuration
-uv run azure-query.py query --config-file my-config.yaml
-uv run azure-query.py hld --config-file my-config.yaml
-=======
 ```bash
 # Create a local config file for customization
 cloudnetdraw init-config
 
 # Use custom config with other commands
 cloudnetdraw query --config-file config.yaml
->>>>>>> Stashed changes
 ```
 
 The `init-config` command copies the default configuration to your current directory where you can customize diagram styling, layout parameters, and other settings.
 
-<<<<<<< Updated upstream
-### Example 1: Basic Usage
-
-```bash
-# Query all subscriptions interactively
-uv run azure-query.py query
-=======
 ## Examples
 
 ### Single Hub with Multiple Spokes
@@ -173,59 +122,19 @@ cloudnetdraw mld
 ```bash
 # Interactive subscription selection
 cloudnetdraw query
->>>>>>> Stashed changes
 
 # Query specific subscriptions
 uv run azure-query.py query --subscriptions "Production-Network,Dev-Network"
 
-<<<<<<< Updated upstream
-# Query all subscriptions non-interactively
-uv run azure-query.py query --subscriptions all
-
-# Generate diagrams
-uv run azure-query.py hld  # High-level (VNets only)
-uv run azure-query.py mld  # Mid-level (VNets + subnets)
-```
-
-### Example 2: Service Principal Authentication
-
-```bash
-# Set environment variables
-export AZURE_CLIENT_ID="your-client-id"
-export AZURE_CLIENT_SECRET="your-client-secret"
-export AZURE_TENANT_ID="your-tenant-id"
-
-# Use service principal
-uv run azure-query.py query --service-principal
-```
-
-### Example 3: VNet Filtering
-=======
 # Generate consolidated diagrams
 cloudnetdraw hld
 ```
 
 ### VNet Filtering
->>>>>>> Stashed changes
 
 Filter topology to focus on specific hub VNets and their directly connected spokes:
 
 ```bash
-<<<<<<< Updated upstream
-# Multiple VNet identifier formats supported:
-
-# Format 1: Full Azure resource ID
-uv run azure-query.py query --vnets "/subscriptions/sub-id/resourceGroups/rg-name/providers/Microsoft.Network/virtualNetworks/vnet-name"
-
-# Format 2: subscription/resource_group/vnet_name
-uv run azure-query.py query --vnets "production-sub/network-rg/hub-vnet"
-
-# Format 3: resource_group/vnet_name (searches all accessible subscriptions)
-uv run azure-query.py query --vnets "network-rg/hub-vnet"
-
-# Multiple VNets (comma-separated)
-uv run azure-query.py query --vnets "prod-rg/hub-prod,dev-rg/hub-dev"
-=======
 # Filter by subscription/resource-group/vnet path
 cloudnetdraw query --vnets "production-sub/network-rg/hub-vnet" --verbose
 
@@ -234,45 +143,12 @@ cloudnetdraw query --vnets "/subscriptions/12345678-1234-1234-1234-123456789012/
 
 # Multiple VNets using path syntax
 cloudnetdraw query --vnets "prod-sub/network-rg/hub-vnet-east,prod-sub/network-rg/hub-vnet-west"
->>>>>>> Stashed changes
 
 # Generate diagrams from filtered topology
 cloudnetdraw hld
 cloudnetdraw mld
 ```
 
-<<<<<<< Updated upstream
-**VNet Filtering Benefits:**
-- Uses Azure Resource Graph API for fast, precise discovery
-- Automatically resolves subscription names to IDs
-- Contains only specified hubs and their directly peered spokes
-- Significantly faster than full topology collection
-
-### Example 4: File-Based Configuration
-
-```bash
-# Create subscription list file
-echo "Production-Network" > subscriptions.txt
-echo "Development-Network" >> subscriptions.txt
-
-# Use subscription file
-uv run azure-query.py query --subscriptions-file subscriptions.txt
-
-# Custom config file
-uv run azure-query.py query --config-file my-config.yaml
-uv run azure-query.py hld --config-file my-config.yaml
-```
-
-### Example 5: Verbose Logging
-
-```bash
-# Enable detailed logging for troubleshooting
-uv run azure-query.py query --vnets "rg-name/hub-vnet" --verbose
-uv run azure-query.py hld --verbose
-```
-
-=======
->>>>>>> Stashed changes
 ## Testing
 
 ### Running Tests
