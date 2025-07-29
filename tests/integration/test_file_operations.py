@@ -26,10 +26,10 @@ class TestJSONFileOperations:
         
         try:
             # Test reading the file through the application
-            with patch('azure_query.generate_hld_diagram') as mock_hld:
+            with patch('cloudnetdraw.diagram_generator.generate_hld_diagram') as mock_hld:
                 mock_hld.return_value = None
                 
-                import azure_query
+                from cloudnetdraw import diagram_generator
                 # This would be called internally by the application
                 with open(temp_file, 'r') as file:
                     loaded_data = json.load(file)
@@ -58,7 +58,7 @@ class TestJSONFileOperations:
         
         try:
             # Write data using the application's JSON writing logic
-            import azure_query
+            from cloudnetdraw import utils
             with open(temp_file, 'w') as f:
                 json.dump(topology_data, f, indent=2)
             
@@ -160,14 +160,14 @@ class TestYAMLConfigOperations:
         """Test loading a valid YAML configuration file."""
         config_path = Path('tests/fixtures/sample_configs/minimal_config.yaml')
         
-        import azure_query
+        from cloudnetdraw import config
         # Test loading config through the application
         with open(config_path, 'r') as file:
             config_data = yaml.safe_load(file)
         
-        assert "hub_threshold" in config_data
-        assert config_data["hub_threshold"] == 3
-        assert "style" in config_data
+        assert "thresholds" in config_data
+        assert config_data["thresholds"]["hub_peering_count"] == 3
+        assert "styles" in config_data
         assert "layout" in config_data
     
     def test_load_complete_yaml_config(self):
@@ -177,8 +177,8 @@ class TestYAMLConfigOperations:
         with open(config_path, 'r') as file:
             config_data = yaml.safe_load(file)
         
-        assert "hub_threshold" in config_data
-        assert "style" in config_data
+        assert "thresholds" in config_data
+        assert "styles" in config_data
         assert "layout" in config_data
         assert "icons" in config_data
         assert "icon_positioning" in config_data
@@ -213,7 +213,7 @@ class TestYAMLConfigOperations:
             config_data = yaml.safe_load(file)
         
         assert config_data is not None
-        assert "hub_threshold" in config_data
+        assert "thresholds" in config_data
     
     def test_config_file_path_resolution_different_directory(self):
         """Test config file path resolution from different directory."""
@@ -231,7 +231,7 @@ class TestYAMLConfigOperations:
                 config_data = yaml.safe_load(file)
             
             assert config_data is not None
-            assert "hub_threshold" in config_data
+            assert "thresholds" in config_data
         finally:
             os.chdir(original_cwd)
             os.rmdir(temp_dir)

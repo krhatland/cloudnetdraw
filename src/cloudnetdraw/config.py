@@ -5,6 +5,11 @@ Loads YAML configuration and provides easy access to settings
 import yaml
 import os
 from typing import Dict, Any, Tuple, List, Union
+try:
+    from importlib.resources import files
+except ImportError:
+    # Python < 3.9 fallback
+    from importlib_resources import files
 
 class ConfigValidationError(Exception):
     """Raised when configuration validation fails"""
@@ -97,6 +102,9 @@ class Config:
             },
             'cross_zone': {
                 'style': str
+            },
+            'spoke_to_multi_hub': {
+                'style': str
             }
         },
         'icons': dict,  # Icons section has dynamic keys, validate individually
@@ -125,10 +133,43 @@ class Config:
         }
     }
     
-    def __init__(self, config_file: str = "config.yaml"):
-        self.config_file = config_file
+    def __init__(self, config_file: str = None):
+        self.config_file = self._find_config_file(config_file)
         self._config = self._load_config()
         self._validate_config()
+    
+    def _find_config_file(self, config_file: str = None) -> str:
+        """Find configuration file using hierarchical search strategy"""
+        # Search order: CLI argument -> current dir -> user home -> bundled default
+        search_paths = [
+            config_file,  # CLI argument (highest priority)
+            "./config.yaml",  # Current working directory
+            os.path.expanduser("~/.cloudnetdraw/config.yaml"),  # User home directory
+            self._get_bundled_config_path()  # Package bundled config (fallback)
+        ]
+        
+        for path in search_paths:
+            if path and os.path.exists(path):
+                return path
+        
+        # If no config file found, this shouldn't happen due to bundled fallback
+        raise FileNotFoundError("No configuration file found in any search location")
+    
+    def _get_bundled_config_path(self) -> str:
+        """Get path to bundled default configuration file"""
+        try:
+            # Try to get bundled config using importlib.resources
+            config_path = files("cloudnetdraw.data").joinpath("config.yaml")
+            return str(config_path)
+        except (ImportError, FileNotFoundError):
+            # Fallback for development or if bundled config not found
+            # Use the config.yaml in the project root
+            current_dir = os.path.dirname(os.path.abspath(__file__))
+            project_root = os.path.dirname(os.path.dirname(current_dir))
+            fallback_path = os.path.join(project_root, "config.yaml")
+            if os.path.exists(fallback_path):
+                return fallback_path
+            raise FileNotFoundError("No bundled configuration file found")
     
     def _load_config(self) -> Dict[str, Any]:
         """Load configuration from YAML file"""
@@ -276,6 +317,10 @@ class Config:
     def get_cross_zone_edge_style(self) -> str:
         """Get formatted style string for cross-zone connections"""
         return self.edges['cross_zone']['style']
+    
+    def get_spoke_to_multi_hub_edge_style(self) -> str:
+        """Get formatted style string for spoke-to-multi-hub connections"""
+        return self.edges['spoke_to_multi_hub']['style']
     
     def get_icon_path(self, icon_type: str) -> str:
         """Get the path for a specific icon type"""

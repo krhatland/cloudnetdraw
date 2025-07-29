@@ -10,15 +10,17 @@ from unittest.mock import patch, mock_open, Mock
 from pathlib import Path
 
 # Import functions under test
-from azure_query import (
+from cloudnetdraw.azure_client import (
     is_subscription_id,
-    extract_resource_group,
     read_subscriptions_from_file,
     resolve_subscription_names_to_ids,
-    save_to_json,
-    extract_vnet_name_from_resource_id,
     get_sp_credentials,
     get_credentials
+)
+from cloudnetdraw.utils import (
+    extract_resource_group,
+    save_to_json,
+    extract_vnet_name_from_resource_id
 )
 
 
@@ -140,7 +142,7 @@ class TestSubscriptionNameResolution:
 
     def test_resolve_subscription_names_to_ids_success(self, mock_azure_credentials):
         """Test successful subscription name resolution"""
-        from azure_query import initialize_credentials, resolve_subscription_names_to_ids
+        from cloudnetdraw.azure_client import initialize_credentials, resolve_subscription_names_to_ids
         
         # Initialize credentials
         initialize_credentials()
@@ -153,7 +155,7 @@ class TestSubscriptionNameResolution:
         ]
         mock_subscription_client.subscriptions.list.return_value = mock_subscriptions
         
-        with patch('azure_query.SubscriptionClient', return_value=mock_subscription_client):
+        with patch('cloudnetdraw.azure_client.SubscriptionClient', return_value=mock_subscription_client):
             result = resolve_subscription_names_to_ids(
                 ["Test Subscription 1", "Test Subscription 3"]
             )
@@ -161,7 +163,7 @@ class TestSubscriptionNameResolution:
 
     def test_resolve_subscription_names_to_ids_not_found(self, mock_azure_credentials):
         """Test handling of subscription name not found"""
-        from azure_query import initialize_credentials, resolve_subscription_names_to_ids
+        from cloudnetdraw.azure_client import initialize_credentials, resolve_subscription_names_to_ids
         
         # Initialize credentials
         initialize_credentials()
@@ -173,7 +175,7 @@ class TestSubscriptionNameResolution:
         ]
         mock_subscription_client.subscriptions.list.return_value = mock_subscriptions
         
-        with patch('azure_query.SubscriptionClient', return_value=mock_subscription_client):
+        with patch('cloudnetdraw.azure_client.SubscriptionClient', return_value=mock_subscription_client):
             with pytest.raises(SystemExit):
                 resolve_subscription_names_to_ids(
                     ["Test Subscription 1", "Nonexistent Subscription"]
@@ -181,7 +183,7 @@ class TestSubscriptionNameResolution:
 
     def test_resolve_subscription_names_to_ids_empty_list(self, mock_azure_credentials):
         """Test resolution with empty subscription list"""
-        from azure_query import initialize_credentials, resolve_subscription_names_to_ids
+        from cloudnetdraw.azure_client import initialize_credentials, resolve_subscription_names_to_ids
         
         # Initialize credentials
         initialize_credentials()
@@ -189,7 +191,7 @@ class TestSubscriptionNameResolution:
         mock_subscription_client = Mock()
         mock_subscription_client.subscriptions.list.return_value = []
         
-        with patch('azure_query.SubscriptionClient', return_value=mock_subscription_client):
+        with patch('cloudnetdraw.azure_client.SubscriptionClient', return_value=mock_subscription_client):
             result = resolve_subscription_names_to_ids([])
             assert result == []
 
@@ -286,7 +288,7 @@ class TestCredentialHandling:
 
     def test_get_sp_credentials_success(self, mock_azure_env):
         """Test successful service principal credential acquisition"""
-        with patch('azure_query.ClientSecretCredential') as mock_cred:
+        with patch('cloudnetdraw.azure_client.ClientSecretCredential') as mock_cred:
             mock_instance = Mock()
             mock_cred.return_value = mock_instance
             
@@ -331,8 +333,8 @@ class TestCredentialHandling:
 
     def test_initialize_credentials_service_principal(self, mock_azure_env):
         """Test global credential initialization using service principal"""
-        from azure_query import initialize_credentials, get_credentials
-        with patch('azure_query.get_sp_credentials') as mock_sp_creds:
+        from cloudnetdraw.azure_client import initialize_credentials, get_credentials
+        with patch('cloudnetdraw.azure_client.get_sp_credentials') as mock_sp_creds:
             mock_instance = Mock()
             mock_sp_creds.return_value = mock_instance
             
@@ -344,8 +346,8 @@ class TestCredentialHandling:
 
     def test_initialize_credentials_azure_cli(self):
         """Test global credential initialization using Azure CLI"""
-        from azure_query import initialize_credentials, get_credentials
-        with patch('azure_query.AzureCliCredential') as mock_cli_creds:
+        from cloudnetdraw.azure_client import initialize_credentials, get_credentials
+        with patch('cloudnetdraw.azure_client.AzureCliCredential') as mock_cli_creds:
             mock_instance = Mock()
             mock_cli_creds.return_value = mock_instance
             
@@ -357,8 +359,8 @@ class TestCredentialHandling:
 
     def test_initialize_credentials_default_to_cli(self):
         """Test global credential initialization defaults to Azure CLI"""
-        from azure_query import initialize_credentials, get_credentials
-        with patch('azure_query.AzureCliCredential') as mock_cli_creds:
+        from cloudnetdraw.azure_client import initialize_credentials, get_credentials
+        with patch('cloudnetdraw.azure_client.AzureCliCredential') as mock_cli_creds:
             mock_instance = Mock()
             mock_cli_creds.return_value = mock_instance
             
@@ -370,11 +372,10 @@ class TestCredentialHandling:
 
     def test_get_credentials_not_initialized(self):
         """Test getting credentials when not initialized"""
-        from azure_query import _credentials
-        import azure_query
+        import cloudnetdraw.azure_client
         
         # Clear global credentials
-        azure_query._credentials = None
+        cloudnetdraw.azure_client._credentials = None
         
         with pytest.raises(RuntimeError, match="Credentials not initialized"):
             get_credentials()

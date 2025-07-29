@@ -22,9 +22,9 @@ def create_mock_subprocess_result(returncode=0, stdout='', stderr=''):
 
 
 def mock_subprocess_run(cmd, **kwargs):
-    """Mock subprocess.run to simulate azure-query.py commands."""
-    if len(cmd) >= 3 and cmd[1] == 'azure-query.py':
-        command = cmd[2]
+    """Mock subprocess.run to simulate cloudnetdraw commands."""
+    if len(cmd) >= 3 and cmd[2] == 'cloudnetdraw':
+        command = cmd[3] if len(cmd) > 3 else None
         
         if command == 'query':
             # Mock query command - create topology file
@@ -77,8 +77,8 @@ def mock_subprocess_run(cmd, **kwargs):
 
 def mock_subprocess_run_with_error(cmd, **kwargs):
     """Mock subprocess.run that simulates failures."""
-    if len(cmd) >= 3 and cmd[1] == 'azure-query.py':
-        command = cmd[2]
+    if len(cmd) >= 3 and cmd[2] == 'cloudnetdraw':
+        command = cmd[3] if len(cmd) > 3 else None
         
         if command == 'query':
             return create_mock_subprocess_result(1, '', 'Azure API error\n')
@@ -97,10 +97,10 @@ class TestQueryToHLDWorkflow:
             topology_file = Path(temp_dir) / 'topology.json'
             hld_file = Path(temp_dir) / 'diagram.drawio'
             
-            with patch('azure_query.initialize_credentials') as mock_init, \
-                 patch('azure_query.get_subscriptions_non_interactive') as mock_subs, \
-                 patch('azure_query.get_vnet_topology_for_selected_subscriptions') as mock_topology, \
-                 patch('azure_query.generate_hld_diagram') as mock_hld, \
+            with patch('cloudnetdraw.azure_client.initialize_credentials') as mock_init, \
+                 patch('cloudnetdraw.azure_client.get_subscriptions_non_interactive') as mock_subs, \
+                 patch('cloudnetdraw.azure_client.get_vnet_topology_for_selected_subscriptions') as mock_topology, \
+                 patch('cloudnetdraw.diagram_generator.generate_hld_diagram') as mock_hld, \
                  patch('subprocess.run', side_effect=mock_subprocess_run) as mock_subprocess:
                 
                 mock_init.return_value = None
@@ -110,7 +110,7 @@ class TestQueryToHLDWorkflow:
                 
                 # Step 1: Query Azure for topology
                 query_result = subprocess.run([
-                    'python', 'azure-query.py', 'query',
+                    'uv', 'run', 'cloudnetdraw', 'query',
                     '--subscriptions', '12345678-1234-1234-1234-123456789012',
                     '--output', str(topology_file)
                 ], capture_output=True, text=True)
@@ -120,7 +120,7 @@ class TestQueryToHLDWorkflow:
                 
                 # Step 2: Generate HLD diagram from topology
                 hld_result = subprocess.run([
-                    'python', 'azure-query.py', 'hld',
+                    'uv', 'run', 'cloudnetdraw', 'hld',
                     '--topology', str(topology_file),
                     '--output', str(hld_file)
                 ], capture_output=True, text=True)
@@ -139,10 +139,10 @@ class TestQueryToHLDWorkflow:
             topology_file = Path(temp_dir) / 'topology.json'
             hld_file = Path(temp_dir) / 'diagram.drawio'
             
-            with patch('azure_query.initialize_credentials') as mock_init, \
-                 patch('azure_query.get_subscriptions_non_interactive') as mock_subs, \
-                 patch('azure_query.get_vnet_topology_for_selected_subscriptions') as mock_topology, \
-                 patch('azure_query.generate_hld_diagram') as mock_hld, \
+            with patch('cloudnetdraw.azure_client.initialize_credentials') as mock_init, \
+                 patch('cloudnetdraw.azure_client.get_subscriptions_non_interactive') as mock_subs, \
+                 patch('cloudnetdraw.azure_client.get_vnet_topology_for_selected_subscriptions') as mock_topology, \
+                 patch('cloudnetdraw.diagram_generator.generate_hld_diagram') as mock_hld, \
                  patch('subprocess.run', side_effect=mock_subprocess_run) as mock_subprocess:
                 
                 mock_init.return_value = None
@@ -152,7 +152,7 @@ class TestQueryToHLDWorkflow:
                 
                 # Step 1: Query with custom config
                 query_result = subprocess.run([
-                    'python', 'azure-query.py', 'query',
+                    'uv', 'run', 'cloudnetdraw', 'query',
                     '--config-file', str(config_path),
                     '--subscriptions', '12345678-1234-1234-1234-123456789012',
                     '--output', str(topology_file)
@@ -163,7 +163,7 @@ class TestQueryToHLDWorkflow:
                 
                 # Step 2: Generate HLD with same custom config
                 hld_result = subprocess.run([
-                    'python', 'azure-query.py', 'hld',
+                    'uv', 'run', 'cloudnetdraw', 'hld',
                     '--config-file', str(config_path),
                     '--topology', str(topology_file),
                     '--output', str(hld_file)
@@ -181,10 +181,10 @@ class TestQueryToHLDWorkflow:
             topology_file = Path(temp_dir) / 'topology.json'
             hld_file = Path(temp_dir) / 'diagram.drawio'
             
-            with patch('azure_query.initialize_credentials') as mock_init, \
-                 patch('azure_query.get_subscriptions_non_interactive') as mock_subs, \
-                 patch('azure_query.get_vnet_topology_for_selected_subscriptions') as mock_topology, \
-                 patch('azure_query.generate_hld_diagram') as mock_hld, \
+            with patch('cloudnetdraw.azure_client.initialize_credentials') as mock_init, \
+                 patch('cloudnetdraw.azure_client.get_subscriptions_non_interactive') as mock_subs, \
+                 patch('cloudnetdraw.azure_client.get_vnet_topology_for_selected_subscriptions') as mock_topology, \
+                 patch('cloudnetdraw.diagram_generator.generate_hld_diagram') as mock_hld, \
                  patch('subprocess.run', side_effect=mock_subprocess_run) as mock_subprocess:
                 
                 mock_init.return_value = None
@@ -194,7 +194,7 @@ class TestQueryToHLDWorkflow:
                 
                 # Step 1: Query with verbose logging
                 query_result = subprocess.run([
-                    'python', 'azure-query.py', 'query',
+                    'uv', 'run', 'cloudnetdraw', 'query',
                     '--verbose',
                     '--subscriptions', '12345678-1234-1234-1234-123456789012',
                     '--output', str(topology_file)
@@ -207,7 +207,7 @@ class TestQueryToHLDWorkflow:
                 
                 # Step 2: Generate HLD with verbose logging
                 hld_result = subprocess.run([
-                    'python', 'azure-query.py', 'hld',
+                    'uv', 'run', 'cloudnetdraw', 'hld',
                     '--verbose',
                     '--topology', str(topology_file),
                     '--output', str(hld_file)
@@ -229,10 +229,10 @@ class TestQueryToMLDWorkflow:
             topology_file = Path(temp_dir) / 'topology.json'
             mld_file = Path(temp_dir) / 'detailed_diagram.drawio'
             
-            with patch('azure_query.initialize_credentials') as mock_init, \
-                 patch('azure_query.get_subscriptions_non_interactive') as mock_subs, \
-                 patch('azure_query.get_vnet_topology_for_selected_subscriptions') as mock_topology, \
-                 patch('azure_query.generate_mld_diagram') as mock_mld, \
+            with patch('cloudnetdraw.azure_client.initialize_credentials') as mock_init, \
+                 patch('cloudnetdraw.azure_client.get_subscriptions_non_interactive') as mock_subs, \
+                 patch('cloudnetdraw.azure_client.get_vnet_topology_for_selected_subscriptions') as mock_topology, \
+                 patch('cloudnetdraw.diagram_generator.generate_mld_diagram') as mock_mld, \
                  patch('subprocess.run', side_effect=mock_subprocess_run) as mock_subprocess:
                 
                 mock_init.return_value = None
@@ -242,7 +242,7 @@ class TestQueryToMLDWorkflow:
                 
                 # Step 1: Query Azure for topology
                 query_result = subprocess.run([
-                    'python', 'azure-query.py', 'query',
+                    'uv', 'run', 'cloudnetdraw', 'query',
                     '--subscriptions', '12345678-1234-1234-1234-123456789012',
                     '--output', str(topology_file)
                 ], capture_output=True, text=True)
@@ -252,7 +252,7 @@ class TestQueryToMLDWorkflow:
                 
                 # Step 2: Generate MLD diagram from topology
                 mld_result = subprocess.run([
-                    'python', 'azure-query.py', 'mld',
+                    'uv', 'run', 'cloudnetdraw', 'mld',
                     '--topology', str(topology_file),
                     '--output', str(mld_file)
                 ], capture_output=True, text=True)
@@ -271,10 +271,10 @@ class TestQueryToMLDWorkflow:
             topology_file = Path(temp_dir) / 'topology.json'
             mld_file = Path(temp_dir) / 'detailed_diagram.drawio'
             
-            with patch('azure_query.initialize_credentials') as mock_init, \
-                 patch('azure_query.get_subscriptions_non_interactive') as mock_subs, \
-                 patch('azure_query.get_vnet_topology_for_selected_subscriptions') as mock_topology, \
-                 patch('azure_query.generate_mld_diagram') as mock_mld, \
+            with patch('cloudnetdraw.azure_client.initialize_credentials') as mock_init, \
+                 patch('cloudnetdraw.azure_client.get_subscriptions_non_interactive') as mock_subs, \
+                 patch('cloudnetdraw.azure_client.get_vnet_topology_for_selected_subscriptions') as mock_topology, \
+                 patch('cloudnetdraw.diagram_generator.generate_mld_diagram') as mock_mld, \
                  patch('subprocess.run', side_effect=mock_subprocess_run) as mock_subprocess:
                 
                 mock_init.return_value = None
@@ -284,7 +284,7 @@ class TestQueryToMLDWorkflow:
                 
                 # Step 1: Query with custom config
                 query_result = subprocess.run([
-                    'python', 'azure-query.py', 'query',
+                    'uv', 'run', 'cloudnetdraw', 'query',
                     '--config-file', str(config_path),
                     '--subscriptions', '12345678-1234-1234-1234-123456789012',
                     '--output', str(topology_file)
@@ -295,7 +295,7 @@ class TestQueryToMLDWorkflow:
                 
                 # Step 2: Generate MLD with same custom config
                 mld_result = subprocess.run([
-                    'python', 'azure-query.py', 'mld',
+                    'uv', 'run', 'cloudnetdraw', 'mld',
                     '--config-file', str(config_path),
                     '--topology', str(topology_file),
                     '--output', str(mld_file)
@@ -334,13 +334,13 @@ class TestVariousTopologySizes:
             with open(topology_file, 'w') as f:
                 json.dump(small_topology, f, indent=2)
             
-            with patch('azure_query.generate_hld_diagram') as mock_hld, \
+            with patch('cloudnetdraw.diagram_generator.generate_hld_diagram') as mock_hld, \
                  patch('subprocess.run', side_effect=mock_subprocess_run) as mock_subprocess:
                 mock_hld.return_value = None
                 
                 # Generate HLD from small topology
                 hld_result = subprocess.run([
-                    'python', 'azure-query.py', 'hld',
+                    'uv', 'run', 'cloudnetdraw', 'hld',
                     '--topology', str(topology_file),
                     '--output', str(hld_file)
                 ], capture_output=True, text=True)
@@ -371,13 +371,13 @@ class TestVariousTopologySizes:
             with open(topology_file, 'w') as f:
                 json.dump(sample_data["simple_hub_spoke"], f, indent=2)
             
-            with patch('azure_query.generate_hld_diagram') as mock_hld, \
+            with patch('cloudnetdraw.diagram_generator.generate_hld_diagram') as mock_hld, \
                  patch('subprocess.run', side_effect=mock_subprocess_run) as mock_subprocess:
                 mock_hld.return_value = None
                 
                 # Generate HLD from medium topology
                 hld_result = subprocess.run([
-                    'python', 'azure-query.py', 'hld',
+                    'uv', 'run', 'cloudnetdraw', 'hld',
                     '--topology', str(topology_file),
                     '--output', str(hld_file)
                 ], capture_output=True, text=True)
@@ -418,13 +418,13 @@ class TestVariousTopologySizes:
             with open(topology_file, 'w') as f:
                 json.dump(large_topology, f, indent=2)
             
-            with patch('azure_query.generate_hld_diagram') as mock_hld, \
+            with patch('cloudnetdraw.diagram_generator.generate_hld_diagram') as mock_hld, \
                  patch('subprocess.run', side_effect=mock_subprocess_run) as mock_subprocess:
                 mock_hld.return_value = None
                 
                 # Generate HLD from large topology
                 hld_result = subprocess.run([
-                    'python', 'azure-query.py', 'hld',
+                    'uv', 'run', 'cloudnetdraw', 'hld',
                     '--topology', str(topology_file),
                     '--output', str(hld_file)
                 ], capture_output=True, text=True)
@@ -457,12 +457,12 @@ class TestDifferentPeeringPatterns:
             with open(topology_file, 'w') as f:
                 json.dump(sample_data["simple_hub_spoke"], f, indent=2)
             
-            with patch('azure_query.generate_hld_diagram') as mock_hld, \
+            with patch('cloudnetdraw.diagram_generator.generate_hld_diagram') as mock_hld, \
                  patch('subprocess.run', side_effect=mock_subprocess_run) as mock_subprocess:
                 mock_hld.return_value = None
                 
                 hld_result = subprocess.run([
-                    'python', 'azure-query.py', 'hld',
+                    'uv', 'run', 'cloudnetdraw', 'hld',
                     '--topology', str(topology_file),
                     '--output', str(hld_file)
                 ], capture_output=True, text=True)
@@ -496,12 +496,12 @@ class TestDifferentPeeringPatterns:
             with open(topology_file, 'w') as f:
                 json.dump(sample_data["complex_multi_hub"], f, indent=2)
             
-            with patch('azure_query.generate_hld_diagram') as mock_hld, \
+            with patch('cloudnetdraw.diagram_generator.generate_hld_diagram') as mock_hld, \
                  patch('subprocess.run', side_effect=mock_subprocess_run) as mock_subprocess:
                 mock_hld.return_value = None
                 
                 hld_result = subprocess.run([
-                    'python', 'azure-query.py', 'hld',
+                    'uv', 'run', 'cloudnetdraw', 'hld',
                     '--topology', str(topology_file),
                     '--output', str(hld_file)
                 ], capture_output=True, text=True)
@@ -532,12 +532,12 @@ class TestDifferentPeeringPatterns:
             with open(topology_file, 'w') as f:
                 json.dump(sample_data["edge_cases"]["no_peerings"], f, indent=2)
             
-            with patch('azure_query.generate_hld_diagram') as mock_hld, \
+            with patch('cloudnetdraw.diagram_generator.generate_hld_diagram') as mock_hld, \
                  patch('subprocess.run', side_effect=mock_subprocess_run) as mock_subprocess:
                 mock_hld.return_value = None
                 
                 hld_result = subprocess.run([
-                    'python', 'azure-query.py', 'hld',
+                    'uv', 'run', 'cloudnetdraw', 'hld',
                     '--topology', str(topology_file),
                     '--output', str(hld_file)
                 ], capture_output=True, text=True)
@@ -563,9 +563,9 @@ class TestMultipleSubscriptionScenarios:
         with tempfile.TemporaryDirectory() as temp_dir:
             topology_file = Path(temp_dir) / 'multi_sub_topology.json'
             
-            with patch('azure_query.initialize_credentials') as mock_init, \
-                 patch('azure_query.get_subscriptions_non_interactive') as mock_subs, \
-                 patch('azure_query.get_vnet_topology_for_selected_subscriptions') as mock_topology, \
+            with patch('cloudnetdraw.azure_client.initialize_credentials') as mock_init, \
+                 patch('cloudnetdraw.azure_client.get_subscriptions_non_interactive') as mock_subs, \
+                 patch('cloudnetdraw.azure_client.get_vnet_topology_for_selected_subscriptions') as mock_topology, \
                  patch('subprocess.run', side_effect=mock_subprocess_run) as mock_subprocess:
                 
                 mock_init.return_value = None
@@ -577,7 +577,7 @@ class TestMultipleSubscriptionScenarios:
                 
                 # Query multiple subscriptions (comma-separated)
                 query_result = subprocess.run([
-                    'python', 'azure-query.py', 'query',
+                    'uv', 'run', 'cloudnetdraw', 'query',
                     '--subscriptions',
                     '12345678-1234-1234-1234-123456789012,87654321-4321-4321-4321-210987654321',
                     '--output', str(topology_file)
@@ -598,9 +598,9 @@ class TestMultipleSubscriptionScenarios:
         with tempfile.TemporaryDirectory() as temp_dir:
             topology_file = Path(temp_dir) / 'named_sub_topology.json'
             
-            with patch('azure_query.initialize_credentials') as mock_init, \
-                 patch('azure_query.get_subscriptions_non_interactive') as mock_subs, \
-                 patch('azure_query.get_vnet_topology_for_selected_subscriptions') as mock_topology, \
+            with patch('cloudnetdraw.azure_client.initialize_credentials') as mock_init, \
+                 patch('cloudnetdraw.azure_client.get_subscriptions_non_interactive') as mock_subs, \
+                 patch('cloudnetdraw.azure_client.get_vnet_topology_for_selected_subscriptions') as mock_topology, \
                  patch('subprocess.run', side_effect=mock_subprocess_run) as mock_subprocess:
                 
                 mock_init.return_value = None
@@ -609,7 +609,7 @@ class TestMultipleSubscriptionScenarios:
                 
                 # Query using subscription name
                 query_result = subprocess.run([
-                    'python', 'azure-query.py', 'query',
+                    'uv', 'run', 'cloudnetdraw', 'query',
                     '--subscriptions', 'Production Subscription',
                     '--output', str(topology_file)
                 ], capture_output=True, text=True)
@@ -629,9 +629,9 @@ class TestAuthenticationMethods:
         with tempfile.TemporaryDirectory() as temp_dir:
             topology_file = Path(temp_dir) / 'cli_auth_topology.json'
             
-            with patch('azure_query.initialize_credentials') as mock_init, \
-                 patch('azure_query.get_subscriptions_non_interactive') as mock_subs, \
-                 patch('azure_query.get_vnet_topology_for_selected_subscriptions') as mock_topology, \
+            with patch('cloudnetdraw.azure_client.initialize_credentials') as mock_init, \
+                 patch('cloudnetdraw.azure_client.get_subscriptions_non_interactive') as mock_subs, \
+                 patch('cloudnetdraw.azure_client.get_vnet_topology_for_selected_subscriptions') as mock_topology, \
                  patch('subprocess.run', side_effect=mock_subprocess_run) as mock_subprocess:
                 
                 mock_init.return_value = None
@@ -639,7 +639,7 @@ class TestAuthenticationMethods:
                 mock_topology.return_value = VNET_LIST_RESPONSE
                 
                 query_result = subprocess.run([
-                    'python', 'azure-query.py', 'query',
+                    'uv', 'run', 'cloudnetdraw', 'query',
                     '--subscriptions', '12345678-1234-1234-1234-123456789012',
                     '--output', str(topology_file)
                 ], capture_output=True, text=True)
@@ -663,26 +663,26 @@ class TestAuthenticationMethods:
             }
             
             with patch.dict(os.environ, env_vars), \
-                 patch('azure_query.initialize_credentials') as mock_init, \
-                 patch('azure_query.get_subscriptions_non_interactive') as mock_subs, \
-                 patch('azure_query.get_vnet_topology_for_selected_subscriptions') as mock_topology, \
-                 patch('subprocess.run', side_effect=mock_subprocess_run) as mock_subprocess:
-                
-                mock_init.return_value = None
-                mock_subs.return_value = ["12345678-1234-1234-1234-123456789012"]
-                mock_topology.return_value = VNET_LIST_RESPONSE
-                
-                query_result = subprocess.run([
-                    'python', 'azure-query.py', 'query',
-                    '--subscriptions', '12345678-1234-1234-1234-123456789012',
-                    '--output', str(topology_file)
-                ], capture_output=True, text=True)
-                
-                assert query_result.returncode == 0
-                assert topology_file.exists(), "Topology file should be created"
-                
-                # Verify subprocess was called correctly
-                assert mock_subprocess.call_count == 1
+                 patch('cloudnetdraw.azure_client.initialize_credentials') as mock_init, \
+                     patch('cloudnetdraw.azure_client.get_subscriptions_non_interactive') as mock_subs, \
+                     patch('cloudnetdraw.azure_client.get_vnet_topology_for_selected_subscriptions') as mock_topology, \
+                     patch('subprocess.run', side_effect=mock_subprocess_run) as mock_subprocess:
+                    
+                    mock_init.return_value = None
+                    mock_subs.return_value = ["12345678-1234-1234-1234-123456789012"]
+                    mock_topology.return_value = VNET_LIST_RESPONSE
+                    
+                    query_result = subprocess.run([
+                        'uv', 'run', 'cloudnetdraw', 'query',
+                        '--subscriptions', '12345678-1234-1234-1234-123456789012',
+                        '--output', str(topology_file)
+                    ], capture_output=True, text=True)
+                    
+                    assert query_result.returncode == 0
+                    assert topology_file.exists(), "Topology file should be created"
+                    
+                    # Verify subprocess was called correctly
+                    assert mock_subprocess.call_count == 1
 
 
 class TestWorkflowErrorHandling:
@@ -693,9 +693,9 @@ class TestWorkflowErrorHandling:
         with tempfile.TemporaryDirectory() as temp_dir:
             topology_file = Path(temp_dir) / 'failed_topology.json'
             
-            with patch('azure_query.initialize_credentials') as mock_init, \
-                 patch('azure_query.get_subscriptions_non_interactive') as mock_subs, \
-                 patch('azure_query.get_vnet_topology_for_selected_subscriptions') as mock_topology, \
+            with patch('cloudnetdraw.azure_client.initialize_credentials') as mock_init, \
+                 patch('cloudnetdraw.azure_client.get_subscriptions_non_interactive') as mock_subs, \
+                 patch('cloudnetdraw.azure_client.get_vnet_topology_for_selected_subscriptions') as mock_topology, \
                  patch('subprocess.run', side_effect=mock_subprocess_run_with_error) as mock_subprocess:
                 
                 mock_init.return_value = None
@@ -704,7 +704,7 @@ class TestWorkflowErrorHandling:
                 mock_topology.side_effect = Exception("Azure API error")
                 
                 query_result = subprocess.run([
-                    'python', 'azure-query.py', 'query',
+                    'uv', 'run', 'cloudnetdraw', 'query',
                     '--subscriptions', '12345678-1234-1234-1234-123456789012',
                     '--output', str(topology_file)
                 ], capture_output=True, text=True)
@@ -725,13 +725,13 @@ class TestWorkflowErrorHandling:
             with open(topology_file, 'w') as f:
                 json.dump({"vnets": []}, f)
             
-            with patch('azure_query.generate_hld_diagram') as mock_hld, \
+            with patch('cloudnetdraw.diagram_generator.generate_hld_diagram') as mock_hld, \
                  patch('subprocess.run', side_effect=mock_subprocess_run_with_error) as mock_subprocess:
                 # Mock diagram generation failure
                 mock_hld.side_effect = Exception("Diagram generation error")
                 
                 hld_result = subprocess.run([
-                    'python', 'azure-query.py', 'hld',
+                    'uv', 'run', 'cloudnetdraw', 'hld',
                     '--topology', str(topology_file),
                     '--output', str(hld_file)
                 ], capture_output=True, text=True)
@@ -748,9 +748,9 @@ class TestWorkflowErrorHandling:
             topology_file = Path(temp_dir) / 'topology.json'
             hld_file = Path(temp_dir) / 'diagram.drawio'
             
-            with patch('azure_query.initialize_credentials') as mock_init, \
-                 patch('azure_query.get_subscriptions_non_interactive') as mock_subs, \
-                 patch('azure_query.get_vnet_topology_for_selected_subscriptions') as mock_topology:
+            with patch('cloudnetdraw.azure_client.initialize_credentials') as mock_init, \
+                 patch('cloudnetdraw.azure_client.get_subscriptions_non_interactive') as mock_subs, \
+                 patch('cloudnetdraw.azure_client.get_vnet_topology_for_selected_subscriptions') as mock_topology:
                 
                 mock_init.return_value = None
                 mock_subs.return_value = ["12345678-1234-1234-1234-123456789012"]
@@ -759,7 +759,7 @@ class TestWorkflowErrorHandling:
                 # Step 1: Generate topology file
                 with patch('subprocess.run', side_effect=mock_subprocess_run) as mock_subprocess:
                     query_result = subprocess.run([
-                        'python', 'azure-query.py', 'query',
+                        'uv', 'run', 'cloudnetdraw', 'query',
                         '--subscriptions', '12345678-1234-1234-1234-123456789012',
                         '--output', str(topology_file)
                     ], capture_output=True, text=True)
@@ -773,7 +773,7 @@ class TestWorkflowErrorHandling:
                 # Step 3: Try to generate diagram (should fail)
                 with patch('subprocess.run', side_effect=mock_subprocess_run_with_error) as mock_subprocess_error:
                     hld_result = subprocess.run([
-                        'python', 'azure-query.py', 'hld',
+                        'uv', 'run', 'cloudnetdraw', 'hld',
                         '--topology', str(topology_file),
                         '--output', str(hld_file)
                     ], capture_output=True, text=True)

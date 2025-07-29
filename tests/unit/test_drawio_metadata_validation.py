@@ -13,7 +13,7 @@ import tempfile
 import os
 
 # Import functions under test
-from azure_query import (
+from cloudnetdraw.diagram_generator import (
     generate_diagram,
     generate_hld_diagram,
     generate_mld_diagram,

@@ -7,7 +7,7 @@ from azure.core.exceptions import ResourceNotFoundError
 from pathlib import Path
 
 # Import functions under test
-from azure_query import (
+from cloudnetdraw.azure_client import (
     get_vnet_topology_for_selected_subscriptions,
     list_and_select_subscriptions,
     get_subscriptions_non_interactive,
@@ -44,8 +44,8 @@ class TestVNetTopologyCollection:
         mock_network_client.virtual_network_peerings.list.return_value = []
         mock_network_client.virtual_wans.list.return_value = []
 
-        with patch('azure_query.SubscriptionClient', return_value=mock_subscription_client), \
-             patch('azure_query.NetworkManagementClient', return_value=mock_network_client):
+        with patch('cloudnetdraw.azure_client.SubscriptionClient', return_value=mock_subscription_client), \
+             patch('cloudnetdraw.azure_client.NetworkManagementClient', return_value=mock_network_client):
             
             # Initialize credentials for global usage
             initialize_credentials()
@@ -99,8 +99,8 @@ class TestVNetTopologyCollection:
         mock_network_client.virtual_network_peerings.list.return_value = [mock_peering1, mock_peering2]
         mock_network_client.virtual_wans.list.return_value = []
 
-        with patch('azure_query.SubscriptionClient', return_value=mock_subscription_client), \
-             patch('azure_query.NetworkManagementClient', return_value=mock_network_client):
+        with patch('cloudnetdraw.azure_client.SubscriptionClient', return_value=mock_subscription_client), \
+             patch('cloudnetdraw.azure_client.NetworkManagementClient', return_value=mock_network_client):
             
             # Initialize credentials for global usage
             initialize_credentials()
@@ -151,8 +151,8 @@ class TestVNetTopologyCollection:
         mock_network_client.virtual_hubs.list_by_resource_group.return_value = [mock_hub]
         mock_network_client.virtual_networks.list_all.return_value = []
 
-        with patch('azure_query.SubscriptionClient', return_value=mock_subscription_client), \
-             patch('azure_query.NetworkManagementClient', return_value=mock_network_client):
+        with patch('cloudnetdraw.azure_client.SubscriptionClient', return_value=mock_subscription_client), \
+             patch('cloudnetdraw.azure_client.NetworkManagementClient', return_value=mock_network_client):
             
             # Initialize credentials for global usage
             initialize_credentials()
@@ -211,8 +211,8 @@ class TestVNetTopologyCollection:
             mock_client.virtual_wans.list.return_value = []
             return mock_client
 
-        with patch('azure_query.SubscriptionClient', return_value=mock_subscription_client), \
-             patch('azure_query.NetworkManagementClient', side_effect=mock_network_client):
+        with patch('cloudnetdraw.azure_client.SubscriptionClient', return_value=mock_subscription_client), \
+             patch('cloudnetdraw.azure_client.NetworkManagementClient', side_effect=mock_network_client):
             
             # Initialize credentials for global usage
             initialize_credentials()
@@ -239,8 +239,8 @@ class TestVNetTopologyCollection:
         mock_network_client.virtual_networks.list_all.side_effect = ResourceNotFoundError("Resource not found")
         mock_network_client.virtual_wans.list.return_value = []
 
-        with patch('azure_query.SubscriptionClient', return_value=mock_subscription_client), \
-             patch('azure_query.NetworkManagementClient', return_value=mock_network_client):
+        with patch('cloudnetdraw.azure_client.SubscriptionClient', return_value=mock_subscription_client), \
+             patch('cloudnetdraw.azure_client.NetworkManagementClient', return_value=mock_network_client):
             
             # Should exit with error code 1 when Azure API error occurs
             # Initialize credentials for global usage
@@ -261,8 +261,8 @@ class TestVNetTopologyCollection:
         mock_network_client.virtual_networks.list_all.return_value = []
         mock_network_client.virtual_wans.list.side_effect = Exception("Virtual WAN error")
 
-        with patch('azure_query.SubscriptionClient', return_value=mock_subscription_client), \
-             patch('azure_query.NetworkManagementClient', return_value=mock_network_client):
+        with patch('cloudnetdraw.azure_client.SubscriptionClient', return_value=mock_subscription_client), \
+             patch('cloudnetdraw.azure_client.NetworkManagementClient', return_value=mock_network_client):
             
             # Should exit with error code 1 when Azure API error occurs
             # Initialize credentials for global usage
@@ -281,7 +281,7 @@ class TestSubscriptionListing:
         mock_subscription_client = Mock()
         mock_subscription_client.subscriptions.list.return_value = mock_subscription_list
 
-        with patch('azure_query.SubscriptionClient', return_value=mock_subscription_client), \
+        with patch('cloudnetdraw.azure_client.SubscriptionClient', return_value=mock_subscription_client), \
              patch('builtins.input', return_value='0,2'):
             
             # Initialize credentials for global usage
@@ -305,7 +305,7 @@ class TestSubscriptionListing:
         mock_subscription_client = Mock()
         mock_subscription_client.subscriptions.list.return_value = mock_subscriptions
 
-        with patch('azure_query.SubscriptionClient', return_value=mock_subscription_client), \
+        with patch('cloudnetdraw.azure_client.SubscriptionClient', return_value=mock_subscription_client), \
              patch('builtins.input', return_value='0,1,2'):
             
             # Initialize credentials for global usage
@@ -321,7 +321,7 @@ class TestSubscriptionListing:
         mock_subscription_client = Mock()
         mock_subscription_client.subscriptions.list.return_value = mock_subscription_list
 
-        with patch('azure_query.SubscriptionClient', return_value=mock_subscription_client), \
+        with patch('cloudnetdraw.azure_client.SubscriptionClient', return_value=mock_subscription_client), \
              patch('builtins.input', return_value='1'):
             
             # Initialize credentials for global usage
@@ -342,7 +342,7 @@ class TestNonInteractiveSubscriptionHandling:
         mock_args.subscriptions = 'sub-1,sub-2,sub-3'
         mock_args.subscriptions_file = None
         
-        with patch('azure_query.is_subscription_id', return_value=True):
+        with patch('cloudnetdraw.azure_client.is_subscription_id', return_value=True):
             # Initialize credentials for global usage
             initialize_credentials()
             
@@ -359,7 +359,7 @@ class TestNonInteractiveSubscriptionHandling:
         mock_args.subscriptions = None
         mock_args.subscriptions_file = str(subscriptions_file)
         
-        with patch('azure_query.is_subscription_id', return_value=True):
+        with patch('cloudnetdraw.azure_client.is_subscription_id', return_value=True):
             # Initialize credentials for global usage
             initialize_credentials()
             
@@ -384,8 +384,8 @@ class TestNonInteractiveSubscriptionHandling:
         mock_args.subscriptions = 'Test Subscription 1,Test Subscription 2'
         mock_args.subscriptions_file = None
         
-        with patch('azure_query.is_subscription_id', return_value=False), \
-             patch('azure_query.resolve_subscription_names_to_ids', return_value=['sub-1', 'sub-2']) as mock_resolve:
+        with patch('cloudnetdraw.azure_client.is_subscription_id', return_value=False), \
+             patch('cloudnetdraw.azure_client.resolve_subscription_names_to_ids', return_value=['sub-1', 'sub-2']) as mock_resolve:
             
             # Initialize credentials for global usage
             initialize_credentials()
@@ -401,7 +401,7 @@ class TestNonInteractiveSubscriptionHandling:
         mock_args.subscriptions = ' sub-1 , sub-2 , sub-3 '
         mock_args.subscriptions_file = None
         
-        with patch('azure_query.is_subscription_id', return_value=True):
+        with patch('cloudnetdraw.azure_client.is_subscription_id', return_value=True):
             # Initialize credentials for global usage
             initialize_credentials()
             

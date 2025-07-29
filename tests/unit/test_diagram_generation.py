@@ -7,9 +7,11 @@ from lxml import etree
 from pathlib import Path
 
 # Import functions under test
-from azure_query import (
+from cloudnetdraw.diagram_generator import (
     generate_hld_diagram,
-    generate_mld_diagram,
+    generate_mld_diagram
+)
+from cloudnetdraw.cli import (
     hld_command,
     mld_command
 )
@@ -252,7 +254,7 @@ class TestHLDGeneration:
         mock_args.output = 'test_output.drawio'
         mock_args.config_file = 'config.yaml'
         
-        with patch('azure_query.generate_hld_diagram') as mock_generate:
+        with patch('cloudnetdraw.diagram_generator.generate_hld_diagram') as mock_generate:
             hld_command(mock_args)
             
             mock_generate.assert_called_once()
@@ -267,7 +269,7 @@ class TestHLDGeneration:
         mock_args.output = None
         mock_args.config_file = 'config.yaml'
         
-        with patch('azure_query.generate_hld_diagram') as mock_generate:
+        with patch('cloudnetdraw.diagram_generator.generate_hld_diagram') as mock_generate:
             hld_command(mock_args)
             
             mock_generate.assert_called_once()
@@ -327,7 +329,7 @@ class TestMLDGeneration:
         mock_args.output = 'test_output.drawio'
         mock_args.config_file = 'config.yaml'
         
-        with patch('azure_query.generate_mld_diagram') as mock_generate:
+        with patch('cloudnetdraw.diagram_generator.generate_mld_diagram') as mock_generate:
             mld_command(mock_args)
             
             mock_generate.assert_called_once()
@@ -342,7 +344,7 @@ class TestMLDGeneration:
         mock_args.output = None
         mock_args.config_file = 'config.yaml'
         
-        with patch('azure_query.generate_mld_diagram') as mock_generate:
+        with patch('cloudnetdraw.diagram_generator.generate_mld_diagram') as mock_generate:
             mld_command(mock_args)
             
             mock_generate.assert_called_once()

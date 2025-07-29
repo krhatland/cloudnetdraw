@@ -7,13 +7,14 @@ import sys
 from unittest.mock import patch, MagicMock, Mock
 from azure.core.exceptions import ResourceNotFoundError
 
-from azure_query import (
+from cloudnetdraw.azure_client import (
     find_hub_vnet_using_resource_graph, find_peered_vnets,
-    get_filtered_vnet_topology, get_vnet_topology_for_selected_subscriptions,
+    get_vnet_topology_for_selected_subscriptions,
     get_subscriptions_non_interactive, resolve_subscription_names_to_ids,
     read_subscriptions_from_file, get_sp_credentials, initialize_credentials,
     get_credentials
 )
+from cloudnetdraw.topology import get_filtered_vnet_topology
 
 
 class TestFindHubVnetUsingResourceGraph:
@@ -21,7 +22,7 @@ class TestFindHubVnetUsingResourceGraph:
     
     def test_find_hub_vnet_missing_resource_group(self):
         """Test error when resource group is missing"""
-        with patch('azure_query.get_credentials'), \
+        with patch('cloudnetdraw.azure_client.get_credentials'), \
              pytest.raises(SystemExit) as exc_info:
             find_hub_vnet_using_resource_graph("simple-vnet-name")
         
@@ -33,8 +34,8 @@ class TestFindHubVnetUsingResourceGraph:
         mock_resource_graph_client = MagicMock()
         mock_resource_graph_client.resources.side_effect = Exception("API Error")
         
-        with patch('azure_query.get_credentials', return_value=mock_credentials), \
-             patch('azure_query.ResourceGraphClient', return_value=mock_resource_graph_client):
+        with patch('cloudnetdraw.azure_client.get_credentials', return_value=mock_credentials), \
+             patch('cloudnetdraw.azure_client.ResourceGraphClient', return_value=mock_resource_graph_client):
             
             result = find_hub_vnet_using_resource_graph("rg-1/test-vnet")
             assert result is None
@@ -54,8 +55,8 @@ class TestFindPeeredVnets:
         mock_credentials = MagicMock()
         mock_subscription_client = MagicMock()
         
-        with patch('azure_query.get_credentials', return_value=mock_credentials), \
-             patch('azure_query.SubscriptionClient', return_value=mock_subscription_client):
+        with patch('cloudnetdraw.azure_client.get_credentials', return_value=mock_credentials), \
+             patch('cloudnetdraw.azure_client.SubscriptionClient', return_value=mock_subscription_client):
             
             peered_vnets, accessible_resource_ids = find_peered_vnets(['/invalid/resource/id'])
             assert peered_vnets == []
@@ -84,9 +85,9 @@ class TestFindPeeredVnets:
             '/subscriptions/sub-1/resourceGroups/rg-1/providers/Microsoft.Network/virtualNetworks/test-vnet'
         ]
         
-        with patch('azure_query.get_credentials', return_value=mock_credentials), \
-             patch('azure_query.SubscriptionClient', return_value=mock_subscription_client), \
-             patch('azure_query.NetworkManagementClient', return_value=mock_network_client):
+        with patch('cloudnetdraw.azure_client.get_credentials', return_value=mock_credentials), \
+             patch('cloudnetdraw.azure_client.SubscriptionClient', return_value=mock_subscription_client), \
+             patch('cloudnetdraw.azure_client.NetworkManagementClient', return_value=mock_network_client):
             
             peered_vnets, accessible_resource_ids = find_peered_vnets(resource_ids)
             assert len(peered_vnets) == 1  # Should only have one VNet despite two identical IDs
@@ -107,9 +108,9 @@ class TestFindPeeredVnets:
             '/subscriptions/sub-1/resourceGroups/rg-1/providers/Microsoft.Network/virtualNetworks/deleted-vnet'
         ]
         
-        with patch('azure_query.get_credentials', return_value=mock_credentials), \
-             patch('azure_query.SubscriptionClient', return_value=mock_subscription_client), \
-             patch('azure_query.NetworkManagementClient', return_value=mock_network_client):
+        with patch('cloudnetdraw.azure_client.get_credentials', return_value=mock_credentials), \
+             patch('cloudnetdraw.azure_client.SubscriptionClient', return_value=mock_subscription_client), \
+             patch('cloudnetdraw.azure_client.NetworkManagementClient', return_value=mock_network_client):
             
             peered_vnets, accessible_resource_ids = find_peered_vnets(resource_ids)
             assert peered_vnets == []  # Should return empty list when VNet not found
@@ -125,8 +126,8 @@ class TestFindPeeredVnets:
             '/subscriptions/sub-1/resourceGroups/rg-1/providers/Microsoft.Network/virtualNetworks/test-vnet'
         ]
         
-        with patch('azure_query.get_credentials', return_value=mock_credentials), \
-             patch('azure_query.SubscriptionClient', return_value=mock_subscription_client):
+        with patch('cloudnetdraw.azure_client.get_credentials', return_value=mock_credentials), \
+             patch('cloudnetdraw.azure_client.SubscriptionClient', return_value=mock_subscription_client):
             
             peered_vnets, accessible_resource_ids = find_peered_vnets(resource_ids)
             assert peered_vnets == []  # Should return empty list on exception
@@ -138,7 +139,7 @@ class TestGetFilteredVnetTopology:
     
     def test_get_filtered_vnet_topology_hub_not_found(self):
         """Test get_filtered_vnet_topology when hub VNet is not found"""
-        with patch('azure_query.find_hub_vnet_using_resource_graph', return_value=None), \
+        with patch('cloudnetdraw.azure_client.find_hub_vnet_using_resource_graph', return_value=None), \
              pytest.raises(SystemExit) as exc_info:
             get_filtered_vnet_topology("rg-1/nonexistent-vnet", ["sub-1"])
         
@@ -159,8 +160,8 @@ class TestGetFilteredVnetTopology:
             'subscription_name': 'Test Subscription'
         }]
         
-        with patch('azure_query.find_hub_vnet_using_resource_graph', return_value=mock_hub_vnet), \
-             patch('azure_query.find_peered_vnets', return_value=(mock_spoke_vnets, ['/subscriptions/sub-1/resourceGroups/rg-1/providers/Microsoft.Network/virtualNetworks/spoke-vnet'])):
+        with patch('cloudnetdraw.topology.find_hub_vnet_using_resource_graph', return_value=mock_hub_vnet), \
+             patch('cloudnetdraw.topology.find_peered_vnets', return_value=(mock_spoke_vnets, ['/subscriptions/sub-1/resourceGroups/rg-1/providers/Microsoft.Network/virtualNetworks/spoke-vnet'])):
             
             result = get_filtered_vnet_topology("rg-1/hub-vnet", ["sub-1"])
             
@@ -179,8 +180,8 @@ class TestGetVnetTopologyForSelectedSubscriptions:
         mock_subscription_client = MagicMock()
         mock_subscription_client.subscriptions.get.side_effect = Exception("Access denied")
         
-        with patch('azure_query.get_credentials', return_value=mock_credentials), \
-             patch('azure_query.SubscriptionClient', return_value=mock_subscription_client), \
+        with patch('cloudnetdraw.azure_client.get_credentials', return_value=mock_credentials), \
+             patch('cloudnetdraw.azure_client.SubscriptionClient', return_value=mock_subscription_client), \
              pytest.raises(SystemExit) as exc_info:
             get_vnet_topology_for_selected_subscriptions(["invalid-sub"])
         
@@ -197,9 +198,9 @@ class TestGetVnetTopologyForSelectedSubscriptions:
         mock_network_client = MagicMock()
         mock_network_client.virtual_wans.list.side_effect = Exception("Virtual WAN error")
         
-        with patch('azure_query.get_credentials', return_value=mock_credentials), \
-             patch('azure_query.SubscriptionClient', return_value=mock_subscription_client), \
-             patch('azure_query.NetworkManagementClient', return_value=mock_network_client), \
+        with patch('cloudnetdraw.azure_client.get_credentials', return_value=mock_credentials), \
+             patch('cloudnetdraw.azure_client.SubscriptionClient', return_value=mock_subscription_client), \
+             patch('cloudnetdraw.azure_client.NetworkManagementClient', return_value=mock_network_client), \
              pytest.raises(SystemExit) as exc_info:
             get_vnet_topology_for_selected_subscriptions(["sub-1"])
         
@@ -227,10 +228,10 @@ class TestGetVnetTopologyForSelectedSubscriptions:
         # Mock peering list to raise exception
         mock_network_client.virtual_network_peerings.list.side_effect = Exception("Peering error")
         
-        with patch('azure_query.get_credentials', return_value=mock_credentials), \
-             patch('azure_query.SubscriptionClient', return_value=mock_subscription_client), \
-             patch('azure_query.NetworkManagementClient', return_value=mock_network_client), \
-             patch('azure_query.extract_resource_group', return_value='rg-1'), \
+        with patch('cloudnetdraw.azure_client.get_credentials', return_value=mock_credentials), \
+             patch('cloudnetdraw.azure_client.SubscriptionClient', return_value=mock_subscription_client), \
+             patch('cloudnetdraw.azure_client.NetworkManagementClient', return_value=mock_network_client), \
+             patch('cloudnetdraw.utils.extract_resource_group', return_value='rg-1'), \
              pytest.raises(SystemExit) as exc_info:
             get_vnet_topology_for_selected_subscriptions(["sub-1"])
         
@@ -248,9 +249,9 @@ class TestGetVnetTopologyForSelectedSubscriptions:
         mock_network_client.virtual_wans.list.return_value = []
         mock_network_client.virtual_networks.list_all.return_value = []
         
-        with patch('azure_query.get_credentials', return_value=mock_credentials), \
-             patch('azure_query.SubscriptionClient', return_value=mock_subscription_client), \
-             patch('azure_query.NetworkManagementClient', return_value=mock_network_client), \
+        with patch('cloudnetdraw.azure_client.get_credentials', return_value=mock_credentials), \
+             patch('cloudnetdraw.azure_client.SubscriptionClient', return_value=mock_subscription_client), \
+             patch('cloudnetdraw.azure_client.NetworkManagementClient', return_value=mock_network_client), \
              pytest.raises(SystemExit) as exc_info:
             get_vnet_topology_for_selected_subscriptions(["sub-1"])
         
@@ -290,8 +291,8 @@ class TestCredentialsAndSubscriptionHandling:
     def test_get_credentials_not_initialized(self):
         """Test get_credentials when not initialized"""
         # Reset global credentials
-        import azure_query
-        azure_query._credentials = None
+        import cloudnetdraw.azure_client
+        cloudnetdraw.azure_client._credentials = None
         
         with pytest.raises(RuntimeError, match="Credentials not initialized"):
             get_credentials()
@@ -303,14 +304,14 @@ class TestCredentialsAndSubscriptionHandling:
             'AZURE_CLIENT_SECRET': 'test-secret',
             'AZURE_TENANT_ID': 'test-tenant'
         }), \
-             patch('azure_query.ClientSecretCredential') as mock_cred:
+             patch('cloudnetdraw.azure_client.ClientSecretCredential') as mock_cred:
             
             initialize_credentials(use_service_principal=True)
             mock_cred.assert_called_once_with('test-tenant', 'test-id', 'test-secret')
     
     def test_initialize_credentials_azure_cli(self):
         """Test initialize_credentials with Azure CLI"""
-        with patch('azure_query.AzureCliCredential') as mock_cred:
+        with patch('cloudnetdraw.azure_client.AzureCliCredential') as mock_cred:
             initialize_credentials(use_service_principal=False)
             mock_cred.assert_called_once()
     
@@ -338,8 +339,8 @@ class TestCredentialsAndSubscriptionHandling:
         mock_subscription.subscription_id = 'sub-1'
         mock_subscription_client.subscriptions.list.return_value = [mock_subscription]
         
-        with patch('azure_query.get_credentials', return_value=mock_credentials), \
-             patch('azure_query.SubscriptionClient', return_value=mock_subscription_client), \
+        with patch('cloudnetdraw.azure_client.get_credentials', return_value=mock_credentials), \
+             patch('cloudnetdraw.azure_client.SubscriptionClient', return_value=mock_subscription_client), \
              pytest.raises(SystemExit) as exc_info:
             resolve_subscription_names_to_ids(['Non-existent Subscription'])
         
@@ -369,9 +370,9 @@ class TestCredentialsAndSubscriptionHandling:
         mock_subscription.subscription_id = 'sub-1'
         mock_subscription_client.subscriptions.list.return_value = [mock_subscription]
         
-        with patch('azure_query.get_credentials', return_value=mock_credentials), \
-             patch('azure_query.SubscriptionClient', return_value=mock_subscription_client), \
-             patch('azure_query.is_subscription_id', return_value=False):
+        with patch('cloudnetdraw.azure_client.get_credentials', return_value=mock_credentials), \
+             patch('cloudnetdraw.azure_client.SubscriptionClient', return_value=mock_subscription_client), \
+             patch('cloudnetdraw.azure_client.is_subscription_id', return_value=False):
             
             result = get_subscriptions_non_interactive(args)
             assert result == ['sub-1']

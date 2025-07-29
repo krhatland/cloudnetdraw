@@ -1,17 +1,32 @@
 # Incomplete configuration missing several required sections
-hub_threshold: 3
+thresholds:
+  hub_peering_count: 3
 
-style:
-  vnet:
-    hub: "fillColor=#e6f3ff;strokeColor=#0066cc;strokeWidth=2"
-    spoke: "fillColor=#f0f8ff;strokeColor=#4d94ff;strokeWidth=1"
-  # Missing subnet section
-  # Missing edges section
+styles:
+  hub:
+    border_color: "#0066cc"
+    fill_color: "#e6f3ff"
+    font_color: "#003366"
+    line_color: "#0066cc"
+    text_align: "left"
+  spoke:
+    border_color: "#4d94ff"
+    fill_color: "#f0f8ff"
+    font_color: "#001a66"
+    line_color: "#4d94ff"
+    text_align: "left"
+  # Missing non_peered section
 
+# Missing subnet section
 # Missing layout section entirely
+# Missing edges section
 
 icons:
-  vnet: "img/lib/azure2/networking/Virtual_Networks.svg"
-  # Missing subnet icon
+  vnet:
+    path: "img/lib/azure2/networking/Virtual_Networks.svg"
+    width: 20
+    height: 20
+  # Missing other required icons
 
+# Missing icon_positioning section
 # Missing drawio section

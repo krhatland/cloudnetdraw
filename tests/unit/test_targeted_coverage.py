@@ -17,14 +17,14 @@ import tempfile
 # Add the project root to the path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../')))
 
-import azure_query
+from cloudnetdraw import azure_client, topology, diagram_generator
 
 class TestFindPeeredVnetsMissingCoverage:
     """Test missing coverage in find_peered_vnets function"""
 
-    @patch('azure_query.get_credentials')
-    @patch('azure_query.NetworkManagementClient')
-    @patch('azure_query.SubscriptionClient')
+    @patch('cloudnetdraw.azure_client.get_credentials')
+    @patch('cloudnetdraw.azure_client.NetworkManagementClient')
+    @patch('cloudnetdraw.azure_client.SubscriptionClient')
     def test_find_peered_vnets_error_cleanup_logic(self, mock_subscription_client_cls, mock_network_client_cls, mock_get_credentials):
         """Test error message cleanup logic - covers line 377"""
         mock_credentials = Mock()
@@ -42,7 +42,7 @@ class TestFindPeeredVnetsMissingCoverage:
         
         resource_ids = ["/subscriptions/test-sub/resourceGroups/test-rg/providers/Microsoft.Network/virtualNetworks/test-vnet"]
         
-        peered_vnets, accessible_ids = azure_query.find_peered_vnets(resource_ids)
+        peered_vnets, accessible_ids = azure_client.find_peered_vnets(resource_ids)
         
         # Should handle the error gracefully and return empty results
         assert peered_vnets == []
@@ -139,7 +139,7 @@ class TestGenerateHldDiagramMissingCoverage:
             ]
         }
 
-    @patch('config.Config')
+    @patch('cloudnetdraw.config.Config')
     @patch('builtins.open', new_callable=mock_open)
     def test_generate_hld_diagram_with_spokes_without_names(self, mock_file, mock_config_cls):
         """Test generate_hld_diagram with spokes that have no names - covers line 1102"""
@@ -192,9 +192,9 @@ class TestGenerateHldDiagramMissingCoverage:
         
         with tempfile.NamedTemporaryFile(mode='w', suffix='.drawio', delete=False) as tmp:
             # Should handle the unnamed spoke gracefully
-            azure_query.generate_hld_diagram(tmp.name, "test_topology.json", mock_config)
+            diagram_generator.generate_hld_diagram(tmp.name, "test_topology.json", mock_config)
 
-    @patch('config.Config')
+    @patch('cloudnetdraw.config.Config')
     @patch('builtins.open', new_callable=mock_open)
     def test_generate_hld_diagram_cross_zone_edges(self, mock_file, mock_config_cls):
         """Test generate_hld_diagram cross-zone edge generation - covers lines 1109-1133"""
@@ -261,9 +261,9 @@ class TestGenerateHldDiagramMissingCoverage:
         
         with tempfile.NamedTemporaryFile(mode='w', suffix='.drawio', delete=False) as tmp:
             # Should create cross-zone edges for spoke1 connecting to both hubs
-            azure_query.generate_hld_diagram(tmp.name, "test_topology.json", mock_config)
+            diagram_generator.generate_hld_diagram(tmp.name, "test_topology.json", mock_config)
 
-    @patch('config.Config')
+    @patch('cloudnetdraw.config.Config')
     @patch('builtins.open', new_callable=mock_open)
     def test_generate_hld_diagram_dual_column_layout(self, mock_file, mock_config_cls):
         """Test generate_hld_diagram with dual column layout - covers lines 1258-1313"""
@@ -323,7 +323,7 @@ class TestGenerateHldDiagramMissingCoverage:
         
         with tempfile.NamedTemporaryFile(mode='w', suffix='.drawio', delete=False) as tmp:
             # Should use dual column layout for 8 spokes
-            azure_query.generate_hld_diagram(tmp.name, "test_topology.json", mock_config)
+            diagram_generator.generate_hld_diagram(tmp.name, "test_topology.json", mock_config)
 
 class TestAddPeeringEdgesStandalone:
     """Test standalone add_peering_edges function - covers lines 1437-1514"""
@@ -331,6 +331,7 @@ class TestAddPeeringEdgesStandalone:
     def test_add_peering_edges_complete_function(self):
         """Test the complete standalone add_peering_edges function"""
         from lxml import etree
+        from cloudnetdraw.layout import add_peering_edges
         
         # Mock vnets with peering relationships
         vnets = [
@@ -354,7 +355,10 @@ class TestAddPeeringEdgesStandalone:
             {
                 "name": "vnet3",
                 "resource_id": "/subscriptions/sub1/resourceGroups/rg1/providers/Microsoft.Network/virtualNetworks/vnet3",
+<<<<<<< Updated upstream
                 "peerings_count": 1,
+=======
+>>>>>>> Stashed changes
                 "peering_resource_ids": [
                     "/subscriptions/sub1/resourceGroups/rg1/providers/Microsoft.Network/virtualNetworks/vnet1"
                 ]
@@ -364,7 +368,7 @@ class TestAddPeeringEdgesStandalone:
         # Mock vnet mapping
         vnet_mapping = {
             "/subscriptions/sub1/resourceGroups/rg1/providers/Microsoft.Network/virtualNetworks/vnet1": "vnet1_main",
-            "/subscriptions/sub1/resourceGroups/rg1/providers/Microsoft.Network/virtualNetworks/vnet2": "vnet2_main", 
+            "/subscriptions/sub1/resourceGroups/rg1/providers/Microsoft.Network/virtualNetworks/vnet2": "vnet2_main",
             "/subscriptions/sub1/resourceGroups/rg1/providers/Microsoft.Network/virtualNetworks/vnet3": "vnet3_main"
         }
         
@@ -376,8 +380,16 @@ class TestAddPeeringEdgesStandalone:
         mock_config.hub_threshold = 10  # Set proper threshold value
         mock_config.get_edge_style_string.return_value = "test-edge-style"
         
+<<<<<<< Updated upstream
         # Call the function - provide empty hub_vnets list so all VNets are treated as spokes
         azure_query.add_peering_edges(vnets, vnet_mapping, root, mock_config, hub_vnets=[])
+=======
+        # Mock hub_vnets
+        hub_vnets = []
+        
+        # Call the function
+        add_peering_edges(vnets, vnet_mapping, root, mock_config, hub_vnets)
+>>>>>>> Stashed changes
         
         # Verify edges were created
         edges = root.findall(".//mxCell[@edge='1']")
@@ -393,6 +405,7 @@ class TestAddPeeringEdgesStandalone:
     def test_add_peering_edges_asymmetric_peering(self):
         """Test add_peering_edges with asymmetric peering relationships"""
         from lxml import etree
+        from cloudnetdraw.layout import add_peering_edges
         
         # Mock vnets with asymmetric peering (vnet1 peers to vnet2, but vnet2 doesn't peer back)
         vnets = [
@@ -407,7 +420,10 @@ class TestAddPeeringEdgesStandalone:
             {
                 "name": "vnet2",
                 "resource_id": "/subscriptions/sub1/resourceGroups/rg1/providers/Microsoft.Network/virtualNetworks/vnet2",
+<<<<<<< Updated upstream
                 "peerings_count": 0,
+=======
+>>>>>>> Stashed changes
                 "peering_resource_ids": []  # No peering back to vnet1
             }
         ]
@@ -421,9 +437,15 @@ class TestAddPeeringEdgesStandalone:
         mock_config = Mock()
         mock_config.hub_threshold = 10  # Set proper threshold value
         mock_config.get_edge_style_string.return_value = "test-edge-style"
+        hub_vnets = []
         
+<<<<<<< Updated upstream
         # Should handle asymmetric peering without errors - provide empty hub_vnets list
         azure_query.add_peering_edges(vnets, vnet_mapping, root, mock_config, hub_vnets=[])
+=======
+        # Should handle asymmetric peering without errors
+        add_peering_edges(vnets, vnet_mapping, root, mock_config, hub_vnets)
+>>>>>>> Stashed changes
         
         edges = root.findall(".//mxCell[@edge='1']")
         assert len(edges) == 1  # Should create one edge for the one-way peering
@@ -431,6 +453,7 @@ class TestAddPeeringEdgesStandalone:
     def test_add_peering_edges_duplicate_prevention(self):
         """Test add_peering_edges prevents duplicate edges"""
         from lxml import etree
+        from cloudnetdraw.layout import add_peering_edges
         
         # Mock vnets with bidirectional peering
         vnets = [
@@ -461,9 +484,15 @@ class TestAddPeeringEdgesStandalone:
         mock_config = Mock()
         mock_config.hub_threshold = 10  # Set proper threshold value
         mock_config.get_edge_style_string.return_value = "test-edge-style"
+        hub_vnets = []
         
+<<<<<<< Updated upstream
         # Should create only one edge, not two (prevents duplicates) - provide empty hub_vnets list
         azure_query.add_peering_edges(vnets, vnet_mapping, root, mock_config, hub_vnets=[])
+=======
+        # Should create only one edge, not two (prevents duplicates)
+        add_peering_edges(vnets, vnet_mapping, root, mock_config, hub_vnets)
+>>>>>>> Stashed changes
         
         edges = root.findall(".//mxCell[@edge='1']")
         assert len(edges) == 1  # Should create only one edge for bidirectional peering
@@ -471,7 +500,7 @@ class TestAddPeeringEdgesStandalone:
 class TestGenerateMldDiagramMissingCoverage:
     """Test missing coverage in generate_mld_diagram function"""
 
-    @patch('config.Config')
+    @patch('cloudnetdraw.config.Config')
     @patch('builtins.open', new_callable=mock_open)
     def test_generate_mld_diagram_source_vnet_filtering(self, mock_file, mock_config_cls):
         """Test generate_mld_diagram source VNet filtering - covers line 1905"""
@@ -523,9 +552,9 @@ class TestGenerateMldDiagramMissingCoverage:
         
         with tempfile.NamedTemporaryFile(mode='w', suffix='.drawio', delete=False) as tmp:
             # Should handle VNet without resource_id gracefully
-            azure_query.generate_mld_diagram(tmp.name, "test_topology.json", mock_config)
+            diagram_generator.generate_mld_diagram(tmp.name, "test_topology.json", mock_config)
 
-    @patch('config.Config')
+    @patch('cloudnetdraw.config.Config')
     @patch('builtins.open', new_callable=mock_open)
     def test_generate_mld_diagram_left_spokes_layout(self, mock_file, mock_config_cls):
         """Test generate_mld_diagram with left spokes layout - covers lines 2017-2020, 2057-2079"""
@@ -597,7 +626,7 @@ class TestGenerateMldDiagramMissingCoverage:
         
         with tempfile.NamedTemporaryFile(mode='w', suffix='.drawio', delete=False) as tmp:
             # Should use left/right layout for 7 spokes
-            azure_query.generate_mld_diagram(tmp.name, "test_topology.json", mock_config)
+            diagram_generator.generate_mld_diagram(tmp.name, "test_topology.json", mock_config)
 
     def test_generate_mld_diagram_nested_add_peering_edges(self):
         """Test the nested add_peering_edges function within generate_mld_diagram - covers lines 1909-1962"""
@@ -665,7 +694,7 @@ class TestGenerateMldDiagramMissingCoverage:
             
             with tempfile.NamedTemporaryFile(mode='w', suffix='.drawio', delete=False) as drawio_tmp:
                 # Should call the nested add_peering_edges function
-                azure_query.generate_mld_diagram(drawio_tmp.name, json_tmp.name, mock_config)
+                diagram_generator.generate_mld_diagram(drawio_tmp.name, json_tmp.name, mock_config)
                 
                 # Verify the file was created (indicates the nested function was called)
                 assert os.path.exists(drawio_tmp.name)

@@ -7,11 +7,9 @@ import os
 # Add the project root to the Python path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-# Import the module using importlib to handle the hyphenated name
-azure_query = importlib.import_module('azure-query')
-
 # Import the functions we want to test
-from azure_query import parse_vnet_identifier, get_filtered_vnet_topology
+from cloudnetdraw.utils import parse_vnet_identifier
+from cloudnetdraw.topology import get_filtered_vnet_topology
 
 
 class TestParseVnetIdentifier:
@@ -151,8 +149,8 @@ class TestFindHubVnetUsingResourceGraph:
             'peerings_count': 1
         }
         
-        with patch('azure_query.find_hub_vnet_using_resource_graph', return_value=expected_result):
-            from azure_query import find_hub_vnet_using_resource_graph
+        with patch('cloudnetdraw.azure_client.find_hub_vnet_using_resource_graph', return_value=expected_result):
+            from cloudnetdraw.azure_client import find_hub_vnet_using_resource_graph
             result = find_hub_vnet_using_resource_graph('rg-1/hub-vnet-001')
             
             assert result is not None
@@ -183,8 +181,8 @@ class TestFindHubVnetUsingResourceGraph:
             'peerings_count': 0
         }
         
-        with patch('azure_query.find_hub_vnet_using_resource_graph', return_value=expected_result):
-            from azure_query import find_hub_vnet_using_resource_graph
+        with patch('cloudnetdraw.azure_client.find_hub_vnet_using_resource_graph', return_value=expected_result):
+            from cloudnetdraw.azure_client import find_hub_vnet_using_resource_graph
             result = find_hub_vnet_using_resource_graph('rg-1/hub-vnet-001')
             
             assert result is not None
@@ -217,8 +215,8 @@ class TestFindHubVnetUsingResourceGraph:
         
         resource_id = "/subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/rg-1/providers/Microsoft.Network/virtualNetworks/hub-vnet-001"
         
-        with patch('azure_query.find_hub_vnet_using_resource_graph', return_value=expected_result):
-            from azure_query import find_hub_vnet_using_resource_graph
+        with patch('cloudnetdraw.azure_client.find_hub_vnet_using_resource_graph', return_value=expected_result):
+            from cloudnetdraw.azure_client import find_hub_vnet_using_resource_graph
             result = find_hub_vnet_using_resource_graph(resource_id)
             
             assert result is not None
@@ -229,8 +227,8 @@ class TestFindHubVnetUsingResourceGraph:
     
     def test_find_hub_vnet_not_found(self):
         """Test when hub VNet is not found"""
-        with patch('azure_query.find_hub_vnet_using_resource_graph', return_value=None):
-            from azure_query import find_hub_vnet_using_resource_graph
+        with patch('cloudnetdraw.azure_client.find_hub_vnet_using_resource_graph', return_value=None):
+            from cloudnetdraw.azure_client import find_hub_vnet_using_resource_graph
             result = find_hub_vnet_using_resource_graph('rg-1/nonexistent-vnet')
             
             assert result is None
@@ -254,8 +252,8 @@ class TestFindHubVnetUsingResourceGraph:
             'peerings_count': 0
         }
         
-        with patch('azure_query.find_hub_vnet_using_resource_graph', return_value=expected_result):
-            from azure_query import find_hub_vnet_using_resource_graph
+        with patch('cloudnetdraw.azure_client.find_hub_vnet_using_resource_graph', return_value=expected_result):
+            from cloudnetdraw.azure_client import find_hub_vnet_using_resource_graph
             result = find_hub_vnet_using_resource_graph('rg-2/hub-vnet-001')
             
             assert result is not None
@@ -285,8 +283,8 @@ class TestFindHubVnetUsingResourceGraph:
         
         resource_id = "/subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/rg-2/providers/Microsoft.Network/virtualNetworks/hub-vnet-001"
         
-        with patch('azure_query.find_hub_vnet_using_resource_graph', return_value=expected_result):
-            from azure_query import find_hub_vnet_using_resource_graph
+        with patch('cloudnetdraw.azure_client.find_hub_vnet_using_resource_graph', return_value=expected_result):
+            from cloudnetdraw.azure_client import find_hub_vnet_using_resource_graph
             result = find_hub_vnet_using_resource_graph(resource_id)
             
             assert result is not None
@@ -318,8 +316,8 @@ class TestExplicitHubFlag:
             'peerings_count': 0
         }
         
-        with patch('azure_query.find_hub_vnet_using_resource_graph', return_value=expected_result):
-            from azure_query import find_hub_vnet_using_resource_graph
+        with patch('cloudnetdraw.azure_client.find_hub_vnet_using_resource_graph', return_value=expected_result):
+            from cloudnetdraw.azure_client import find_hub_vnet_using_resource_graph
             result = find_hub_vnet_using_resource_graph('rg-1/hub-vnet-001')
             
             assert result is not None
@@ -353,8 +351,8 @@ class TestGetFilteredVnetTopology:
         expected_topology = {"vnets": [mock_hub_vnet]}
         
         # Mock both functions
-        with patch('azure_query.find_hub_vnet_using_resource_graph', return_value=mock_hub_vnet), \
-             patch('azure_query.find_peered_vnets', return_value=([], [])):
+        with patch('cloudnetdraw.topology.find_hub_vnet_using_resource_graph', return_value=mock_hub_vnet), \
+             patch('cloudnetdraw.topology.find_peered_vnets', return_value=([], [])):
             
             result = get_filtered_vnet_topology('rg-1/hub-vnet-001', ['12345678-1234-1234-1234-123456789012'])
             

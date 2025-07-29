@@ -12,7 +12,7 @@ from azure.core.exceptions import ResourceNotFoundError
 # Add the project root to the path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../')))
 
-import azure_query
+import cloudnetdraw.azure_client as azure_query
 
 class TestCredentialErrorHandling:
     """Test error handling in credential functions"""
@@ -48,7 +48,7 @@ class TestSubscriptionHandling:
                 azure_query.read_subscriptions_from_file("test_file.txt")
             assert exc_info.value.code == 1
 
-    @patch('azure_query.get_credentials')
+    @patch('cloudnetdraw.azure_client.get_credentials')
     def test_resolve_subscription_names_to_ids_not_found(self, mock_get_credentials):
         """Test resolve_subscription_names_to_ids when subscription not found - covers lines 77-79"""
         # Mock credentials
@@ -62,12 +62,12 @@ class TestSubscriptionHandling:
         mock_subscription.subscription_id = "existing-id"
         mock_subscription_client.subscriptions.list.return_value = [mock_subscription]
         
-        with patch('azure_query.SubscriptionClient', return_value=mock_subscription_client):
+        with patch('cloudnetdraw.azure_client.SubscriptionClient', return_value=mock_subscription_client):
             with pytest.raises(SystemExit) as exc_info:
                 azure_query.resolve_subscription_names_to_ids(["non-existent-subscription"])
             assert exc_info.value.code == 1
 
-    @patch('azure_query.get_credentials')
+    @patch('cloudnetdraw.azure_client.get_credentials')
     def test_get_all_subscription_ids_logging(self, mock_get_credentials):
         """Test get_all_subscription_ids logging - covers lines 88-89"""
         # Mock credentials
@@ -80,8 +80,8 @@ class TestSubscriptionHandling:
         mock_subscription.subscription_id = "test-subscription-id"
         mock_subscription_client.subscriptions.list.return_value = [mock_subscription]
         
-        with patch('azure_query.SubscriptionClient', return_value=mock_subscription_client):
-            with patch('azure_query.logging') as mock_logging:
+        with patch('cloudnetdraw.azure_client.SubscriptionClient', return_value=mock_subscription_client):
+            with patch('cloudnetdraw.azure_client.logging') as mock_logging:
                 result = azure_query.get_all_subscription_ids()
                 assert result == ["test-subscription-id"]
                 mock_logging.info.assert_called_with("Found 1 subscriptions")
@@ -93,29 +93,31 @@ class TestVnetIdentifierParsing:
         """Test parse_vnet_identifier with invalid resource ID format - covers line 106"""
         invalid_resource_id = "/invalid/resource/id/format"
         with pytest.raises(ValueError) as exc_info:
-            azure_query.parse_vnet_identifier(invalid_resource_id)
+            from cloudnetdraw.utils import parse_vnet_identifier
+            parse_vnet_identifier(invalid_resource_id)
         assert "Invalid VNet resource ID format" in str(exc_info.value)
 
     def test_parse_vnet_identifier_invalid_format(self):
         """Test parse_vnet_identifier with invalid format - covers line 121"""
         invalid_identifier = "too/many/parts/in/identifier"
         with pytest.raises(ValueError) as exc_info:
-            azure_query.parse_vnet_identifier(invalid_identifier)
+            from cloudnetdraw.utils import parse_vnet_identifier
+            parse_vnet_identifier(invalid_identifier)
         assert "Invalid VNet identifier format" in str(exc_info.value)
 
 class TestResourceGraphErrorHandling:
     """Test error handling in resource graph functions"""
 
-    @patch('azure_query.get_credentials')
+    @patch('cloudnetdraw.azure_client.get_credentials')
     def test_find_hub_vnet_no_resource_group(self, mock_get_credentials):
         """Test find_hub_vnet_using_resource_graph with missing resource group - covers lines 132-133"""
         with pytest.raises(SystemExit) as exc_info:
             azure_query.find_hub_vnet_using_resource_graph("simple-vnet-name")
         assert exc_info.value.code == 1
 
-    @patch('azure_query.get_credentials')
-    @patch('azure_query.ResourceGraphClient')
-    @patch('azure_query.SubscriptionClient')
+    @patch('cloudnetdraw.azure_client.get_credentials')
+    @patch('cloudnetdraw.azure_client.ResourceGraphClient')
+    @patch('cloudnetdraw.azure_client.SubscriptionClient')
     def test_find_hub_vnet_no_results(self, mock_subscription_client_cls, mock_resource_graph_client_cls, mock_get_credentials):
         """Test find_hub_vnet_using_resource_graph with no results - covers lines 184-191"""
         # Mock credentials
@@ -140,9 +142,9 @@ class TestResourceGraphErrorHandling:
             azure_query.find_hub_vnet_using_resource_graph("rg-test/vnet-test")
         assert exc_info.value.code == 1
 
-    @patch('azure_query.get_credentials')
-    @patch('azure_query.ResourceGraphClient')
-    @patch('azure_query.SubscriptionClient')
+    @patch('cloudnetdraw.azure_client.get_credentials')
+    @patch('cloudnetdraw.azure_client.ResourceGraphClient')
+    @patch('cloudnetdraw.azure_client.SubscriptionClient')
     def test_find_hub_vnet_multiple_results(self, mock_subscription_client_cls, mock_resource_graph_client_cls, mock_get_credentials):
         """Test find_hub_vnet_using_resource_graph with multiple results - covers lines 194-196"""
         # Mock credentials
@@ -186,10 +188,11 @@ class TestQueryCommandValidation:
         mock_args.vnets = None
         
         with pytest.raises(SystemExit) as exc_info:
-            azure_query.query_command(mock_args)
+            from cloudnetdraw.cli import query_command
+            query_command(mock_args)
         assert exc_info.value.code == 1
 
-    @patch('azure_query.parse_vnet_identifier')
+    @patch('cloudnetdraw.utils.parse_vnet_identifier')
     def test_query_command_vnet_legacy_format_no_subscriptions(self, mock_parse_vnet_identifier):
         """Test query command with VNet in legacy format but no subscriptions - covers lines 619-624"""
         # Mock parse_vnet_identifier to return legacy format (no subscription_id)
@@ -202,7 +205,8 @@ class TestQueryCommandValidation:
         mock_args.vnets = "rg-test/vnet-test"
         
         with pytest.raises(SystemExit) as exc_info:
-            azure_query.query_command(mock_args)
+            from cloudnetdraw.cli import query_command
+            query_command(mock_args)
         assert exc_info.value.code == 1
 
 class TestHierarchicalIdGeneration:
@@ -217,20 +221,21 @@ class TestHierarchicalIdGeneration:
         }
         
         # Test various element types for fallback logic
-        result = azure_query.generate_hierarchical_id(vnet_data, 'group')
+        from cloudnetdraw.diagram_generator import generate_hierarchical_id
+        result = generate_hierarchical_id(vnet_data, 'group')
         assert result == 'test-vnet'
         
-        result = azure_query.generate_hierarchical_id(vnet_data, 'main')
+        result = generate_hierarchical_id(vnet_data, 'main')
         assert result == 'test-vnet_main'
         
-        result = azure_query.generate_hierarchical_id(vnet_data, 'subnet', '0')
+        result = generate_hierarchical_id(vnet_data, 'subnet', '0')
         assert result == 'test-vnet_subnet_0'
         
-        result = azure_query.generate_hierarchical_id(vnet_data, 'icon', 'vpn')
+        result = generate_hierarchical_id(vnet_data, 'icon', 'vpn')
         assert result == 'test-vnet_icon_vpn'
         
         # Test unknown element type
-        result = azure_query.generate_hierarchical_id(vnet_data, 'unknown_type', 'suffix')
+        result = generate_hierarchical_id(vnet_data, 'unknown_type', 'suffix')
         assert result == 'test-vnet_unknown_type_suffix'
 
 class TestVnetIdMappingFallback:
@@ -254,7 +259,8 @@ class TestVnetIdMappingFallback:
         
         vnets = []  # Empty VNets list for this test
         
-        result = azure_query.create_vnet_id_mapping(vnets, zones, all_non_peered)
+        from cloudnetdraw.topology import create_vnet_id_mapping
+        result = create_vnet_id_mapping(vnets, zones, all_non_peered)
         
         # Should use fallback synthetic IDs
         assert 'hub-resource-id' in result
@@ -266,7 +272,7 @@ class TestVnetIdMappingFallback:
 class TestErrorHandlingInPeeredVnets:
     """Test error handling in find_peered_vnets function"""
 
-    @patch('azure_query.get_credentials')
+    @patch('cloudnetdraw.azure_client.get_credentials')
     def test_find_peered_vnets_resource_not_found_error(self, mock_get_credentials):
         """Test find_peered_vnets with ResourceNotFoundError - covers lines 368-370"""
         mock_credentials = Mock()
@@ -276,8 +282,8 @@ class TestErrorHandlingInPeeredVnets:
         mock_network_client = Mock()
         mock_network_client.virtual_networks.get.side_effect = ResourceNotFoundError("Resource not found")
         
-        with patch('azure_query.NetworkManagementClient', return_value=mock_network_client):
-            with patch('azure_query.SubscriptionClient'):
+        with patch('cloudnetdraw.azure_client.NetworkManagementClient', return_value=mock_network_client):
+            with patch('cloudnetdraw.azure_client.SubscriptionClient'):
                 # Test with a resource ID that will trigger the error
                 resource_ids = ["/subscriptions/test-sub/resourceGroups/test-rg/providers/Microsoft.Network/virtualNetworks/deleted-vnet"]
                 
@@ -287,7 +293,7 @@ class TestErrorHandlingInPeeredVnets:
                 assert peered_vnets == []
                 assert accessible_ids == []
 
-    @patch('azure_query.get_credentials')
+    @patch('cloudnetdraw.azure_client.get_credentials')
     def test_find_peered_vnets_general_error(self, mock_get_credentials):
         """Test find_peered_vnets with general error - covers lines 377-378"""
         mock_credentials = Mock()
@@ -297,8 +303,8 @@ class TestErrorHandlingInPeeredVnets:
         mock_network_client = Mock()
         mock_network_client.virtual_networks.get.side_effect = Exception("General error")
         
-        with patch('azure_query.NetworkManagementClient', return_value=mock_network_client):
-            with patch('azure_query.SubscriptionClient'):
+        with patch('cloudnetdraw.azure_client.NetworkManagementClient', return_value=mock_network_client):
+            with patch('cloudnetdraw.azure_client.SubscriptionClient'):
                 resource_ids = ["/subscriptions/test-sub/resourceGroups/test-rg/providers/Microsoft.Network/virtualNetworks/error-vnet"]
                 
                 peered_vnets, accessible_ids = azure_query.find_peered_vnets(resource_ids)

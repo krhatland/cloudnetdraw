@@ -19,7 +19,7 @@ class TestCLISubcommands:
             mock_run.return_value = MagicMock(returncode=0, stdout='', stderr='')
             
             result = subprocess.run([
-                'python', 'azure-query.py', 'query',
+                'uv', 'run', 'cloudnetdraw', 'query',
                 '--subscriptions', '12345678-1234-1234-1234-123456789012',
                 '--output', 'test_output.json'
             ], capture_output=True, text=True)
@@ -48,7 +48,7 @@ class TestCLISubcommands:
         
         try:
             result = subprocess.run([
-                'python', 'azure-query.py', 'hld',
+                'uv', 'run', 'cloudnetdraw', 'hld',
                 '--topology', input_file,
                 '--output', 'test_hld.drawio'
             ], capture_output=True, text=True)
@@ -78,7 +78,7 @@ class TestCLISubcommands:
         
         try:
             result = subprocess.run([
-                'python', 'azure-query.py', 'mld',
+                'uv', 'run', 'cloudnetdraw', 'mld',
                 '--topology', input_file,
                 '--output', 'test_mld.drawio'
             ], capture_output=True, text=True)
@@ -95,7 +95,7 @@ class TestCLISubcommands:
         
         try:
             result = subprocess.run([
-                'python', 'azure-query.py', 'hld',
+                'uv', 'run', 'cloudnetdraw', 'hld',
                 '--topology', input_file,
                 '--output', 'test_hld.drawio'
             ], capture_output=True, text=True)
@@ -113,7 +113,7 @@ class TestCLISubcommands:
         
         try:
             result = subprocess.run([
-                'python', 'azure-query.py', 'mld',
+                'uv', 'run', 'cloudnetdraw', 'mld',
                 '--topology', input_file,
                 '--output', 'test_mld.drawio'
             ], capture_output=True, text=True)
@@ -126,7 +126,7 @@ class TestCLISubcommands:
     def test_invalid_subcommand(self):
         """Test handling of invalid subcommands."""
         result = subprocess.run([
-            'python', 'azure-query.py', 'invalid_command'
+            'uv', 'run', 'cloudnetdraw', 'invalid_command'
         ], capture_output=True, text=True)
         
         assert result.returncode != 0
@@ -135,7 +135,7 @@ class TestCLISubcommands:
     def test_no_subcommand(self):
         """Test handling when no subcommand is provided."""
         result = subprocess.run([
-            'python', 'azure-query.py'
+            'uv', 'run', 'cloudnetdraw'
         ], capture_output=True, text=True)
         
         assert result.returncode != 0
@@ -152,18 +152,18 @@ class TestArgumentValidation:
             mock_run.return_value = MagicMock(returncode=1, stdout='', stderr='No subscriptions specified and interactive mode not supported in tests')
             
             result = subprocess.run([
-                'python', 'azure-query.py', 'query'
+                'uv', 'run', 'cloudnetdraw', 'query'
             ], capture_output=True, text=True)
             
             assert result.returncode != 0
     
     def test_query_invalid_subscription_id_format(self):
         """Test query command with invalid subscription ID format."""
-        with patch('azure_query.get_credentials') as mock_creds:
+        with patch('cloudnetdraw.azure_client.get_credentials') as mock_creds:
             mock_creds.return_value = MagicMock()
             
             result = subprocess.run([
-                'python', 'azure-query.py', 'query',
+                'uv', 'run', 'cloudnetdraw', 'query',
                 '--subscriptions', 'invalid-subscription-id'
             ], capture_output=True, text=True)
             
@@ -176,13 +176,9 @@ class TestArgumentValidation:
         import os
         
         with tempfile.TemporaryDirectory() as temp_dir:
-            # Get the path to azure-query.py in the project root
-            project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-            azure_query_path = os.path.join(project_root, 'azure-query.py')
-            
             # Run the command in the temp directory (no default topology file)
             result = subprocess.run([
-                'uv', 'run', 'python', azure_query_path, 'hld'
+                'uv', 'run', 'cloudnetdraw', 'hld'
             ], capture_output=True, text=True, cwd=temp_dir)
             
             # Should fail if default topology file doesn't exist or if imports fail
@@ -195,7 +191,7 @@ class TestArgumentValidation:
     def test_hld_nonexistent_input_file(self):
         """Test HLD command with nonexistent input file."""
         result = subprocess.run([
-            'python', 'azure-query.py', 'hld',
+            'uv', 'run', 'cloudnetdraw', 'hld',
             '--topology', 'nonexistent_file.json'
         ], capture_output=True, text=True)
         
@@ -208,13 +204,9 @@ class TestArgumentValidation:
         import os
         
         with tempfile.TemporaryDirectory() as temp_dir:
-            # Get the path to azure-query.py in the project root
-            project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-            azure_query_path = os.path.join(project_root, 'azure-query.py')
-            
             # Run the command in the temp directory (no default topology file)
             result = subprocess.run([
-                'uv', 'run', 'python', azure_query_path, 'mld'
+                'uv', 'run', 'cloudnetdraw', 'mld'
             ], capture_output=True, text=True, cwd=temp_dir)
             
             # Should fail if default topology file doesn't exist or if imports fail
@@ -236,7 +228,7 @@ class TestArgumentValidation:
                 mock_run.return_value = MagicMock(returncode=0, stdout='', stderr='')
                 
                 result = subprocess.run([
-                    'python', 'azure-query.py', 'hld',
+                    'uv', 'run', 'cloudnetdraw', 'hld',
                     '--topology', input_file
                 ], capture_output=True, text=True)
                 
@@ -261,7 +253,7 @@ class TestArgumentValidation:
                 mock_run.return_value = MagicMock(returncode=0, stdout='', stderr='')
                 
                 result = subprocess.run([
-                    'python', 'azure-query.py', 'mld',
+                    'uv', 'run', 'cloudnetdraw', 'mld',
                     '--topology', input_file
                 ], capture_output=True, text=True)
                 
@@ -287,7 +279,7 @@ class TestConfigFileResolution:
             mock_run.return_value = MagicMock(returncode=0, stdout='', stderr='')
             
             result = subprocess.run([
-                'python', 'azure-query.py', 'query',
+                'uv', 'run', 'cloudnetdraw', 'query',
                 '-c', str(config_path),
                 '--subscriptions', '12345678-1234-1234-1234-123456789012'
             ], capture_output=True, text=True)
@@ -308,7 +300,7 @@ class TestConfigFileResolution:
             mock_run.return_value = MagicMock(returncode=0, stdout='', stderr='')
             
             result = subprocess.run([
-                'python', 'azure-query.py', 'query',
+                'uv', 'run', 'cloudnetdraw', 'query',
                 '--config-file', str(config_path),
                 '--subscriptions', '12345678-1234-1234-1234-123456789012'
             ], capture_output=True, text=True)
@@ -322,14 +314,14 @@ class TestConfigFileResolution:
     
     def test_nonexistent_config_file(self):
         """Test handling of nonexistent config file."""
-        with patch('azure_query.initialize_credentials') as mock_init, \
-             patch('azure_query.get_subscriptions_non_interactive') as mock_subs:
+        with patch('cloudnetdraw.azure_client.initialize_credentials') as mock_init, \
+             patch('cloudnetdraw.azure_client.get_subscriptions_non_interactive') as mock_subs:
             
             mock_init.return_value = None
             mock_subs.return_value = ["12345678-1234-1234-1234-123456789012"]
             
             result = subprocess.run([
-                'python', 'azure-query.py', 'query',
+                'uv', 'run', 'cloudnetdraw', 'query',
                 '--config-file', 'nonexistent_config.yaml',
                 '--subscriptions', '12345678-1234-1234-1234-123456789012'
             ], capture_output=True, text=True)
@@ -340,14 +332,14 @@ class TestConfigFileResolution:
         """Test handling of invalid config file."""
         config_path = Path('tests/fixtures/sample_configs/invalid_config.yaml')
         
-        with patch('azure_query.initialize_credentials') as mock_init, \
-             patch('azure_query.get_subscriptions_non_interactive') as mock_subs:
+        with patch('cloudnetdraw.azure_client.initialize_credentials') as mock_init, \
+             patch('cloudnetdraw.azure_client.get_subscriptions_non_interactive') as mock_subs:
             
             mock_init.return_value = None
             mock_subs.return_value = ["12345678-1234-1234-1234-123456789012"]
             
             result = subprocess.run([
-                'python', 'azure-query.py', 'query',
+                'uv', 'run', 'cloudnetdraw', 'query',
                 '--config-file', str(config_path),
                 '--subscriptions', '12345678-1234-1234-1234-123456789012'
             ], capture_output=True, text=True)
@@ -365,7 +357,7 @@ class TestVerboseQuietLogging:
             mock_run.return_value = MagicMock(returncode=0, stdout='', stderr='INFO - Processing...')
             
             result = subprocess.run([
-                'python', 'azure-query.py', 'query',
+                'uv', 'run', 'cloudnetdraw', 'query',
                 '-v',
                 '--subscriptions', '12345678-1234-1234-1234-123456789012'
             ], capture_output=True, text=True)
@@ -385,7 +377,7 @@ class TestVerboseQuietLogging:
             mock_run.return_value = MagicMock(returncode=0, stdout='', stderr='INFO - Processing...')
             
             result = subprocess.run([
-                'python', 'azure-query.py', 'query',
+                'uv', 'run', 'cloudnetdraw', 'query',
                 '--verbose',
                 '--subscriptions', '12345678-1234-1234-1234-123456789012'
             ], capture_output=True, text=True)
@@ -405,7 +397,7 @@ class TestVerboseQuietLogging:
             mock_run.return_value = MagicMock(returncode=0, stdout='', stderr='')
             
             result = subprocess.run([
-                'python', 'azure-query.py', 'query',
+                'uv', 'run', 'cloudnetdraw', 'query',
                 '--subscriptions', '12345678-1234-1234-1234-123456789012'
             ], capture_output=True, text=True)
             
@@ -430,7 +422,7 @@ class TestOutputFileSpecification:
                 mock_run.return_value = MagicMock(returncode=0, stdout='', stderr='')
                 
                 result = subprocess.run([
-                    'python', 'azure-query.py', 'query',
+                    'uv', 'run', 'cloudnetdraw', 'query',
                     '--subscriptions', '12345678-1234-1234-1234-123456789012',
                     '--output', output_file
                 ], capture_output=True, text=True)
@@ -469,7 +461,7 @@ class TestOutputFileSpecification:
         
         try:
             result = subprocess.run([
-                'python', 'azure-query.py', 'hld',
+                'uv', 'run', 'cloudnetdraw', 'hld',
                 '--topology', input_file,
                 '--output', output_file
             ], capture_output=True, text=True)
@@ -505,7 +497,7 @@ class TestOutputFileSpecification:
         
         try:
             result = subprocess.run([
-                'python', 'azure-query.py', 'mld',
+                'uv', 'run', 'cloudnetdraw', 'mld',
                 '--topology', input_file,
                 '--output', output_file
             ], capture_output=True, text=True)
@@ -524,7 +516,7 @@ class TestHelpTextGeneration:
     def test_main_help(self):
         """Test main help text."""
         result = subprocess.run([
-            'python', 'azure-query.py', '--help'
+            'uv', 'run', 'cloudnetdraw', '--help'
         ], capture_output=True, text=True)
         
         assert result.returncode == 0
@@ -536,7 +528,7 @@ class TestHelpTextGeneration:
     def test_query_help(self):
         """Test query subcommand help text."""
         result = subprocess.run([
-            'python', 'azure-query.py', 'query', '--help'
+            'uv', 'run', 'cloudnetdraw', 'query', '--help'
         ], capture_output=True, text=True)
         
         assert result.returncode == 0
@@ -549,7 +541,7 @@ class TestHelpTextGeneration:
     def test_hld_help(self):
         """Test HLD subcommand help text."""
         result = subprocess.run([
-            'python', 'azure-query.py', 'hld', '--help'
+            'uv', 'run', 'cloudnetdraw', 'hld', '--help'
         ], capture_output=True, text=True)
         
         assert result.returncode == 0
@@ -561,7 +553,7 @@ class TestHelpTextGeneration:
     def test_mld_help(self):
         """Test MLD subcommand help text."""
         result = subprocess.run([
-            'python', 'azure-query.py', 'mld', '--help'
+            'uv', 'run', 'cloudnetdraw', 'mld', '--help'
         ], capture_output=True, text=True)
         
         assert result.returncode == 0
@@ -576,11 +568,11 @@ class TestErrorHandling:
     
     def test_missing_azure_credentials(self):
         """Test handling when Azure credentials are not available."""
-        with patch('azure_query.initialize_credentials') as mock_init:
+        with patch('cloudnetdraw.azure_client.initialize_credentials') as mock_init:
             mock_init.side_effect = Exception("No credentials available")
             
             result = subprocess.run([
-                'python', 'azure-query.py', 'query',
+                'uv', 'run', 'cloudnetdraw', 'query',
                 '--subscriptions', '12345678-1234-1234-1234-123456789012'
             ], capture_output=True, text=True)
             
@@ -594,7 +586,7 @@ class TestErrorHandling:
         
         try:
             result = subprocess.run([
-                'python', 'azure-query.py', 'hld',
+                'uv', 'run', 'cloudnetdraw', 'hld',
                 '--topology', input_file
             ], capture_output=True, text=True)
             
@@ -632,7 +624,7 @@ class TestErrorHandling:
                 
                 try:
                     result = subprocess.run([
-                        'python', 'azure-query.py', 'hld',
+                        'uv', 'run', 'cloudnetdraw', 'hld',
                         '--topology', input_file,
                         '--output', os.path.join(readonly_dir, 'test.drawio')
                     ], capture_output=True, text=True)

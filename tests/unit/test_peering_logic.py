@@ -5,11 +5,11 @@ import pytest
 from unittest.mock import Mock, patch
 
 # Import functions under test
-from azure_query import (
+from cloudnetdraw.topology import (
     determine_hub_for_spoke,
-    extract_vnet_name_from_resource_id,
     create_vnet_id_mapping
 )
+from cloudnetdraw.utils import extract_vnet_name_from_resource_id
 
 
 class TestHubDetermination:

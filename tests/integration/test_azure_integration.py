@@ -25,7 +25,7 @@ from tests.fixtures.azure_api_responses.vnet_responses import (
 class TestSubscriptionEnumeration:
     """Test Azure subscription enumeration functionality."""
     
-    @patch('azure_query.SubscriptionClient')
+    @patch('cloudnetdraw.azure_client.SubscriptionClient')
     def test_resolve_subscription_names_to_ids(self, mock_subscription_client):
         """Test resolving subscription names to IDs."""
         mock_client_instance = MagicMock()
@@ -41,7 +41,7 @@ class TestSubscriptionEnumeration:
         
         mock_client_instance.subscriptions.list.return_value = mock_subscriptions
         
-        import azure_query
+        from cloudnetdraw import azure_client
         
         # Mock credentials
         mock_credentials = MagicMock()
@@ -49,8 +49,8 @@ class TestSubscriptionEnumeration:
         # Test resolving by name
         subscription_names = ["Production Subscription", "Development Subscription"]
         
-        with patch('azure_query.get_credentials', return_value=mock_credentials):
-            resolved_ids = azure_query.resolve_subscription_names_to_ids(
+        with patch('cloudnetdraw.azure_client.get_credentials', return_value=mock_credentials):
+            resolved_ids = azure_client.resolve_subscription_names_to_ids(
                 subscription_names
             )
         
@@ -63,7 +63,7 @@ class TestSubscriptionEnumeration:
         assert "12345678-1234-1234-1234-123456789012" in resolved_ids
         assert "87654321-4321-4321-4321-210987654321" in resolved_ids
     
-    @patch('azure_query.SubscriptionClient')
+    @patch('cloudnetdraw.azure_client.SubscriptionClient')
     def test_resolve_single_subscription_name(self, mock_subscription_client):
         """Test resolving when only one subscription is available."""
         mock_client_instance = MagicMock()
@@ -76,29 +76,29 @@ class TestSubscriptionEnumeration:
         
         mock_client_instance.subscriptions.list.return_value = [mock_sub]
         
-        import azure_query
+        from cloudnetdraw import azure_client
         mock_credentials = MagicMock()
         
         # Test resolving single subscription name
         subscription_names = ["Production Subscription"]
         # Initialize credentials for global usage
-        azure_query.initialize_credentials()
+        azure_client.initialize_credentials()
         
-        resolved_ids = azure_query.resolve_subscription_names_to_ids(
+        resolved_ids = azure_client.resolve_subscription_names_to_ids(
             subscription_names
         )
         
         assert len(resolved_ids) == 1
         assert resolved_ids[0] == "12345678-1234-1234-1234-123456789012"
     
-    @patch('azure_query.SubscriptionClient')
+    @patch('cloudnetdraw.azure_client.SubscriptionClient')
     def test_resolve_empty_subscription_list(self, mock_subscription_client):
         """Test handling when no subscriptions are available."""
         mock_client_instance = MagicMock()
         mock_subscription_client.return_value = mock_client_instance
         mock_client_instance.subscriptions.list.return_value = []
         
-        import azure_query
+        from cloudnetdraw import azure_client
         mock_credentials = MagicMock()
         
         # Test resolving with empty subscription list should exit with error
@@ -106,13 +106,13 @@ class TestSubscriptionEnumeration:
         
         with pytest.raises(SystemExit):
             # Initialize credentials for global usage
-            azure_query.initialize_credentials()
+            azure_client.initialize_credentials()
             
-            azure_query.resolve_subscription_names_to_ids(
+            azure_client.resolve_subscription_names_to_ids(
                 subscription_names
             )
     
-    @patch('azure_query.SubscriptionClient')
+    @patch('cloudnetdraw.azure_client.SubscriptionClient')
     def test_subscription_resolution_api_error(self, mock_subscription_client):
         """Test handling of API errors when resolving subscription names."""
         mock_client_instance = MagicMock()
@@ -124,16 +124,16 @@ class TestSubscriptionEnumeration:
         error = HttpResponseError("Forbidden", response=error_response)
         mock_client_instance.subscriptions.list.side_effect = error
         
-        import azure_query
+        from cloudnetdraw import azure_client
         mock_credentials = MagicMock()
         
         subscription_names = ["Production Subscription"]
         
         with pytest.raises(HttpResponseError):
             # Initialize credentials for global usage
-            azure_query.initialize_credentials()
+            azure_client.initialize_credentials()
             
-            azure_query.resolve_subscription_names_to_ids(
+            azure_client.resolve_subscription_names_to_ids(
                 subscription_names
             )
     
@@ -152,8 +152,8 @@ class TestSubscriptionEnumeration:
 class TestVNetDiscoveryAcrossSubscriptions:
     """Test VNet discovery across multiple subscriptions."""
     
-    @patch('azure_query.SubscriptionClient')
-    @patch('azure_query.NetworkManagementClient')
+    @patch('cloudnetdraw.azure_client.SubscriptionClient')
+    @patch('cloudnetdraw.azure_client.NetworkManagementClient')
     def test_discover_vnets_single_subscription(self, mock_network_client, mock_subscription_client):
         """Test VNet discovery in a single subscription."""
         mock_client_instance = MagicMock()
@@ -191,13 +191,13 @@ class TestVNetDiscoveryAcrossSubscriptions:
         mock_subscription.display_name = "Test Subscription"
         mock_sub_client_instance.subscriptions.get.return_value = mock_subscription
         
-        import azure_query
+        from cloudnetdraw import azure_client
         mock_credentials = MagicMock()
         subscription_id = "12345678-1234-1234-1234-123456789012"
         
         # Test VNet discovery
-        with patch('azure_query.get_credentials', return_value=mock_credentials):
-            vnets = azure_query.get_vnet_topology_for_selected_subscriptions([subscription_id])
+        with patch('cloudnetdraw.azure_client.get_credentials', return_value=mock_credentials):
+            vnets = azure_client.get_vnet_topology_for_selected_subscriptions([subscription_id])
         
         # Verify network client was called correctly
         mock_network_client.assert_called_once_with(mock_credentials, subscription_id)
@@ -216,8 +216,8 @@ class TestVNetDiscoveryAcrossSubscriptions:
         assert "subscription_name" in vnet
         assert "peerings_count" in vnet
     
-    @patch('azure_query.SubscriptionClient')
-    @patch('azure_query.NetworkManagementClient')
+    @patch('cloudnetdraw.azure_client.SubscriptionClient')
+    @patch('cloudnetdraw.azure_client.NetworkManagementClient')
     def test_discover_vnets_multiple_subscriptions(self, mock_network_client, mock_subscription_client):
         """Test VNet discovery across multiple subscriptions."""
         mock_client_instance = MagicMock()
@@ -251,7 +251,7 @@ class TestVNetDiscoveryAcrossSubscriptions:
         mock_subscription.display_name = "Test Subscription"
         mock_sub_client_instance.subscriptions.get.return_value = mock_subscription
         
-        import azure_query
+        from cloudnetdraw import azure_client
         mock_credentials = MagicMock()
         subscription_ids = [
             "12345678-1234-1234-1234-123456789012",
@@ -259,8 +259,8 @@ class TestVNetDiscoveryAcrossSubscriptions:
         ]
         
         # Test VNet discovery across multiple subscriptions
-        with patch('azure_query.get_credentials', return_value=mock_credentials):
-            vnets = azure_query.get_vnet_topology_for_selected_subscriptions(subscription_ids)
+        with patch('cloudnetdraw.azure_client.get_credentials', return_value=mock_credentials):
+            vnets = azure_client.get_vnet_topology_for_selected_subscriptions(subscription_ids)
         
         # Verify network client was called for each subscription
         assert mock_network_client.call_count == 2
@@ -271,8 +271,8 @@ class TestVNetDiscoveryAcrossSubscriptions:
         assert "vnets" in vnets
         assert len(vnets["vnets"]) >= 2  # At least 2 VNets from mocked responses
     
-    @patch('azure_query.SubscriptionClient')
-    @patch('azure_query.NetworkManagementClient')
+    @patch('cloudnetdraw.azure_client.SubscriptionClient')
+    @patch('cloudnetdraw.azure_client.NetworkManagementClient')
     def test_discover_vnets_empty_subscription(self, mock_network_client, mock_subscription_client):
         """Test VNet discovery in subscription with no VNets."""
         mock_client_instance = MagicMock()
@@ -287,20 +287,20 @@ class TestVNetDiscoveryAcrossSubscriptions:
         mock_subscription.display_name = "Test Subscription"
         mock_sub_client_instance.subscriptions.get.return_value = mock_subscription
         
-        import azure_query
+        from cloudnetdraw import azure_client
         mock_credentials = MagicMock()
         subscription_id = "12345678-1234-1234-1234-123456789012"
         
         # Should exit with error code 1 when no VNets found across all subscriptions
         with pytest.raises(SystemExit) as exc_info:
             # Initialize credentials for global usage
-            azure_query.initialize_credentials()
+            azure_client.initialize_credentials()
             
-            azure_query.get_vnet_topology_for_selected_subscriptions([subscription_id])
+            azure_client.get_vnet_topology_for_selected_subscriptions([subscription_id])
         assert exc_info.value.code == 1
     
-    @patch('azure_query.SubscriptionClient')
-    @patch('azure_query.NetworkManagementClient')
+    @patch('cloudnetdraw.azure_client.SubscriptionClient')
+    @patch('cloudnetdraw.azure_client.NetworkManagementClient')
     def test_discover_vnets_empty_all_subscriptions(self, mock_network_client, mock_subscription_client):
         """Test VNet discovery when all subscriptions have no VNets - should be fatal."""
         mock_client_instance = MagicMock()
@@ -315,7 +315,7 @@ class TestVNetDiscoveryAcrossSubscriptions:
         mock_subscription.display_name = "Test Subscription"
         mock_sub_client_instance.subscriptions.get.return_value = mock_subscription
         
-        import azure_query
+        from cloudnetdraw import azure_client
         mock_credentials = MagicMock()
         subscription_ids = [
             "12345678-1234-1234-1234-123456789012",
@@ -325,13 +325,13 @@ class TestVNetDiscoveryAcrossSubscriptions:
         # Should exit with error code 1 when no VNets found across all subscriptions
         with pytest.raises(SystemExit) as exc_info:
             # Initialize credentials for global usage
-            azure_query.initialize_credentials()
+            azure_client.initialize_credentials()
             
-            azure_query.get_vnet_topology_for_selected_subscriptions(subscription_ids)
+            azure_client.get_vnet_topology_for_selected_subscriptions(subscription_ids)
         assert exc_info.value.code == 1
     
-    @patch('azure_query.SubscriptionClient')
-    @patch('azure_query.NetworkManagementClient')
+    @patch('cloudnetdraw.azure_client.SubscriptionClient')
+    @patch('cloudnetdraw.azure_client.NetworkManagementClient')
     def test_discover_vnets_mixed_subscriptions_normal_operation(self, mock_network_client, mock_subscription_client):
         """Test VNet discovery when some subscriptions have VNets and others don't - should be normal."""
         def mock_network_client_side_effect(credentials, subscription_id):
@@ -372,7 +372,7 @@ class TestVNetDiscoveryAcrossSubscriptions:
         mock_subscription.display_name = "Test Subscription"
         mock_sub_client_instance.subscriptions.get.return_value = mock_subscription
         
-        import azure_query
+        from cloudnetdraw import azure_client
         mock_credentials = MagicMock()
         subscription_ids = [
             "12345678-1234-1234-1234-123456789012",  # Has VNets
@@ -381,15 +381,15 @@ class TestVNetDiscoveryAcrossSubscriptions:
         
         # Should not exit - this is normal operation when some subscriptions have VNets
         # Initialize credentials for global usage
-        azure_query.initialize_credentials()
+        azure_client.initialize_credentials()
         
-        vnets = azure_query.get_vnet_topology_for_selected_subscriptions(subscription_ids)
+        vnets = azure_client.get_vnet_topology_for_selected_subscriptions(subscription_ids)
         
         assert "vnets" in vnets
         assert len(vnets["vnets"]) >= 1  # At least one VNet from first subscription
     
-    @patch('azure_query.SubscriptionClient')
-    @patch('azure_query.NetworkManagementClient')
+    @patch('cloudnetdraw.azure_client.SubscriptionClient')
+    @patch('cloudnetdraw.azure_client.NetworkManagementClient')
     def test_vnet_discovery_api_error(self, mock_network_client, mock_subscription_client):
         """Test handling of API errors during VNet discovery."""
         mock_client_instance = MagicMock()
@@ -408,24 +408,24 @@ class TestVNetDiscoveryAcrossSubscriptions:
         mock_subscription.display_name = "Test Subscription"
         mock_sub_client_instance.subscriptions.get.return_value = mock_subscription
         
-        import azure_query
+        from cloudnetdraw import azure_client
         mock_credentials = MagicMock()
         subscription_id = "12345678-1234-1234-1234-123456789012"
         
         # Should exit with error code 1 when Azure API error occurs
         with pytest.raises(SystemExit) as exc_info:
             # Initialize credentials for global usage
-            azure_query.initialize_credentials()
+            azure_client.initialize_credentials()
             
-            azure_query.get_vnet_topology_for_selected_subscriptions([subscription_id])
+            azure_client.get_vnet_topology_for_selected_subscriptions([subscription_id])
         assert exc_info.value.code == 1
 
 
 class TestPeeringRelationshipMapping:
     """Test peering relationship mapping functionality."""
     
-    @patch('azure_query.SubscriptionClient')
-    @patch('azure_query.NetworkManagementClient')
+    @patch('cloudnetdraw.azure_client.SubscriptionClient')
+    @patch('cloudnetdraw.azure_client.NetworkManagementClient')
     def test_extract_peering_relationships(self, mock_network_client, mock_subscription_client):
         """Test extraction of peering relationships from VNet data."""
         mock_client_instance = MagicMock()
@@ -474,14 +474,14 @@ class TestPeeringRelationshipMapping:
         mock_subscription.display_name = "Test Subscription"
         mock_sub_client_instance.subscriptions.get.return_value = mock_subscription
         
-        import azure_query
+        from cloudnetdraw import azure_client
         mock_credentials = MagicMock()
         subscription_id = "12345678-1234-1234-1234-123456789012"
         
         # Initialize credentials for global usage
-        azure_query.initialize_credentials()
+        azure_client.initialize_credentials()
         
-        vnets = azure_query.get_vnet_topology_for_selected_subscriptions([subscription_id])
+        vnets = azure_client.get_vnet_topology_for_selected_subscriptions([subscription_id])
         
         # Verify peering relationships are preserved
         hub_vnet = next(vnet for vnet in vnets["vnets"] if vnet["name"] == "hub-vnet")
@@ -497,7 +497,7 @@ class TestPeeringRelationshipMapping:
     
     def test_extract_vnet_name_from_resource_id(self):
         """Test extraction of VNet names from resource IDs for reliable peering relationships."""
-        import azure_query
+        from cloudnetdraw import utils
         
         # Test various resource ID formats based on actual Azure resource IDs
         test_cases = [
@@ -508,7 +508,7 @@ class TestPeeringRelationshipMapping:
         ]
         
         for resource_id, expected_result in test_cases:
-            result = azure_query.extract_vnet_name_from_resource_id(resource_id)
+            result = utils.extract_vnet_name_from_resource_id(resource_id)
             assert result == expected_result, f"Failed for input '{resource_id}': expected {expected_result}, got {result}"
         
         # Test error cases
@@ -520,13 +520,13 @@ class TestPeeringRelationshipMapping:
         
         for resource_id in error_cases:
             try:
-                azure_query.extract_vnet_name_from_resource_id(resource_id)
+                utils.extract_vnet_name_from_resource_id(resource_id)
                 assert False, f"Expected ValueError for invalid resource ID: {resource_id}"
             except ValueError:
                 pass  # Expected behavior
     
-    @patch('azure_query.SubscriptionClient')
-    @patch('azure_query.NetworkManagementClient')
+    @patch('cloudnetdraw.azure_client.SubscriptionClient')
+    @patch('cloudnetdraw.azure_client.NetworkManagementClient')
     def test_complex_peering_scenarios(self, mock_network_client, mock_subscription_client):
         """Test handling of complex peering scenarios."""
         # Create mock VNet as Azure SDK object
@@ -559,14 +559,14 @@ class TestPeeringRelationshipMapping:
         mock_subscription.display_name = "Test Subscription"
         mock_sub_client_instance.subscriptions.get.return_value = mock_subscription
         
-        import azure_query
+        from cloudnetdraw import azure_client
         mock_credentials = MagicMock()
         subscription_id = "12345678-1234-1234-1234-123456789012"
         
         # Initialize credentials for global usage
-        azure_query.initialize_credentials()
+        azure_client.initialize_credentials()
         
-        vnets = azure_query.get_vnet_topology_for_selected_subscriptions([subscription_id])
+        vnets = azure_client.get_vnet_topology_for_selected_subscriptions([subscription_id])
         
         # Verify complex peering relationships are handled
         assert len(vnets["vnets"]) >= 1
@@ -581,8 +581,8 @@ class TestPeeringRelationshipMapping:
 class TestVirtualWANHubIntegration:
     """Test Virtual WAN hub integration within VNet topology discovery."""
     
-    @patch('azure_query.SubscriptionClient')
-    @patch('azure_query.NetworkManagementClient')
+    @patch('cloudnetdraw.azure_client.SubscriptionClient')
+    @patch('cloudnetdraw.azure_client.NetworkManagementClient')
     def test_virtual_wan_hub_included_in_topology(self, mock_network_client, mock_subscription_client):
         """Test that Virtual WAN hubs are included in VNet topology results."""
         mock_client_instance = MagicMock()
@@ -613,15 +613,15 @@ class TestVirtualWANHubIntegration:
         mock_subscription.display_name = "Test Subscription"
         mock_sub_client_instance.subscriptions.get.return_value = mock_subscription
         
-        import azure_query
+        from cloudnetdraw import azure_client
         mock_credentials = MagicMock()
         subscription_id = "12345678-1234-1234-1234-123456789012"
         
         # Test VNet topology discovery includes Virtual WAN hubs
         # Initialize credentials for global usage
-        azure_query.initialize_credentials()
+        azure_client.initialize_credentials()
         
-        vnets = azure_query.get_vnet_topology_for_selected_subscriptions([subscription_id])
+        vnets = azure_client.get_vnet_topology_for_selected_subscriptions([subscription_id])
         
         # Verify Virtual WAN hubs are included in results
         assert "vnets" in vnets
@@ -637,8 +637,8 @@ class TestVirtualWANHubIntegration:
 class TestAPIErrorHandling:
     """Test API error handling scenarios."""
     
-    @patch('azure_query.SubscriptionClient')
-    @patch('azure_query.NetworkManagementClient')
+    @patch('cloudnetdraw.azure_client.SubscriptionClient')
+    @patch('cloudnetdraw.azure_client.NetworkManagementClient')
     def test_handle_authentication_error(self, mock_network_client, mock_subscription_client):
         """Test handling of authentication errors."""
         mock_client_instance = MagicMock()
@@ -655,19 +655,19 @@ class TestAPIErrorHandling:
         mock_subscription.display_name = "Test Subscription"
         mock_sub_client_instance.subscriptions.get.return_value = mock_subscription
         
-        import azure_query
+        from cloudnetdraw import azure_client
         mock_credentials = MagicMock()
         subscription_id = "12345678-1234-1234-1234-123456789012"
         
         # Should exit with error code 1 when Azure API error occurs
         with pytest.raises(SystemExit) as exc_info:
             # Initialize credentials for global usage
-            azure_query.initialize_credentials()
+            azure_client.initialize_credentials()
             
-            azure_query.get_vnet_topology_for_selected_subscriptions([subscription_id])
+            azure_client.get_vnet_topology_for_selected_subscriptions([subscription_id])
         assert exc_info.value.code == 1
     
-    @patch('azure_query.NetworkManagementClient')
+    @patch('cloudnetdraw.azure_client.NetworkManagementClient')
     def test_handle_throttling_error(self, mock_network_client):
         """Test handling of API throttling (429) errors."""
         mock_client_instance = MagicMock()
@@ -679,19 +679,19 @@ class TestAPIErrorHandling:
         error = HttpResponseError("Too many requests", response=error_response)
         mock_client_instance.virtual_networks.list_all.side_effect = error
         
-        import azure_query
+        from cloudnetdraw import azure_client
         mock_credentials = MagicMock()
         subscription_id = "12345678-1234-1234-1234-123456789012"
         
         # Should exit with error code 1 when Azure API error occurs
         with pytest.raises(SystemExit) as exc_info:
             # Initialize credentials for global usage
-            azure_query.initialize_credentials()
+            azure_client.initialize_credentials()
             
-            azure_query.get_vnet_topology_for_selected_subscriptions([subscription_id])
+            azure_client.get_vnet_topology_for_selected_subscriptions([subscription_id])
         assert exc_info.value.code == 1
     
-    @patch('azure_query.NetworkManagementClient')
+    @patch('cloudnetdraw.azure_client.NetworkManagementClient')
     def test_handle_permission_error(self, mock_network_client):
         """Test handling of permission (403) errors."""
         mock_client_instance = MagicMock()
@@ -703,19 +703,19 @@ class TestAPIErrorHandling:
         error = HttpResponseError("Forbidden", response=error_response)
         mock_client_instance.virtual_networks.list_all.side_effect = error
         
-        import azure_query
+        from cloudnetdraw import azure_client
         mock_credentials = MagicMock()
         subscription_id = "12345678-1234-1234-1234-123456789012"
         
         # Should exit with error code 1 when Azure API error occurs
         with pytest.raises(SystemExit) as exc_info:
             # Initialize credentials for global usage
-            azure_query.initialize_credentials()
+            azure_client.initialize_credentials()
             
-            azure_query.get_vnet_topology_for_selected_subscriptions([subscription_id])
+            azure_client.get_vnet_topology_for_selected_subscriptions([subscription_id])
         assert exc_info.value.code == 1
     
-    @patch('azure_query.NetworkManagementClient')
+    @patch('cloudnetdraw.azure_client.NetworkManagementClient')
     def test_handle_timeout_error(self, mock_network_client):
         """Test handling of timeout errors."""
         mock_client_instance = MagicMock()
@@ -727,24 +727,24 @@ class TestAPIErrorHandling:
         error = HttpResponseError("Gateway timeout", response=error_response)
         mock_client_instance.virtual_networks.list_all.side_effect = error
         
-        import azure_query
+        from cloudnetdraw import azure_client
         mock_credentials = MagicMock()
         subscription_id = "12345678-1234-1234-1234-123456789012"
         
         # Should exit with error code 1 when Azure API error occurs
         with pytest.raises(SystemExit) as exc_info:
             # Initialize credentials for global usage
-            azure_query.initialize_credentials()
+            azure_client.initialize_credentials()
             
-            azure_query.get_vnet_topology_for_selected_subscriptions([subscription_id])
+            azure_client.get_vnet_topology_for_selected_subscriptions([subscription_id])
         assert exc_info.value.code == 1
 
 
 class TestLargeResultSetPagination:
     """Test handling of large result sets and pagination."""
     
-    @patch('azure_query.SubscriptionClient')
-    @patch('azure_query.NetworkManagementClient')
+    @patch('cloudnetdraw.azure_client.SubscriptionClient')
+    @patch('cloudnetdraw.azure_client.NetworkManagementClient')
     def test_handle_paginated_vnet_results(self, mock_network_client, mock_subscription_client):
         """Test handling of paginated VNet results."""
         # Create mock paginated response
@@ -782,19 +782,19 @@ class TestLargeResultSetPagination:
         mock_subscription.display_name = "Test Subscription"
         mock_sub_client_instance.subscriptions.get.return_value = mock_subscription
         
-        import azure_query
+        from cloudnetdraw import azure_client
         mock_credentials = MagicMock()
         subscription_id = "12345678-1234-1234-1234-123456789012"
         
         # Initialize credentials for global usage
-        azure_query.initialize_credentials()
+        azure_client.initialize_credentials()
         
-        vnets = azure_query.get_vnet_topology_for_selected_subscriptions([subscription_id])
+        vnets = azure_client.get_vnet_topology_for_selected_subscriptions([subscription_id])
         
         # Verify all VNets from all pages were collected
         assert len(vnets["vnets"]) == 2  # Total VNets from both pages
     
-    @patch('azure_query.SubscriptionClient')
+    @patch('cloudnetdraw.azure_client.SubscriptionClient')
     def test_handle_large_subscription_list(self, mock_subscription_client):
         """Test handling of large subscription lists."""
         # Create a large number of mock subscription objects
@@ -809,15 +809,15 @@ class TestLargeResultSetPagination:
         mock_subscription_client.return_value = mock_client_instance
         mock_client_instance.subscriptions.list.return_value = large_subscription_list
         
-        import azure_query
+        from cloudnetdraw import azure_client
         mock_credentials = MagicMock()
         
         # Test resolving subscription names to IDs
         subscription_names = ["Subscription 0", "Subscription 25", "Subscription 49"]
         # Initialize credentials for global usage
-        azure_query.initialize_credentials()
+        azure_client.initialize_credentials()
         
-        resolved_ids = azure_query.resolve_subscription_names_to_ids(subscription_names)
+        resolved_ids = azure_client.resolve_subscription_names_to_ids(subscription_names)
         
         # Verify all subscriptions were processed
         assert len(resolved_ids) == 3
@@ -829,8 +829,8 @@ class TestLargeResultSetPagination:
 class TestMalformedDataHandling:
     """Test handling of malformed API response data."""
     
-    @patch('azure_query.SubscriptionClient')
-    @patch('azure_query.NetworkManagementClient')
+    @patch('cloudnetdraw.azure_client.SubscriptionClient')
+    @patch('cloudnetdraw.azure_client.NetworkManagementClient')
     def test_handle_malformed_vnet_data(self, mock_network_client, mock_subscription_client):
         """Test handling of malformed VNet data from API."""
         mock_client_instance = MagicMock()
@@ -844,20 +844,20 @@ class TestMalformedDataHandling:
         mock_subscription.display_name = "Test Subscription"
         mock_sub_client_instance.subscriptions.get.return_value = mock_subscription
         
-        import azure_query
+        from cloudnetdraw import azure_client
         mock_credentials = MagicMock()
         subscription_id = "12345678-1234-1234-1234-123456789012"
         
         # Should exit with error code 1 when malformed data causes errors
         with pytest.raises(SystemExit) as exc_info:
             # Initialize credentials for global usage
-            azure_query.initialize_credentials()
+            azure_client.initialize_credentials()
             
-            azure_query.get_vnet_topology_for_selected_subscriptions([subscription_id])
+            azure_client.get_vnet_topology_for_selected_subscriptions([subscription_id])
         assert exc_info.value.code == 1
     
-    @patch('azure_query.SubscriptionClient')
-    @patch('azure_query.NetworkManagementClient')
+    @patch('cloudnetdraw.azure_client.SubscriptionClient')
+    @patch('cloudnetdraw.azure_client.NetworkManagementClient')
     def test_handle_missing_required_fields(self, mock_network_client, mock_subscription_client):
         """Test handling when required fields are missing from API response."""
         # Create VNet data missing required fields
@@ -885,23 +885,23 @@ class TestMalformedDataHandling:
         mock_subscription.display_name = "Test Subscription"
         mock_sub_client_instance.subscriptions.get.return_value = mock_subscription
         
-        import azure_query
+        from cloudnetdraw import azure_client
         mock_credentials = MagicMock()
         subscription_id = "12345678-1234-1234-1234-123456789012"
         
         # Should exit with error code 1 when missing fields cause errors
         with pytest.raises(SystemExit) as exc_info:
             # Initialize credentials for global usage
-            azure_query.initialize_credentials()
+            azure_client.initialize_credentials()
             
-            azure_query.get_vnet_topology_for_selected_subscriptions([subscription_id])
+            azure_client.get_vnet_topology_for_selected_subscriptions([subscription_id])
         assert exc_info.value.code == 1
 
 
 class TestNetworkPartitionScenarios:
     """Test scenarios involving network partitions and connectivity issues."""
     
-    @patch('azure_query.NetworkManagementClient')
+    @patch('cloudnetdraw.azure_client.NetworkManagementClient')
     def test_partial_subscription_failure(self, mock_network_client):
         """Test handling when some subscriptions fail while others succeed."""
         def side_effect(credentials, subscription_id):
@@ -921,7 +921,7 @@ class TestNetworkPartitionScenarios:
         
         mock_network_client.side_effect = side_effect
         
-        import azure_query
+        from cloudnetdraw import azure_client
         mock_credentials = MagicMock()
         subscription_ids = [
             "12345678-1234-1234-1234-123456789012",  # Will succeed
@@ -931,13 +931,13 @@ class TestNetworkPartitionScenarios:
         # Should exit with error code 1 when subscription access fails
         with pytest.raises(SystemExit) as exc_info:
             # Initialize credentials for global usage
-            azure_query.initialize_credentials()
+            azure_client.initialize_credentials()
             
-            azure_query.get_vnet_topology_for_selected_subscriptions(subscription_ids)
+            azure_client.get_vnet_topology_for_selected_subscriptions(subscription_ids)
         assert exc_info.value.code == 1
     
-    @patch('azure_query.SubscriptionClient')
-    @patch('azure_query.NetworkManagementClient')
+    @patch('cloudnetdraw.azure_client.SubscriptionClient')
+    @patch('cloudnetdraw.azure_client.NetworkManagementClient')
     def test_network_connectivity_recovery(self, mock_network_client, mock_subscription_client):
         """Test recovery from temporary network connectivity issues."""
         call_count = 0
@@ -968,16 +968,16 @@ class TestNetworkPartitionScenarios:
         mock_subscription.display_name = "Test Subscription"
         mock_sub_client_instance.subscriptions.get.return_value = mock_subscription
         
-        import azure_query
+        from cloudnetdraw import azure_client
         mock_credentials = MagicMock()
         subscription_id = "12345678-1234-1234-1234-123456789012"
         
         # Should exit with error code 1 when network error occurs
         with pytest.raises(SystemExit) as exc_info:
             # Initialize credentials for global usage
-            azure_query.initialize_credentials()
+            azure_client.initialize_credentials()
             
-            azure_query.get_vnet_topology_for_selected_subscriptions([subscription_id])
+            azure_client.get_vnet_topology_for_selected_subscriptions([subscription_id])
         assert exc_info.value.code == 1
 
 
@@ -991,12 +991,12 @@ class TestCredentialManagement:
     })
     def test_service_principal_credentials(self):
         """Test Service Principal credential acquisition."""
-        import azure_query
+        from cloudnetdraw import azure_client
         
         # Initialize credentials for global usage
-        azure_query.initialize_credentials()
+        azure_client.initialize_credentials()
         
-        credentials = azure_query.get_credentials()
+        credentials = azure_client.get_credentials()
         
         # Verify that credentials were obtained
         assert credentials is not None
@@ -1005,26 +1005,26 @@ class TestCredentialManagement:
     @patch.dict(os.environ, {}, clear=True)
     def test_azure_cli_credentials_fallback(self):
         """Test falling back to Azure CLI credentials."""
-        import azure_query
+        from cloudnetdraw import azure_client
         
         # When environment variables are not set, should fall back to CLI
         # Initialize credentials for global usage
-        azure_query.initialize_credentials()
+        azure_client.initialize_credentials()
         
-        credentials = azure_query.get_credentials()
+        credentials = azure_client.get_credentials()
         
         assert credentials is not None
         # Should use Azure CLI credential as fallback
     
     def test_credential_validation(self):
         """Test validation of obtained credentials."""
-        import azure_query
+        from cloudnetdraw import azure_client
         
         # Test with mock credentials
         mock_credentials = MagicMock()
         
         # Verify credentials can be used for API calls
-        with patch('azure_query.SubscriptionClient') as mock_client:
+        with patch('cloudnetdraw.azure_client.SubscriptionClient') as mock_client:
             mock_client_instance = MagicMock()
             mock_client.return_value = mock_client_instance
             
@@ -1037,9 +1037,9 @@ class TestCredentialManagement:
             # Should not raise exception with valid credentials
             subscription_names = ["Test Subscription"]
             # Initialize credentials for global usage
-            azure_query.initialize_credentials()
+            azure_client.initialize_credentials()
             
-            resolved_ids = azure_query.resolve_subscription_names_to_ids(subscription_names)
+            resolved_ids = azure_client.resolve_subscription_names_to_ids(subscription_names)
             assert isinstance(resolved_ids, list)
             assert len(resolved_ids) == 1
             assert resolved_ids[0] == "12345678-1234-1234-1234-123456789012"

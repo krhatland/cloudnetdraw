@@ -101,6 +101,9 @@ def sample_config_dict():
             },
             'cross_zone': {
                 'style': 'edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#0066CC;strokeWidth=2;endArrow=block;startArrow=block;dashed=1;dashPattern=8 4;'
+            },
+            'spoke_to_multi_hub': {
+                'style': 'edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#9933CC;strokeWidth=2;endArrow=block;startArrow=block;dashed=1;dashPattern=6 2;'
             }
         },
         'icons': {

@@ -1,0 +1,85 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "cloudnetdraw"
+version = "0.1.3"
+description = "Azure VNet topology discovery and visualization tool that generates Draw.io diagrams"
+readme = "README.md"
+requires-python = ">=3.8"
+license = {file = "LICENSE"}
+authors = [
+    {name = "CloudNet Draw Contributors"}
+]
+keywords = ["azure", "network", "topology", "visualization", "drawio", "vnet"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: System Administrators",
+    "Intended Audience :: Developers", 
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Topic :: System :: Networking",
+    "Topic :: System :: Systems Administration",
+    "Topic :: Utilities"
+]
+
+dependencies = [
+    "azure-identity>=1.15.0",
+    "azure-mgmt-network>=25.0.0",
+    "azure-mgmt-resource>=23.0.0",
+    "azure-mgmt-resourcegraph>=8.0.0",
+    "lxml>=4.9.0",
+    "PyYAML>=6.0",
+    "importlib-resources>=1.3.0; python_version<'3.9'"
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-cov>=4.0.0",
+    "pytest-mock>=3.10.0"
+]
+
+[project.urls]
+Homepage = "https://www.cloudnetdraw.com/"
+Repository = "https://github.com/krhatland/cloudnet-draw.git"
+Issues = "https://github.com/krhatland/cloudnet-draw/issues"
+Documentation = "https://github.com/krhatland/cloudnet-draw#readme"
+Changelog = "https://github.com/krhatland/cloudnet-draw/releases"
+Blog = "https://hatnes.no/posts/cloudnet-draw/"
+
+[project.scripts]
+cloudnetdraw = "cloudnetdraw.cli:main"
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "/src",
+    "/README.md",
+    "/LICENSE",
+    "/examples",
+    "/utils"
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/cloudnetdraw"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "-v --tb=short"
+
+[tool.coverage.run]
+source = ["src/cloudnetdraw"]
+omit = ["*/tests/*"]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError", 
+    "raise NotImplementedError"
+]

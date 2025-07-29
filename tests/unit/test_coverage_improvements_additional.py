@@ -10,15 +10,14 @@ import tempfile
 from azure.core.exceptions import ResourceNotFoundError
 
 # Import the functions we want to test
-from azure_query import (
+from cloudnetdraw.azure_client import (
     find_hub_vnet_using_resource_graph,
     find_peered_vnets,
-    determine_hub_for_spoke,
-    parse_vnet_identifier,
-    query_command,
-    get_subscriptions_non_interactive,
-    main
+    get_subscriptions_non_interactive
 )
+from cloudnetdraw.utils import parse_vnet_identifier
+from cloudnetdraw.topology import determine_hub_for_spoke
+from cloudnetdraw.cli import query_command, main
 
 
 class TestAdditionalCoverageImprovements:
@@ -56,10 +55,10 @@ class TestAdditionalCoverageImprovements:
         mock_debug_response = Mock()
         mock_debug_response.data = []
         
-        with patch('azure_query.get_credentials', return_value=mock_credentials), \
-             patch('azure_query.ResourceGraphClient', return_value=mock_resource_graph_client), \
-             patch('azure_query.NetworkManagementClient', return_value=mock_network_client), \
-             patch('azure_query.SubscriptionClient', return_value=mock_subscription_client):
+        with patch('cloudnetdraw.azure_client.get_credentials', return_value=mock_credentials), \
+             patch('cloudnetdraw.azure_client.ResourceGraphClient', return_value=mock_resource_graph_client), \
+             patch('cloudnetdraw.azure_client.NetworkManagementClient', return_value=mock_network_client), \
+             patch('cloudnetdraw.azure_client.SubscriptionClient', return_value=mock_subscription_client):
             
             # Configure mocks
             mock_resource_graph_client.resources.side_effect = [mock_response, mock_debug_response]
@@ -86,9 +85,9 @@ class TestAdditionalCoverageImprovements:
         # Mock a VNet that will cause an exception with Code: in message
         resource_ids = ["/subscriptions/test-sub/resourceGroups/test-rg/providers/Microsoft.Network/virtualNetworks/test-vnet"]
         
-        with patch('azure_query.get_credentials', return_value=mock_credentials), \
-             patch('azure_query.SubscriptionClient', return_value=mock_subscription_client), \
-             patch('azure_query.NetworkManagementClient', return_value=mock_network_client):
+        with patch('cloudnetdraw.azure_client.get_credentials', return_value=mock_credentials), \
+             patch('cloudnetdraw.azure_client.SubscriptionClient', return_value=mock_subscription_client), \
+             patch('cloudnetdraw.azure_client.NetworkManagementClient', return_value=mock_network_client):
             
             # Configure mock to raise exception with Code: in message
             error_msg = "Some error occurred\nCode: ErrorCode\nMessage: Error details"
@@ -109,9 +108,9 @@ class TestAdditionalCoverageImprovements:
         
         resource_ids = ["/subscriptions/test-sub/resourceGroups/test-rg/providers/Microsoft.Network/virtualNetworks/deleted-vnet"]
         
-        with patch('azure_query.get_credentials', return_value=mock_credentials), \
-             patch('azure_query.SubscriptionClient', return_value=mock_subscription_client), \
-             patch('azure_query.NetworkManagementClient', return_value=mock_network_client):
+        with patch('cloudnetdraw.azure_client.get_credentials', return_value=mock_credentials), \
+             patch('cloudnetdraw.azure_client.SubscriptionClient', return_value=mock_subscription_client), \
+             patch('cloudnetdraw.azure_client.NetworkManagementClient', return_value=mock_network_client):
             
             # Configure mock to raise ResourceNotFound-like exception
             mock_network_client.virtual_networks.get.side_effect = Exception("ResourceNotFound: The resource was not found")
@@ -145,8 +144,8 @@ class TestAdditionalCoverageImprovements:
         """Test query_command with invalid VNet identifier"""
         mock_credentials = Mock()
         
-        with patch('azure_query.get_credentials', return_value=mock_credentials), \
-             patch('azure_query.initialize_credentials'):
+        with patch('cloudnetdraw.azure_client.get_credentials', return_value=mock_credentials), \
+             patch('cloudnetdraw.azure_client.initialize_credentials'):
             
             # Create mock args with invalid VNet identifier
             args = Mock()
@@ -168,7 +167,7 @@ class TestAdditionalCoverageImprovements:
         args.subscriptions_file = None
         
         # Mock is_subscription_id to return True for first subscription
-        with patch('azure_query.is_subscription_id', return_value=True):
+        with patch('cloudnetdraw.azure_client.is_subscription_id', return_value=True):
             result = get_subscriptions_non_interactive(args)
             
             # Should return the IDs as-is (lines 691-694)
@@ -180,7 +179,7 @@ class TestAdditionalCoverageImprovements:
         test_args = ["azure-query.py", "query", "--topology", "nonexistent.json"]
         
         with patch('sys.argv', test_args), \
-             patch('azure_query.query_command', side_effect=FileNotFoundError("File not found")):
+             patch('cloudnetdraw.cli.query_command', side_effect=FileNotFoundError("File not found")):
             
             # This should trigger FileNotFoundError handling (lines 916-918)
             with pytest.raises(SystemExit):
@@ -191,7 +190,7 @@ class TestAdditionalCoverageImprovements:
         test_args = ["azure-query.py", "query"]
         
         with patch('sys.argv', test_args), \
-             patch('azure_query.query_command', side_effect=Exception("General error")):
+             patch('cloudnetdraw.cli.query_command', side_effect=Exception("General error")):
             
             # This should trigger general exception handling (lines 919-921)
             with pytest.raises(SystemExit):
@@ -217,8 +216,8 @@ class TestAdditionalCoverageImprovements:
         # Invalid resource ID format
         resource_ids = ["invalid-resource-id-format"]
         
-        with patch('azure_query.get_credentials', return_value=mock_credentials), \
-             patch('azure_query.SubscriptionClient', return_value=mock_subscription_client):
+        with patch('cloudnetdraw.azure_client.get_credentials', return_value=mock_credentials), \
+             patch('cloudnetdraw.azure_client.SubscriptionClient', return_value=mock_subscription_client):
             
             # Should handle invalid format and return empty results
             result_vnets, result_ids = find_peered_vnets(resource_ids)
@@ -251,9 +250,9 @@ class TestAdditionalCoverageImprovements:
         
         resource_ids = ["/subscriptions/test-sub/resourceGroups/test-rg/providers/Microsoft.Network/virtualNetworks/test-vnet"]
         
-        with patch('azure_query.get_credentials', return_value=mock_credentials), \
-             patch('azure_query.SubscriptionClient', return_value=mock_subscription_client), \
-             patch('azure_query.NetworkManagementClient', return_value=mock_network_client):
+        with patch('cloudnetdraw.azure_client.get_credentials', return_value=mock_credentials), \
+             patch('cloudnetdraw.azure_client.SubscriptionClient', return_value=mock_subscription_client), \
+             patch('cloudnetdraw.azure_client.NetworkManagementClient', return_value=mock_network_client):
             
             # Configure mocks
             mock_network_client.virtual_networks.get.return_value = mock_vnet

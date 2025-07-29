@@ -1,30 +1,118 @@
 # Minimal configuration with bare minimum settings
-hub_threshold: 3
+thresholds:
+  hub_peering_count: 3
 
-style:
-  vnet:
-    hub: "fillColor=#e6f3ff;strokeColor=#0066cc;strokeWidth=2"
-    spoke: "fillColor=#f0f8ff;strokeColor=#4d94ff;strokeWidth=1"
-    non_peered: "fillColor=#f5f5f5;strokeColor=#999999;strokeWidth=1"
-  
-  subnet:
-    default: "fillColor=#ffffff;strokeColor=#cccccc;strokeWidth=1"
+styles:
+  hub:
+    border_color: "#0066cc"
+    fill_color: "#e6f3ff"
+    font_color: "#003366"
+    line_color: "#0066cc"
+    text_align: "left"
+  spoke:
+    border_color: "#4d94ff"
+    fill_color: "#f0f8ff"
+    font_color: "#001a66"
+    line_color: "#4d94ff"
+    text_align: "left"
+  non_peered:
+    border_color: "#999999"
+    fill_color: "#f5f5f5"
+    font_color: "#666666"
+    line_color: "#999999"
+    text_align: "left"
 
-  edges:
-    default: "strokeColor=#333333;strokeWidth=1"
+subnet:
+  border_color: "#cccccc"
+  fill_color: "#ffffff"
+  font_color: "#666666"
+  text_align: "left"
 
 layout:
-  zone_width: 400
-  zone_padding: 50
-  zone_spacing: 100
-  spoke_spacing: 80
-  non_peered_spacing: 60
+  canvas:
+    padding: 40
+  zone:
+    spacing: 100
+  vnet:
+    width: 400
+    spacing_x: 450
+    spacing_y: 100
+  hub:
+    spacing_x: 450
+    spacing_y: 400
+    width: 400
+    height: 50
+  spoke:
+    spacing_y: 100
+    start_y: 200
+    width: 400
+    height: 50
+    left_x: -100
+    right_x: 900
+  non_peered:
+    spacing_y: 100
+    start_y: 200
+    x: 1450
+    width: 400
+    height: 50
+  subnet:
+    width: 350
+    height: 20
+    padding_x: 25
+    padding_y: 55
+    spacing_y: 30
+
+edges:
+  spoke_spoke:
+    style: "strokeColor=#333333;strokeWidth=1"
+  hub_spoke:
+    style: "strokeColor=#0066cc;strokeWidth=2"
+  cross_zone:
+    style: "strokeColor=#cc0000;strokeWidth=2"
+  spoke_to_multi_hub:
+    style: "strokeColor=#9933CC;strokeWidth=2"
 
 icons:
-  vnet: "img/lib/azure2/networking/Virtual_Networks.svg"
-  subnet: "img/lib/azure2/networking/Subnets.svg"
+  vnet:
+    path: "img/lib/azure2/networking/Virtual_Networks.svg"
+    width: 20
+    height: 20
+  subnet:
+    path: "img/lib/azure2/networking/Subnets.svg"
+    width: 20
+    height: 12
+
+icon_positioning:
+  vnet_icons:
+    y_offset: 3.39
+    right_margin: 6
+    icon_gap: 5
+  virtual_hub_icon:
+    offset_x: -10
+    offset_y: -15
+  subnet_icons:
+    icon_y_offset: 2
+    subnet_icon_y_offset: 3
+    icon_gap: 3
 
 drawio:
-  canvas_width: 1200
-  canvas_height: 800
-  background_color: "#ffffff"
+  canvas:
+    dx: "371"
+    dy: "1462"
+    grid: "0"
+    gridSize: "10"
+    guides: "1"
+    tooltips: "1"
+    connect: "1"
+    arrows: "1"
+    fold: "1"
+    page: "0"
+    pageScale: "1"
+    pageWidth: "827"
+    pageHeight: "1169"
+    background: "#ffffff"
+    math: "0"
+    shadow: "0"
+  group:
+    extra_height: 20
+    connectable: "0"

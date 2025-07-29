@@ -1,12 +1,13 @@
 # CLOUDNET DRAW
 
-Python tool for automatically generating visual diagrams of Azure virtual network infrastructures from topology data. CloudNet Draw converts Azure VNet topology JSON into `.drawio` diagram files, targeting Hub-and-Spoke network architectures.
+Python tool to automatically discovery Azure virtual network infrastructures and
+generate Draw.io visual diagrams from topology data.
 
 ![GitHub stars](https://img.shields.io/github/stars/krhatland/cloudnet-draw?style=social)
 
 Website: [CloudNetDraw](https://www.cloudnetdraw.com/)
 
-Blog: [Technical Deep Dive](https://hatnes.no/posts/cloudnet-draw/) 
+Blog: [Technical Deep Dive](https://hatnes.no/posts/cloudnetdraw/)
 
 ## Deploy to Azure
 
@@ -27,17 +28,30 @@ Blog: [Technical Deep Dive](https://hatnes.no/posts/cloudnet-draw/)
 
 ## Quick Start Guide
 
-Setup:
+### 1. Install CloudNet Draw
 
-### 1. Install and Setup
+CloudNet is a PyPi package. Use uv or pip.
+
+Option A: Using uvx (Recommended - Run without installing)
+
 ```bash
-git clone https://github.com/krhatland/cloudnet-draw.git
-cd cloudnet-draw
-uv venv
-uv pip install -r requirements.txt
+uvx cloudnetdraw --help
+```
+
+Option B: Using uv
+
+```bash
+uv tool install cloudnetdraw
+```
+
+Option C: Install via PyPI
+
+```bash
+pip install cloudnetdraw
 ```
 
 ### 2. Authenticate with Azure
+
 ```bash
 # Option 1: Azure CLI (default)
 az login
@@ -49,7 +63,9 @@ export AZURE_TENANT_ID="your-tenant-id"
 ```
 
 ### 3. Generate Your First Diagram
+
 ```bash
+<<<<<<< Updated upstream
 # Query Azure and save topology
 uv run azure-query.py query
 
@@ -58,44 +74,33 @@ uv run azure-query.py hld
 
 # Generate mid-level diagram (VNets + subnets)
 uv run azure-query.py mld
+=======
+cloudnetdraw query
+cloudnetdraw hld
+>>>>>>> Stashed changes
 ```
 
 ### 4. View Results
-Open the generated `network_hld.drawio` and `network_mld.drawio` files with [Draw.io Desktop](https://github.com/jgraph/drawio-desktop/releases) or the web version at [diagrams.net](https://diagrams.net).
+
+Open the generated `network_hld.drawio` file with [Draw.io
+Desktop](https://github.com/jgraph/drawio-desktop/releases) or the web version
+at [diagrams.net](https://diagrams.net).
 
 ## Installation
 
 ### Prerequisites
+
 - Python 3.8+
-- Azure cli (`az`)
+- Azure CLI (`az`)
 - Azure access to subscriptions and vnets
+- uv for package management (preferred over pip)
 - [Draw.io Desktop](https://github.com/jgraph/drawio-desktop/releases) (recommended for viewing diagrams)
-- make (optional, for testing with Makefile)
-
-### Setup
-
-**MacOS/Linux:**
-```bash
-git clone https://github.com/krhatland/cloudnet-draw.git
-cd cloudnet-draw
-python3 -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-```
-
-**Windows:**
-```cmd
-git clone https://github.com/krhatland/cloudnet-draw.git
-cd cloudnet-draw
-python -m venv venv
-venv\Scripts\activate
-pip install -r requirements.txt
-```
 
 ## Configuration
 
 CloudNet Draw uses [`config.yaml`](config.yaml) for diagram styling and layout settings. Key configuration sections:
 
+<<<<<<< Updated upstream
 ### Hub Classification
 - `thresholds.hub_peering_count: 10` - VNets with 10+ peerings are classified as hubs
 
@@ -126,19 +131,54 @@ cp config.yaml my-config.yaml
 # Use custom configuration
 uv run azure-query.py query --config-file my-config.yaml
 uv run azure-query.py hld --config-file my-config.yaml
+=======
+```bash
+# Create a local config file for customization
+cloudnetdraw init-config
+
+# Use custom config with other commands
+cloudnetdraw query --config-file config.yaml
+>>>>>>> Stashed changes
 ```
 
-## Usage Examples
+The `init-config` command copies the default configuration to your current directory where you can customize diagram styling, layout parameters, and other settings.
 
+<<<<<<< Updated upstream
 ### Example 1: Basic Usage
 
 ```bash
 # Query all subscriptions interactively
 uv run azure-query.py query
+=======
+## Examples
+
+### Single Hub with Multiple Spokes
+
+```bash
+# Query specific subscription
+cloudnetdraw query --subscriptions "Production-Network"
+
+# Generate both diagram types
+cloudnetdraw hld
+cloudnetdraw mld
+```
+
+**Expected Output:**
+
+- `network_hld.drawio` - High-level view showing VNet relationships
+- `network_mld.drawio` - Detailed view including subnets and services
+
+### Interactive Mode
+
+```bash
+# Interactive subscription selection
+cloudnetdraw query
+>>>>>>> Stashed changes
 
 # Query specific subscriptions
 uv run azure-query.py query --subscriptions "Production-Network,Dev-Network"
 
+<<<<<<< Updated upstream
 # Query all subscriptions non-interactively
 uv run azure-query.py query --subscriptions all
 
@@ -160,10 +200,18 @@ uv run azure-query.py query --service-principal
 ```
 
 ### Example 3: VNet Filtering
+=======
+# Generate consolidated diagrams
+cloudnetdraw hld
+```
+
+### VNet Filtering
+>>>>>>> Stashed changes
 
 Filter topology to focus on specific hub VNets and their directly connected spokes:
 
 ```bash
+<<<<<<< Updated upstream
 # Multiple VNet identifier formats supported:
 
 # Format 1: Full Azure resource ID
@@ -177,12 +225,23 @@ uv run azure-query.py query --vnets "network-rg/hub-vnet"
 
 # Multiple VNets (comma-separated)
 uv run azure-query.py query --vnets "prod-rg/hub-prod,dev-rg/hub-dev"
+=======
+# Filter by subscription/resource-group/vnet path
+cloudnetdraw query --vnets "production-sub/network-rg/hub-vnet" --verbose
+
+# Filter by full Azure resource ID
+cloudnetdraw query --vnets "/subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/network-rg/providers/Microsoft.Network/virtualNetworks/hub-vnet"
+
+# Multiple VNets using path syntax
+cloudnetdraw query --vnets "prod-sub/network-rg/hub-vnet-east,prod-sub/network-rg/hub-vnet-west"
+>>>>>>> Stashed changes
 
 # Generate diagrams from filtered topology
-uv run azure-query.py hld
-uv run azure-query.py mld
+cloudnetdraw hld
+cloudnetdraw mld
 ```
 
+<<<<<<< Updated upstream
 **VNet Filtering Benefits:**
 - Uses Azure Resource Graph API for fast, precise discovery
 - Automatically resolves subscription names to IDs
@@ -212,6 +271,8 @@ uv run azure-query.py query --vnets "rg-name/hub-vnet" --verbose
 uv run azure-query.py hld --verbose
 ```
 
+=======
+>>>>>>> Stashed changes
 ## Testing
 
 ### Running Tests
@@ -223,33 +284,138 @@ make test
 # Run specific test tiers
 make unit          # Unit tests only
 make integration   # Integration tests only
-
-# Generate coverage report
-make coverage
+make coverage      # code coverage
+make random        # generate and validate random topologies
 ```
 
+## Development
 
+### Make Commands
 
+The project includes several make commands for development and testing:
 
+```bash
+# Setup and help
+make setup         # Set up development environment
+make help          # Show all available targets
+
+# Generate example topologies and diagrams
+make examples
+
+# Package management and publishing
+make build           # Build distribution packages
+make test-publish    # Publish to TestPyPI for testing
+make publish         # Publish to production PyPI
+make prepare-release # Run full test suite and build for release
+
+# Cleanup
+make clean         # Clean up test artifacts
+make clean-build   # Clean build artifacts (dist/, *.egg-info/)
+make clean-all     # Clean everything including .venv
+```
+
+### Utility Scripts
+
+The [`utils/`](utils/) directory contains development tools for generating and testing topologies:
+
+#### topology-generator.py
+
+Generate Azure network topology JSON files with configurable parameters:
+
+```bash
+cd utils
+# Basic usage
+python3 topology-generator.py --vnets 50 --centralization 8 --connectivity 6 --isolation 2 --output topology.json
+
+# With advanced options
+python3 topology-generator.py -v 100 -c 7 -n 5 -i 3 -o large_topology.json --seed 42 --ensure-all-edge-types
+```
+
+**Required Parameters:**
+
+- `-v, --vnets` - Number of VNets to generate
+- `-c, --centralization` - Hub concentration (0-10, controls hub-spoke bias)
+- `-n, --connectivity` - Peering density (0-10, controls outlier scenarios)
+- `-i, --isolation` - Disconnected VNets (0-10, controls unpeered VNets)
+- `-o, --output` - Output JSON filename
+
+**Advanced Options:**
+
+- `--seed` - Random seed for reproducible generation
+- `--ensure-all-edge-types` - Ensure all 6 EdgeTypes are present
+- `--spoke-to-spoke-rate` - Override spoke-to-spoke connection rate (0.0-1.0)
+- `--cross-zone-rate` - Override cross-zone connection rate (0.0-1.0)
+- `--multi-hub-rate` - Override multi-hub spoke rate (0.0-1.0)
+- `--hub-count` - Override hub count (ignores centralization weight)
+
+#### topology-randomizer.py
+
+Generate and validate many topologies in parallel
+
+```bash
+cd utils
+# Basic usage
+python3 topology-randomizer.py --iterations 25 --vnets 100 --parallel-jobs 4
+
+# With advanced options
+python3 topology-randomizer.py -i 50 -v 200 -p 8 --seed 42 --ensure-all-edge-types
+```
+
+**Parameters:**
+
+- `-i, --iterations` - Number of test iterations (default: 10)
+- `-v, --vnets` - Fixed number of VNets for all iterations (default: 100)
+- `-p, --parallel-jobs` - Maximum number of parallel jobs (default: 4)
+- `--max-centralization` - Upper bound for centralization weight (default: 10)
+- `--max-connectivity` - Upper bound for connectivity weight (default: 10)
+- `--max-isolation` - Upper bound for isolation weight (default: 10)
+- `--seed` - Random seed for reproducible generation
+- `--ensure-all-edge-types` - Ensure all 6 EdgeTypes are present in generated topologies
+
+#### topology-validator.py
+
+Validates JSON topologies and generated diagrams for structural integrity:
+
+```bash
+cd utils
+# Validate all files in examples directory (default behavior)
+python3 topology-validator.py
+
+# Validate specific files
+python3 topology-validator.py --topology topology.json --hld topology_hld.drawio --mld topology_mld.drawio
+
+# Validate just topology file
+python3 topology-validator.py -t topology.json
+```
+
+**Parameters:**
+
+- `-t, --topology` - JSON topology file to validate
+- `-H, --hld` - HLD (High Level Design) DrawIO file to validate
+- `-M, --mld` - MLD (Mid Level Design) DrawIO file to validate
+- `--quiet` - Suppress informational output
+
+All scripts support `--help` for detailed usage information.
 
 ## License and Contact
 
 ### License
+
 This project is licensed under the MIT License.
 You are free to use, modify, and distribute it with attribution.
 
 ### Author
+
 **Kristoffer Hatland**  
 🔗 [LinkedIn](https://www.linkedin.com/in/hatland) • 🐙 [GitHub](https://github.com/krhatland)
 
 ### Resources
+
 - **Website**: [CloudNetDraw.com](https://www.cloudnetdraw.com/)
 - **Blog**: [Technical Deep Dive](https://hatnes.no/posts/cloudnet-draw/)
 - **Issues**: [GitHub Issues](https://github.com/krhatland/cloudnet-draw/issues)
 - **Discussions**: [GitHub Discussions](https://github.com/krhatland/cloudnet-draw/discussions)
 
-
-
 ---
 
-**Made with ❤️ for the Azure community**
+Made with ❤️ for the Azure community

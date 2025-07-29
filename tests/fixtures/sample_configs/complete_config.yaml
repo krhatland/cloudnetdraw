@@ -1,68 +1,142 @@
 # Complete configuration with all options specified
-hub_threshold: 3
+thresholds:
+  hub_peering_count: 3
 
-style:
-  vnet:
-    hub: "fillColor=#e6f3ff;strokeColor=#0066cc;strokeWidth=2;fontFamily=Arial;fontSize=12;fontColor=#003366"
-    spoke: "fillColor=#f0f8ff;strokeColor=#4d94ff;strokeWidth=1;fontFamily=Arial;fontSize=10;fontColor=#001a66"
-    non_peered: "fillColor=#f5f5f5;strokeColor=#999999;strokeWidth=1;fontFamily=Arial;fontSize=10;fontColor=#666666"
-    default: "fillColor=#ffffff;strokeColor=#cccccc;strokeWidth=1;fontFamily=Arial;fontSize=10;fontColor=#333333"
-  
-  subnet:
-    default: "fillColor=#ffffff;strokeColor=#cccccc;strokeWidth=1;fontFamily=Arial;fontSize=8;fontColor=#666666"
-    gateway: "fillColor=#ffe6e6;strokeColor=#cc0000;strokeWidth=1;fontFamily=Arial;fontSize=8;fontColor=#800000"
-    public: "fillColor=#e6ffe6;strokeColor=#00cc00;strokeWidth=1;fontFamily=Arial;fontSize=8;fontColor=#004d00"
-    private: "fillColor=#ffe6f3;strokeColor=#cc0066;strokeWidth=1;fontFamily=Arial;fontSize=8;fontColor=#660033"
+styles:
+  hub:
+    border_color: "#0066cc"
+    fill_color: "#e6f3ff"
+    font_color: "#003366"
+    line_color: "#0066cc"
+    text_align: "left"
+  spoke:
+    border_color: "#4d94ff"
+    fill_color: "#f0f8ff"
+    font_color: "#001a66"
+    line_color: "#4d94ff"
+    text_align: "left"
+  non_peered:
+    border_color: "#999999"
+    fill_color: "#f5f5f5"
+    font_color: "#666666"
+    line_color: "#999999"
+    text_align: "left"
 
-  edges:
-    default: "strokeColor=#333333;strokeWidth=1;endArrow=none;startArrow=none"
-    peering: "strokeColor=#0066cc;strokeWidth=2;endArrow=none;startArrow=none"
-    gateway: "strokeColor=#cc0000;strokeWidth=2;endArrow=classic;startArrow=none"
+subnet:
+  border_color: "#cccccc"
+  fill_color: "#ffffff"
+  font_color: "#666666"
+  text_align: "left"
 
 layout:
-  zone_width: 400
-  zone_padding: 50
-  zone_spacing: 100
-  spoke_spacing: 80
-  non_peered_spacing: 60
-  hub_spacing: 120
-  subnet_spacing: 30
-  icon_spacing: 20
-  vertical_margin: 40
-  horizontal_margin: 40
+  canvas:
+    padding: 40
+  zone:
+    spacing: 100
+  vnet:
+    width: 400
+    spacing_x: 450
+    spacing_y: 100
+  hub:
+    spacing_x: 450
+    spacing_y: 120
+    width: 400
+    height: 50
+  spoke:
+    spacing_y: 80
+    start_y: 200
+    width: 400
+    height: 50
+    left_x: -100
+    right_x: 900
+  non_peered:
+    spacing_y: 60
+    start_y: 200
+    x: 1450
+    width: 400
+    height: 50
+  subnet:
+    width: 350
+    height: 20
+    padding_x: 25
+    padding_y: 55
+    spacing_y: 30
+
+edges:
+  spoke_spoke:
+    style: "strokeColor=#333333;strokeWidth=1;endArrow=none;startArrow=none"
+  hub_spoke:
+    style: "strokeColor=#0066cc;strokeWidth=2;endArrow=none;startArrow=none"
+  cross_zone:
+    style: "strokeColor=#cc0000;strokeWidth=2;endArrow=classic;startArrow=none"
+  spoke_to_multi_hub:
+    style: "strokeColor=#9933CC;strokeWidth=2;endArrow=block;startArrow=block;dashed=1;dashPattern=6 2;"
 
 icons:
-  vnet: "img/lib/azure2/networking/Virtual_Networks.svg"
-  subnet: "img/lib/azure2/networking/Subnets.svg"
-  gateway: "img/lib/azure2/networking/Virtual_Network_Gateways.svg"
-  peering: "img/lib/azure2/networking/Virtual_Network_Peerings.svg"
-  vpn: "img/lib/azure2/networking/VPN_Gateways.svg"
-  expressroute: "img/lib/azure2/networking/ExpressRoute_Circuits.svg"
-  load_balancer: "img/lib/azure2/networking/Load_Balancers.svg"
-  application_gateway: "img/lib/azure2/networking/Application_Gateways.svg"
+  vnet:
+    path: "img/lib/azure2/networking/Virtual_Networks.svg"
+    width: 20
+    height: 20
+  subnet:
+    path: "img/lib/azure2/networking/Subnets.svg"
+    width: 20
+    height: 12
+  gateway:
+    path: "img/lib/azure2/networking/Virtual_Network_Gateways.svg"
+    width: 20
+    height: 20
+  peering:
+    path: "img/lib/azure2/networking/Virtual_Network_Peerings.svg"
+    width: 20
+    height: 20
+  vpn:
+    path: "img/lib/azure2/networking/VPN_Gateways.svg"
+    width: 20
+    height: 20
+  expressroute:
+    path: "img/lib/azure2/networking/ExpressRoute_Circuits.svg"
+    width: 20
+    height: 20
+  load_balancer:
+    path: "img/lib/azure2/networking/Load_Balancers.svg"
+    width: 20
+    height: 20
+  application_gateway:
+    path: "img/lib/azure2/networking/Application_Gateways.svg"
+    width: 20
+    height: 20
 
 icon_positioning:
-  enabled: true
-  max_icons_per_vnet: 4
-  icon_size: 24
-  icon_margin: 5
-  icon_gap: 8
-  position: "bottom-right"
+  vnet_icons:
+    y_offset: 3.39
+    right_margin: 6
+    icon_gap: 5
+  virtual_hub_icon:
+    offset_x: -10
+    offset_y: -15
+  subnet_icons:
+    icon_y_offset: 2
+    subnet_icon_y_offset: 3
+    icon_gap: 3
 
 drawio:
-  canvas_width: 1600
-  canvas_height: 1200
-  background_color: "#ffffff"
-  grid_enabled: true
-  grid_size: 20
-  snap_to_grid: true
-  page_format: "A4"
-  page_orientation: "landscape"
-  margin_top: 30
-  margin_bottom: 30
-  margin_left: 30
-  margin_right: 30
-  font_family: "Arial"
-  font_size: 10
-  line_height: 1.2
-  text_align: "center"
+  canvas:
+    dx: "371"
+    dy: "1462"
+    grid: "0"
+    gridSize: "10"
+    guides: "1"
+    tooltips: "1"
+    connect: "1"
+    arrows: "1"
+    fold: "1"
+    page: "0"
+    pageScale: "1"
+    pageWidth: "827"
+    pageHeight: "1169"
+    background: "#ffffff"
+    math: "0"
+    shadow: "0"
+  group:
+    extra_height: 20
+    connectable: "0"

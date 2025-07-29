@@ -1,6 +1,0 @@
-azure-identity>=1.14.0
-azure-mgmt-network>=25.0.0
-azure-mgmt-resource>=23.0.0
-azure-mgmt-resourcegraph>=8.0.0
-lxml>=4.9.0
-PyYAML>=6.0.0

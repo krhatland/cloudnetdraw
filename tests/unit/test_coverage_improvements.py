@@ -8,11 +8,12 @@ import os
 from unittest.mock import patch, MagicMock, Mock
 from azure.core.exceptions import ResourceNotFoundError
 
-from azure_query import (
-    extract_resource_group, parse_vnet_identifier, determine_hub_for_spoke,
-    extract_vnet_name_from_resource_id, create_vnet_id_mapping,
-    main, query_command, hld_command, mld_command
+from cloudnetdraw.utils import (
+    extract_resource_group, parse_vnet_identifier,
+    extract_vnet_name_from_resource_id
 )
+from cloudnetdraw.topology import determine_hub_for_spoke, create_vnet_id_mapping
+from cloudnetdraw.cli import main, query_command, hld_command, mld_command
 
 
 class TestErrorHandling:
@@ -86,9 +87,9 @@ class TestCLIErrorHandling:
     
     def test_main_file_not_found_error(self):
         """Test main function handling FileNotFoundError"""
-        with patch('sys.argv', ['azure-query.py', 'query', '--subscriptions', 'test-sub']), \
-             patch('azure_query.query_command', side_effect=FileNotFoundError("File not found")), \
-             patch('azure_query.initialize_credentials'), \
+        with patch('sys.argv', ['cloudnetdraw', 'query', '--subscriptions', 'test-sub']), \
+             patch('cloudnetdraw.cli.query_command', side_effect=FileNotFoundError("File not found")), \
+             patch('cloudnetdraw.azure_client.initialize_credentials'), \
              pytest.raises(SystemExit) as exc_info:
             main()
         
@@ -96,9 +97,9 @@ class TestCLIErrorHandling:
     
     def test_main_general_exception(self):
         """Test main function handling general exceptions"""
-        with patch('sys.argv', ['azure-query.py', 'query', '--subscriptions', 'test-sub']), \
-             patch('azure_query.query_command', side_effect=Exception("General error")), \
-             patch('azure_query.initialize_credentials'), \
+        with patch('sys.argv', ['cloudnetdraw', 'query', '--subscriptions', 'test-sub']), \
+             patch('cloudnetdraw.cli.query_command', side_effect=Exception("General error")), \
+             patch('cloudnetdraw.azure_client.initialize_credentials'), \
              pytest.raises(SystemExit) as exc_info:
             main()
         
@@ -161,7 +162,7 @@ class TestDiagramGenerationEdgeCases:
             output_path = output_file.name
         
         try:
-            with patch('config.Config') as mock_config:
+            with patch('cloudnetdraw.config.Config') as mock_config:
                 # Mock config with required attributes
                 mock_config_instance = MagicMock()
                 mock_config_instance.hub_threshold = 2
@@ -231,7 +232,7 @@ class TestDiagramGenerationEdgeCases:
             output_path = output_file.name
         
         try:
-            with patch('config.Config') as mock_config:
+            with patch('cloudnetdraw.config.Config') as mock_config:
                 # Mock config with required attributes
                 mock_config_instance = MagicMock()
                 mock_config_instance.hub_threshold = 2
