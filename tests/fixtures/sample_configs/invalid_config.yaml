@@ -1,0 +1,34 @@
+# Invalid YAML structure for error testing
+hub_threshold: 3
+
+style:
+  vnet:
+    hub: "fillColor=#e6f3ff;strokeColor=#0066cc;strokeWidth=2"
+    spoke: "fillColor=#f0f8ff;strokeColor=#4d94ff;strokeWidth=1"
+    # Missing closing quote and invalid indentation
+    non_peered: "fillColor=#f5f5f5;strokeColor=#999999;strokeWidth=1
+  
+  subnet:
+    default: "fillColor=#ffffff;strokeColor=#cccccc;strokeWidth=1"
+
+# Invalid section - missing colon
+layout
+  zone_width: 400
+  zone_padding: 50
+  # Invalid value type
+  zone_spacing: "not_a_number"
+  spoke_spacing: 80
+
+# Duplicate key
+icons:
+  vnet: "img/lib/azure2/networking/Virtual_Networks.svg"
+
+icons:
+  subnet: "img/lib/azure2/networking/Subnets.svg"
+
+# Invalid nested structure
+drawio: 
+  canvas_width: 1200
+    # Invalid indentation
+  canvas_height: 800
+  background_color: "#ffffff"

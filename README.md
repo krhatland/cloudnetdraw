@@ -1,143 +1,297 @@
 # CLOUDNET DRAW
 
-A Python-based tool for automatically generating visual diagrams of Azure virtual networks using topology data exported from the Azure API. This script creates `.drawio` diagram files representing Hub-and-Spoke network architectures, making it easier to audit, present, and understand complex Azure network infrastructures.
+Python tool to automatically discovery Azure virtual network infrastructures and
+generate Draw.io visual diagrams from topology data.
 
-Just passed 80 Stars! Thank you so much for the confidence!
 ![GitHub stars](https://img.shields.io/github/stars/krhatland/cloudnet-draw?style=social)
 
-Now supporting direct deployment to Azure Function in your own tenant! Check it out!
+Website: [CloudNetDraw](https://www.cloudnetdraw.com/)
+
+Blog: [Technical Deep Dive](https://hatnes.no/posts/cloudnetdraw/)
+
 ## Deploy to Azure
 
 [![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fkrhatland%2Fcloudnet-draw%2Fmain%2Fazure-function%2Finfra%2Fmain.json)
 
-🚀 Try it free on the Website: ([CloudNetDraw](https://www.cloudnetdraw.com/)) 
-
-🌐 Check the blogpost: ([Blog](https://hatnes.no/posts/cloudnet-draw/)) 
-
 ## 📌 Key Features
 
-- 🔎 Converts Azure VNet topology (JSON) into visual diagrams
+- 🔎 Azure Resource Graph integration for efficient VNet discovery
 - 📄 Outputs `.drawio` files (open with [draw.io / diagrams.net](https://draw.io))
 - 🖼️ Supports hub, spoke, subnets, peerings, and Azure service icons (NSG, UDR, Firewall, etc.)
-- 🧠 Logic-based layout:
-  - Peered vs non-peered spokes
-  - Left/right layout split for better readability
-  - Icon placement and subnet expansion
-- 🧩 Extendable for MLD, HLD, and custom peerings
+- 🧠 Logic-based layout with hub-spoke architecture detection
+- 🎯 VNet filtering by resource ID or path for focused diagrams
+- 🔐 Multiple authentication methods (Azure CLI or Service Principal)
+- 🔗 Integrated Azure portal hyperlinks and resource metadata
+- 🧩 Two diagram types: HLD (VNets only) and MLD (VNets + subnets)
 
 ---
 
-## Update
-Added support for deployment through local Azure Function to self-host a timed function in own tenant
+## Quick Start Guide
 
-## 🖼️ Example Output
+### 1. Install CloudNet Draw
 
-> 💡 The tool outputs `.drawio` files. You can export them to PNG, JPG, PDF, or SVG using the [Draw.io Desktop CLI](https://github.com/jgraph/drawio-desktop).
+CloudNet is a PyPi package. Use uv or pip.
 
-<img src="examples/MLD_example1.png" alt="CloudNet Draw" width="700"/>
+Option A: Using uvx (Recommended - Run without installing)
 
----
+```bash
+uvx cloudnetdraw --help
+```
 
-## ⚙️ Requirements
+Option B: Using uv
+
+```bash
+uv tool install cloudnetdraw
+```
+
+Option C: Install via PyPI
+
+```bash
+pip install cloudnetdraw
+```
+
+### 2. Authenticate with Azure
+
+```bash
+# Option 1: Azure CLI (default)
+az login
+
+# Option 2: Service Principal (set environment variables)
+export AZURE_CLIENT_ID="your-client-id"
+export AZURE_CLIENT_SECRET="your-client-secret"
+export AZURE_TENANT_ID="your-tenant-id"
+```
+
+### 3. Generate Your First Diagram
+
+```bash
+cloudnetdraw query
+cloudnetdraw hld
+```
+
+### 4. View Results
+
+Open the generated `network_hld.drawio` file with [Draw.io
+Desktop](https://github.com/jgraph/drawio-desktop/releases) or the web version
+at [diagrams.net](https://diagrams.net).
+
+## Installation
+
+### Prerequisites
 
 - Python 3.8+
-- Azure topology JSON export (your own format or adapted from Azure API)
-- Recommended: [Draw.io Desktop](https://github.com/jgraph/drawio-desktop/releases) for viewing/exporting diagrams
+- Azure CLI (`az`)
+- Azure access to subscriptions and vnets
+- uv for package management (preferred over pip)
+- [Draw.io Desktop](https://github.com/jgraph/drawio-desktop/releases) (recommended for viewing diagrams)
 
-Install dependencies:
-pip install -r requirements.txt
+## Configuration
 
-## Setup
-## macOS / Linux
-python3 -m venv venv
-source venv/bin/activate
+CloudNet Draw uses [`config.yaml`](config.yaml) for diagram styling and layout settings. Key configuration sections:
 
-## Windows
-python -m venv venv
-venv\Scripts\activate
+```bash
+# Create a local config file for customization
+cloudnetdraw init-config
 
+# Use custom config with other commands
+cloudnetdraw query --config-file config.yaml
+```
 
-## 🚀 Usage
-For just testing the solution use Azure CLI with "az login" and run the "azure-query.py" file. The script will list out subscriptions you have access to and ask that you choose which of them to include, comma separated.
+The `init-config` command copies the default configuration to your current directory where you can customize diagram styling, layout parameters, and other settings.
 
-For normal usage create a service principal in Azure and delegate access to the service principal to the network environments you wish to map out.
-Add the credentials for the service principal in the "azure-query-sp.py"
+## Examples
 
-Both of them will generate the "network_topology.json" output file.
+### Single Hub with Multiple Spokes
 
-The HLD.py and MLD.py files both use the same JSON file as input, you can run them to generate a drawio file from the JSON.
+```bash
+# Query specific subscription
+cloudnetdraw query --subscriptions "Production-Network"
 
-HLD.py / MLD.py
-By default, the script creates:
+# Generate both diagram types
+cloudnetdraw hld
+cloudnetdraw mld
+```
 
-network_hld.drawio & network_mld.drawio
+**Expected Output:**
 
-## 📄 License
+- `network_hld.drawio` - High-level view showing VNet relationships
+- `network_mld.drawio` - Detailed view including subnets and services
+
+### Interactive Mode
+
+```bash
+# Interactive subscription selection
+cloudnetdraw query
+
+# Query specific subscriptions
+uv run azure-query.py query --subscriptions "Production-Network,Dev-Network"
+
+# Generate consolidated diagrams
+cloudnetdraw hld
+```
+
+### VNet Filtering
+
+Filter topology to focus on specific hub VNets and their directly connected spokes:
+
+```bash
+# Filter by subscription/resource-group/vnet path
+cloudnetdraw query --vnets "production-sub/network-rg/hub-vnet" --verbose
+
+# Filter by full Azure resource ID
+cloudnetdraw query --vnets "/subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/network-rg/providers/Microsoft.Network/virtualNetworks/hub-vnet"
+
+# Multiple VNets using path syntax
+cloudnetdraw query --vnets "prod-sub/network-rg/hub-vnet-east,prod-sub/network-rg/hub-vnet-west"
+
+# Generate diagrams from filtered topology
+cloudnetdraw hld
+cloudnetdraw mld
+```
+
+## Testing
+
+### Running Tests
+
+```bash
+# Run all tests with coverage
+make test
+
+# Run specific test tiers
+make unit          # Unit tests only
+make integration   # Integration tests only
+make coverage      # code coverage
+make random        # generate and validate random topologies
+```
+
+## Development
+
+### Make Commands
+
+The project includes several make commands for development and testing:
+
+```bash
+# Setup and help
+make setup         # Set up development environment
+make help          # Show all available targets
+
+# Generate example topologies and diagrams
+make examples
+
+# Package management and publishing
+make build           # Build distribution packages
+make test-publish    # Publish to TestPyPI for testing
+make publish         # Publish to production PyPI
+make prepare-release # Run full test suite and build for release
+
+# Cleanup
+make clean         # Clean up test artifacts
+make clean-build   # Clean build artifacts (dist/, *.egg-info/)
+make clean-all     # Clean everything including .venv
+```
+
+### Utility Scripts
+
+The [`utils/`](utils/) directory contains development tools for generating and testing topologies:
+
+#### topology-generator.py
+
+Generate Azure network topology JSON files with configurable parameters:
+
+```bash
+cd utils
+# Basic usage
+python3 topology-generator.py --vnets 50 --centralization 8 --connectivity 6 --isolation 2 --output topology.json
+
+# With advanced options
+python3 topology-generator.py -v 100 -c 7 -n 5 -i 3 -o large_topology.json --seed 42 --ensure-all-edge-types
+```
+
+**Required Parameters:**
+
+- `-v, --vnets` - Number of VNets to generate
+- `-c, --centralization` - Hub concentration (0-10, controls hub-spoke bias)
+- `-n, --connectivity` - Peering density (0-10, controls outlier scenarios)
+- `-i, --isolation` - Disconnected VNets (0-10, controls unpeered VNets)
+- `-o, --output` - Output JSON filename
+
+**Advanced Options:**
+
+- `--seed` - Random seed for reproducible generation
+- `--ensure-all-edge-types` - Ensure all 6 EdgeTypes are present
+- `--spoke-to-spoke-rate` - Override spoke-to-spoke connection rate (0.0-1.0)
+- `--cross-zone-rate` - Override cross-zone connection rate (0.0-1.0)
+- `--multi-hub-rate` - Override multi-hub spoke rate (0.0-1.0)
+- `--hub-count` - Override hub count (ignores centralization weight)
+
+#### topology-randomizer.py
+
+Generate and validate many topologies in parallel
+
+```bash
+cd utils
+# Basic usage
+python3 topology-randomizer.py --iterations 25 --vnets 100 --parallel-jobs 4
+
+# With advanced options
+python3 topology-randomizer.py -i 50 -v 200 -p 8 --seed 42 --ensure-all-edge-types
+```
+
+**Parameters:**
+
+- `-i, --iterations` - Number of test iterations (default: 10)
+- `-v, --vnets` - Fixed number of VNets for all iterations (default: 100)
+- `-p, --parallel-jobs` - Maximum number of parallel jobs (default: 4)
+- `--max-centralization` - Upper bound for centralization weight (default: 10)
+- `--max-connectivity` - Upper bound for connectivity weight (default: 10)
+- `--max-isolation` - Upper bound for isolation weight (default: 10)
+- `--seed` - Random seed for reproducible generation
+- `--ensure-all-edge-types` - Ensure all 6 EdgeTypes are present in generated topologies
+
+#### topology-validator.py
+
+Validates JSON topologies and generated diagrams for structural integrity:
+
+```bash
+cd utils
+# Validate all files in examples directory (default behavior)
+python3 topology-validator.py
+
+# Validate specific files
+python3 topology-validator.py --topology topology.json --hld topology_hld.drawio --mld topology_mld.drawio
+
+# Validate just topology file
+python3 topology-validator.py -t topology.json
+```
+
+**Parameters:**
+
+- `-t, --topology` - JSON topology file to validate
+- `-H, --hld` - HLD (High Level Design) DrawIO file to validate
+- `-M, --mld` - MLD (Mid Level Design) DrawIO file to validate
+- `--quiet` - Suppress informational output
+
+All scripts support `--help` for detailed usage information.
+
+## License and Contact
+
+### License
+
 This project is licensed under the MIT License.
 You are free to use, modify, and distribute it with attribution.
 
-## 🤝 Contributing
-Pull requests and suggestions are welcome!
-If you have ideas for enhancements (e.g. support for internal peerings, multi-hub views, or layout options), feel free to open an issue or PR.
+### Author
 
-## 👨‍💻 Author
-Kristoffer Hatland
-🔗 ([LinkedIn](https://www.linkedin.com/in/hatland))  • 🐙 ([GitHub](https://github.com/krhatland))
+**Kristoffer Hatland**  
+🔗 [LinkedIn](https://www.linkedin.com/in/hatland) • 🐙 [GitHub](https://github.com/krhatland)
 
-## 🚧 Coming Up Next
-Azure Function App integration for cloud-native execution
-Optional image export (.png) using Draw.io CLI
-GitHub Actions support
+### Resources
 
+- **Website**: [CloudNetDraw.com](https://www.cloudnetdraw.com/)
+- **Blog**: [Technical Deep Dive](https://hatnes.no/posts/cloudnet-draw/)
+- **Issues**: [GitHub Issues](https://github.com/krhatland/cloudnet-draw/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/krhatland/cloudnet-draw/discussions)
 
-<details> <summary><strong>🛠 Troubleshooting</strong></summary>
+---
 
-## Able to list out Subscriptions with the script, but nothing happens after
-
-If you are able to list out the subscriptions, but nothing happens after that:
-This is usually an issue where Defender for endpont blocks pip. 
-It should be resolved when you allow it in Defender
-
-## SSL Certificate Errors on macOS
-
-If you encounter an error like this:
-
-"SSLError: certificate verify failed: unable to get local issuer certificate (_ssl.c:1129)
-It's usually due to missing trusted root certificates in your Python environment."
-
-✅ Fix for macOS (python.org installs)
-If you're using Python installed from python.org, run this command outside your virtual environment:
-
-/Applications/Python\ 3.X/Install\ Certificates.command
-Replace 3.X with your Python version (e.g. Python 3.11 or Python 3.13)
-
-This is a one-time fix that installs the correct trusted certificates.
-
-💡 After running the fix
-Recreate or activate your virtual environment:
-
-python3 -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-Test certificate validation:
-
-python -c "import requests; print(requests.get('https://pypi.org').status_code)"
-✅ You should see 200 as the output, confirming SSL works correctly.
-
-🧯 Still not working?
-If you're in a corporate network or using a managed device, the issue may be related to firewalls, proxies, or custom certificates. Please contact your IT department for assistance.
-
-## 🛠️ Note for Users in Corporate Networks (SSL Errors)
-
-If you're behind a corporate proxy that injects SSL certificates (e.g. ZScaler, Palo Alto, company CA), you may experience `certificate verify failed: Missing Authority Key Identifier`.
-
-Try these fixes:
-1. Use `az login` _outside_ the virtual environment first.
-2. Export your corporate root CA together with certifi:
-
-cat ~/your-company.crt $(python3 -m certifi) > ~/full_bundle.crt
-export SSL_CERT_FILE=~/full_bundle.crt
-export REQUESTS_CA_BUNDLE=~/full_bundle.crt
-
-
-
+Made with ❤️ for the Azure community
