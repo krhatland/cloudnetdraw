@@ -16,7 +16,7 @@ thresholds:
   # Lower values = more hubs (good for small networks)
   # Higher values = fewer hubs (good for large enterprise networks)  
   # Common values: 3 (small), 5 (medium), 10 (large enterprise)
-  hub_peering_count: 10
+  hub_peering_count: 4
 
 # VNet Visual Styling by Type
 # ===========================
