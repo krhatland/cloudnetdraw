@@ -5,7 +5,7 @@
 Python tool to automatically discovery Azure virtual network infrastructures and
 generate Draw.io visual diagrams from topology data.
 
-![Example Diagram](img/example_diagram.jpeg)
+<img src="img/example_diagram.jpeg" alt="Example Diagram" width="600">
 
 Website: [CloudNetDraw](https://www.cloudnetdraw.com/)
 
