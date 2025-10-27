@@ -114,7 +114,7 @@ random: setup
 	@cd utils && python3 topology-randomizer.py --iterations 25 --vnets 100 --max-centralization 10 --max-connectivity 10 --max-isolation 10 --parallel-jobs 5 $(ENSURE_FLAG)
 
 # Build package for distribution
-build: setup
+build: clean-build setup
 	@echo "Building package..."
 	@uv build
 	@echo "Package built successfully"
