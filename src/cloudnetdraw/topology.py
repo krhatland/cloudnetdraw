@@ -40,10 +40,17 @@ def get_filtered_vnet_topology(hub_vnet_identifier: str, subscription_ids: List[
     return {"vnets": filtered_vnets}
 
 
-def get_filtered_vnets_topology(vnet_identifiers: List[str], subscription_ids: List[str]) -> Dict[str, Any]:
-    """Collect filtered topology containing multiple specified hubs and their directly peered spokes"""
+def get_filtered_vnets_topology(vnet_identifiers: List[str], subscription_ids: List[str], exclude_resource_ids: set = None) -> Dict[str, Any]:
+    """Collect filtered topology containing multiple specified hubs and their directly peered spokes
+    
+    Args:
+        vnet_identifiers: List of VNet identifiers to include
+        subscription_ids: List of subscription IDs to query
+        exclude_resource_ids: Optional set of VNet resource IDs to exclude from topology
+    """
     
     all_vnets = {}  # Use dict to avoid duplicates by resource_id
+    exclude_resource_ids = exclude_resource_ids or set()
     
     for vnet_identifier in vnet_identifiers:
         # Find the hub VNet
@@ -52,33 +59,47 @@ def get_filtered_vnets_topology(vnet_identifiers: List[str], subscription_ids: L
             logging.error(f"Hub VNet '{vnet_identifier}' not found in any of the specified subscriptions")
             sys.exit(1)
         
+        # Check if this hub is excluded
+        hub_resource_id = hub_vnet.get('resource_id')
+        if hub_resource_id in exclude_resource_ids:
+            logging.info(f"Skipping excluded hub VNet: {hub_vnet['name']}")
+            continue
+        
         logging.info(f"Found hub VNet: {hub_vnet['name']} in subscription {hub_vnet['subscription_name']}")
         
         # Add hub VNet to collection using resource_id as key to avoid duplicates
-        resource_id = hub_vnet.get('resource_id')
-        if resource_id and resource_id not in all_vnets:
-            all_vnets[resource_id] = hub_vnet
+        if hub_resource_id and hub_resource_id not in all_vnets:
+            all_vnets[hub_resource_id] = hub_vnet
         
-        # Get peering resource IDs from the hub VNet
-        hub_peering_resource_ids = hub_vnet.get('peering_resource_ids', [])
+        # Get peering resource IDs from the hub VNet, excluding any in the exclude set
+        hub_peering_resource_ids = [
+            peer_id for peer_id in hub_vnet.get('peering_resource_ids', [])
+            if peer_id not in exclude_resource_ids
+        ]
         
         logging.info(f"Looking for {len(hub_peering_resource_ids)} directly peered VNets using resource IDs for {hub_vnet['name']}")
         
         # Use direct API calls to get peered VNets efficiently using exact resource IDs
         directly_peered_vnets, accessible_peering_resource_ids = find_peered_vnets(hub_peering_resource_ids)
         
-        # Update hub VNet to only include accessible peering resource IDs
-        if resource_id in all_vnets:
-            all_vnets[resource_id]["peering_resource_ids"] = accessible_peering_resource_ids
-            all_vnets[resource_id]["peerings_count"] = len(accessible_peering_resource_ids)
+        # Update hub VNet to only include accessible (and non-excluded) peering resource IDs
+        if hub_resource_id in all_vnets:
+            all_vnets[hub_resource_id]["peering_resource_ids"] = accessible_peering_resource_ids
+            all_vnets[hub_resource_id]["peerings_count"] = len(accessible_peering_resource_ids)
         
         # Add peered VNets to collection using resource_id as key to avoid duplicates
         for peered_vnet in directly_peered_vnets:
             peered_resource_id = peered_vnet.get('resource_id')
-            if peered_resource_id and peered_resource_id not in all_vnets:
+            if peered_resource_id and peered_resource_id not in all_vnets and peered_resource_id not in exclude_resource_ids:
+                # Clean peering references to excluded VNets
+                peered_vnet["peering_resource_ids"] = [
+                    peer_id for peer_id in peered_vnet.get('peering_resource_ids', [])
+                    if peer_id not in exclude_resource_ids
+                ]
+                peered_vnet["peerings_count"] = len(peered_vnet["peering_resource_ids"])
                 all_vnets[peered_resource_id] = peered_vnet
         
-        logging.info(f"Hub VNet {hub_vnet['name']} has {len(accessible_peering_resource_ids)} accessible peerings out of {len(hub_peering_resource_ids)} total peering relationships")
+        logging.info(f"Hub VNet {hub_vnet['name']} has {len(accessible_peering_resource_ids)} accessible peerings out of {len(hub_vnet.get('peering_resource_ids', []))} total peering relationships")
     
     # Convert dict back to list
     filtered_vnets = list(all_vnets.values())

@@ -360,10 +360,16 @@ def find_peered_vnets(peering_resource_ids: List[str]) -> Tuple[List[Dict[str, A
     return peered_vnets, accessible_resource_ids
 
 
-def get_vnet_topology_for_selected_subscriptions(subscription_ids: List[str]) -> Dict[str, Any]:
-    """Collect all VNets and their details across selected subscriptions"""
+def get_vnet_topology_for_selected_subscriptions(subscription_ids: List[str], exclude_resource_ids: set = None) -> Dict[str, Any]:
+    """Collect all VNets and their details across selected subscriptions
+    
+    Args:
+        subscription_ids: List of subscription IDs to query
+        exclude_resource_ids: Optional set of VNet resource IDs to exclude from topology
+    """
     network_data = {"vnets": []}
     vnet_candidates = []
+    exclude_resource_ids = exclude_resource_ids or set()
     
     subscription_client = SubscriptionClient(get_credentials())
 
@@ -403,6 +409,11 @@ def get_vnet_topology_for_selected_subscriptions(subscription_ids: List[str]) ->
                         # Construct Azure console hyperlink
                         azure_console_url = f"https://portal.azure.com/#@{tenant_id}/resource{hub.id}"
                         
+                        # Skip if excluded
+                        if hub.id in exclude_resource_ids:
+                            logging.info(f"Excluding Virtual Hub: {hub.name}")
+                            continue
+                        
                         virtual_hub_info = {
                             "name": hub.name,
                             "address_space": hub.address_prefix,
@@ -436,6 +447,11 @@ def get_vnet_topology_for_selected_subscriptions(subscription_ids: List[str]) ->
         try:
             for vnet in network_client.virtual_networks.list_all():
                 try:
+                    # Skip if excluded
+                    if vnet.id in exclude_resource_ids:
+                        logging.info(f"Excluding VNet: {vnet.name}")
+                        continue
+                    
                     resource_group_name = extract_resource_group(vnet.id)
                     subnet_names = [subnet.name for subnet in vnet.subnets]
 
@@ -474,12 +490,15 @@ def get_vnet_topology_for_selected_subscriptions(subscription_ids: List[str]) ->
                         "firewall": "Yes" if "AzureFirewallSubnet" in subnet_names else "No"
                     }
 
-                    # Get peerings for this VNet - store resource IDs instead of names
+                    # Get peerings for this VNet - clean out excluded VNets from peering list
                     peerings = network_client.virtual_network_peerings.list(resource_group_name, vnet.name)
                     peering_resource_ids = []
                     for peering in peerings:
                         if peering.remote_virtual_network and peering.remote_virtual_network.id:
-                            peering_resource_ids.append(peering.remote_virtual_network.id)
+                            peer_id = peering.remote_virtual_network.id
+                            # Skip peerings to excluded VNets
+                            if peer_id not in exclude_resource_ids:
+                                peering_resource_ids.append(peer_id)
                     
                     vnet_info["peering_resource_ids"] = peering_resource_ids
                     vnet_info["peerings_count"] = len(peering_resource_ids)

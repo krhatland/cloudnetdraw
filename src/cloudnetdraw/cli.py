@@ -88,6 +88,27 @@ def query_command(args: argparse.Namespace) -> None:
         logging.error("Use --help for more information about these options")
         sys.exit(1)
     
+    # Parse and resolve exclude-vnets to resource IDs if provided
+    exclude_resource_ids = set()
+    if hasattr(args, 'exclude_vnets') and args.exclude_vnets:
+        exclude_identifiers = [vnet.strip() for vnet in args.exclude_vnets.split(',') if vnet.strip()]
+        
+        if exclude_identifiers:
+            from .utils import parse_vnet_identifier
+            from .azure_client import is_subscription_id, resolve_subscription_names_to_ids, find_hub_vnet_using_resource_graph
+            
+            logging.info(f"Resolving {len(exclude_identifiers)} VNet(s) to exclude")
+            for exclude_identifier in exclude_identifiers:
+                try:
+                    # Use find_hub_vnet_using_resource_graph to resolve identifier to resource_id
+                    vnet_info = find_hub_vnet_using_resource_graph(exclude_identifier)
+                    if vnet_info and vnet_info.get('resource_id'):
+                        exclude_resource_ids.add(vnet_info['resource_id'])
+                        logging.info(f"Will exclude VNet: {vnet_info['name']} ({vnet_info['resource_id']})")
+                except Exception as e:
+                    logging.error(f"Could not resolve exclude VNet identifier '{exclude_identifier}': {e}")
+                    sys.exit(1)
+    
     # Determine subscription selection mode
     if args.vnets:
         # VNet filtering mode - parse comma-separated VNet identifiers
@@ -122,7 +143,7 @@ def query_command(args: argparse.Namespace) -> None:
         
         selected_subscriptions = list(all_subscriptions)
         logging.info(f"Filtering topology for hub VNets: {args.vnets}")
-        topology = get_filtered_vnets_topology(vnet_identifiers, selected_subscriptions)
+        topology = get_filtered_vnets_topology(vnet_identifiers, selected_subscriptions, exclude_resource_ids)
     else:
         # Original behavior for non-VNet filtering
         if (args.subscriptions and args.subscriptions.strip()) or (args.subscriptions_file and args.subscriptions_file.strip()):
@@ -134,7 +155,7 @@ def query_command(args: argparse.Namespace) -> None:
             selected_subscriptions = list_and_select_subscriptions()
         
         logging.info("Collecting VNets and topology...")
-        topology = get_vnet_topology_for_selected_subscriptions(selected_subscriptions)
+        topology = get_vnet_topology_for_selected_subscriptions(selected_subscriptions, exclude_resource_ids)
     
     output_file = args.output if args.output else "network_topology.json"
     save_to_json(topology, output_file)
@@ -265,6 +286,8 @@ def create_parser() -> argparse.ArgumentParser:
                              help='Configuration file (uses bundled default if not specified)')
     query_parser.add_argument('-n', '--vnets',
                              help='Specify hub VNets as comma-separated resource_ids (starting with /) or paths (subscription/resource_group/vnet_name) to filter topology')
+    query_parser.add_argument('-x', '--exclude-vnets',
+                             help='Exclude VNets as comma-separated resource_ids (starting with /) or paths (subscription/resource_group/vnet_name)')
     query_parser.add_argument('-v', '--verbose', action='store_true',
                              help='Enable verbose logging')
     query_parser.set_defaults(func=query_command)
